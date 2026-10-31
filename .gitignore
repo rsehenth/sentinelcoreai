@@ -1,0 +1,98 @@
+## ==============================================================================
+## SentinelCore AI — .gitignore (.NET 10, C# 13, WPF, SQLite, Windows x64)
+## ==============================================================================
+
+# --- Compilação e Saídas de Build ---
+[Bb]in/
+[Oo]bj/
+[Bb]uild/
+[Aa]rtifacts/
+[Tt]est[Rr]esults/
+**/bin/
+**/obj/
+**/artifacts/
+**/TestResults/
+
+# --- Ferramentas Locais e SDK Portátil ---
+.tools/
+.dotnet/
+*.nupkg
+*.snupkg
+
+# --- IDEs, Editores e Arquivos de Usuário ---
+# Visual Studio
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+*.sln.docstates
+*.pidb
+*.booproj
+*.sln.ide
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# JetBrains Rider / ReSharper
+.idea/
+_ReSharper*/
+*.resharper
+*.DotSettings.user
+
+# --- Bancos de Dados Locais e Arquivos Temporários de Persistência ---
+*.db
+*.db-shm
+*.db-wal
+*.db.corrupt-*
+*.corrupt-*
+*.sqlite
+*.sqlite3
+store.lock
+local-data/
+local/
+
+# --- Logs, Diagnósticos e Dumps de Memória ---
+*.log
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+*.dmp
+*.mdmp
+*.crash
+*.stackdump
+*.trx
+*.coverage
+*.coveragexml
+
+# --- Variáveis de Ambiente e Segredos ---
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.key
+*.token
+*.pem
+*.certificate
+
+# --- Arquivos de Sistema Operacional ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+._*
+
+# --- Ferramentas de IA, Grafos e Assistentes ---
+graphify-out/
+.gemini/
+.claude/
+.chat/
