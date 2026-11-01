@@ -8,10 +8,19 @@ O produto funciona offline após a publicação. Não executa reparos, otimizaç
 
 ## Estado
 
-Quality gate independente da Fase 3.2.1 concluído em 31/10/2026: **REPROVADO**. Os 411 testes existentes passam,
-mas há 11 achados confirmados e plano de correção; entrada na implementação da Fase 3.3 bloqueada.
-Consulte o [parecer completo](docs/validation/2026-10-31-phase-3.2.1-quality-gate.md).
+Fase 3.3A (Network Diagnostics) encerrada em 01/11/2026 como **APROVADA COM RESSALVAS**. A Fase 3.3B
+(Graphics Diagnostics) foi implementada em `0.3.0-preview.6` e o quality gate independente final foi
+**APROVADO COM RESSALVAS**. Os históricos anteriores permanecem preservados e nenhum registro foi reescrito.
 Personalização & Debloat está apenas [planejado](docs/planning/TWEAKS_DEBLOAT_DISCOVERY.md), sem operações ou UI novas.
+
+Versão 0.3.0-preview.6 — Graphics Diagnostics. A aba **Gráficos & GPU** investiga adaptadores, monitores,
+drivers, eventos gráficos, TDR Display 4101 e metadados WER LiveKernelEvent 117/141/142, além de alterações
+entre investigações. A leitura reutiliza os coletores existentes de GPU/monitor/driver e de eventos/WER; não há
+segunda consulta WMI paralela. Temperatura, potência, frequência, utilização global e VRAM real não são
+inventadas: somente eventos, WER, drivers, estado de exibição e o `AdapterRAM` reportado pelo driver são
+preservados. TDR, LiveKernelEvent, mudança de driver ou falha de aplicativo não são apresentados como causa,
+defeito físico, superaquecimento ou problema de VRAM. A causalidade permanece não avaliada (Fase 3.4).
+Consulte [validação](docs/VALIDATION.md), [arquitetura](docs/ARCHITECTURE.md) e [segurança](docs/SECURITY.md).
 
 Versão 0.3.0-preview.3 — Performance Intelligence com endurecimento. A aba **Desempenho** executa sessões de 30
 segundos, 1 minuto ou 3 minutos, uma por vez, acionadas pelo usuário. Cada amostra de 1 segundo registra CPU
@@ -67,12 +76,12 @@ como raiz de teste.
 
 ```powershell
 .\scripts\publish.ps1
-.\artifacts\publish\0.3.0-preview.3\win-x64\SentinelCoreAI.exe
+.\artifacts\publish\0.3.0-preview.6\win-x64\SentinelCoreAI.exe
 ```
 
 O destino é versionado a partir de `Directory.Build.props`; o script recusa sobrescrever sem `-Force`.
 Feche a instância publicada antes de gerar novamente o pacote.
-Distribua **toda a pasta** `artifacts/publish/0.3.0-preview.3/win-x64`, incluindo DLLs nativas.
+Distribua **toda a pasta** `artifacts/publish/0.3.0-preview.6/win-x64`, incluindo DLLs nativas.
 Sem MSI, assinatura ou instalação de serviço. Pacotes de versões anteriores não são sobrescritos.
 Para desenvolvimento:
 
@@ -110,10 +119,14 @@ que evita depender dessa extração em computadores com restrições. Não usar 
     sessões por execução e cobertura. Selecione uma sessão e use **Abrir relatório** para localizar o Markdown.
 12. **Recarregar** relê o armazenamento local. Fechar o aplicativo durante a sessão solicita cancelamento e aguarda
     gravação; a sessão cancelada também é preservada.
-13. Consulte **Resultados**, **Hardware**, **Estabilidade e Eventos**, **Desempenho** e **Histórico**. Em Resultados,
-    **Abrir localização do relatório** seleciona o Markdown da auditoria no Explorador.
-14. Feche e reabra; a última tentativa, os snapshots, as investigações, as sessões de desempenho e o histórico serão
-    recuperados.
+13. Na aba **Gráficos & GPU**, escolha **24 horas**, **7 dias** ou **30 dias** e clique em **Investigar gráficos**.
+    A leitura é somente de GPU, monitores, drivers, eventos e metadados WER; não há reparo, atualização de driver,
+    alteração de resolução, HDR, frequência ou energia. Consulte **Adaptadores**, **Monitores**, **Drivers**,
+    **Eventos**, **WER** e **Evidências**. Selecione uma investigação no histórico e use **Abrir relatório**.
+14. Consulte **Resultados**, **Hardware**, **Estabilidade e Eventos**, **Desempenho**, **Rede**, **Gráficos & GPU**
+    e **Histórico**. Em Resultados, **Abrir localização do relatório** seleciona o Markdown da auditoria no Explorador.
+15. Feche e reabra; a última tentativa, os snapshots, as investigações, as sessões de desempenho/rede, as
+    investigações gráficas e o histórico serão recuperados.
 
 Fechar durante uma coleta solicita cancelamento e aguarda gravação. Se a gravação falhar, o resultado permanece na janela
 e o botão permite tentar salvar o mesmo ID novamente. Não encerre o processo à força enquanto houver dados pendentes.
@@ -139,11 +152,19 @@ não mova ou apague históricos para tentar unificá-los. Consulte VALIDATION.md
 - `memory/inventory/<id>.md`: snapshot imutável do inventário de hardware, com payload JSON e SHA-256.
 - `memory/events/<id>.md`: investigação imutável de eventos e WER, com payload JSON e SHA-256.
 - `memory/performance/<id>.md`: sessão imutável de desempenho, com amostras, estatísticas e SHA-256.
-- `data/sentinelcore.db`: índice SQLite, esquema 5 e projeções de auditorias, snapshots, investigações e sessões.
+- `memory/network/<id>.md`: sessão imutável de rede, com payload JSON e SHA-256.
+- `memory/NETWORK.md`: resumo derivado das últimas sessões de rede.
+- `memory/graphics/<id>.md`: investigação gráfica imutável, com adaptadores, monitores, drivers, eventos, WER,
+  observações, alterações, limitações e SHA-256.
+- `memory/GRAPHICS.md`: resumo derivado das últimas investigações gráficas.
+- `data/sentinelcore.db`: índice SQLite, esquema 7 e projeções de auditorias, snapshots, investigações, sessões e
+  investigações gráficas.
 - `reports/<id>.md`: relatório legível da auditoria, reconstruível do registro histórico.
 - `reports/hardware/<id>.md`: relatório legível do snapshot de hardware, reconstruível do payload.
 - `reports/events/<id>.md`: relatório legível da investigação de eventos, reconstruível do payload.
 - `reports/performance/<id>.md`: relatório legível da sessão de desempenho, reconstruível do payload.
+- `reports/network/<id>.md`: relatório legível da sessão de rede, reconstruível do payload.
+- `reports/graphics/<id>.md`: relatório legível da investigação gráfica, reconstruível do payload.
 - `logs/`: falhas de aplicação e avisos de consistência quando ocorrerem.
 
 Investigação de eventos lê somente canais habilitados, estados de canal e metadados de WER. Mensagens formatadas e
@@ -160,6 +181,9 @@ nominal e registra oportunidades perdidas em vez de disparar uma rajada de recup
 armazenamento; não houve oportunidade perdida. Processos protegidos ficam sem nome, hora de início ou contadores e são
 contabilizados como limitação, não estimados. A coleta roda somente enquanto uma sessão está ativa; não há monitoramento
 permanente, serviço nem elevação.
+Gráficos reutilizam WMI `Win32_VideoController`/`Win32_PnPSignedDriver`, DisplayConfig/`WmiMonitorID`, Log de Eventos
+e metadados WER. Nenhuma métrica de temperatura, potência, frequência, utilização global ou VRAM real é coletada; o
+`AdapterRAM` é apenas o valor reportado pelo driver. Nenhum driver, resolução, HDR, frequência ou energia é alterado.
 Os arquivos não são criptografados; a proteção depende das permissões do perfil Windows. Compartilhe relatórios conscientemente.
 Histórico real nunca é apagado automaticamente. Para backup, feche o aplicativo e copie a pasta de dados inteira.
 O hash detecta corrupção acidental do payload; não é uma assinatura contra adulteração pelo próprio usuário.

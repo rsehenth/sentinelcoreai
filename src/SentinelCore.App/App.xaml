@@ -61,6 +61,7 @@
         <Geometry x:Key="IconEvents">M3,12 H7 L9.5,5.5 L14,18.5 L16.5,12 H21</Geometry>
         <Geometry x:Key="IconPerformance">M5,5 H19 V19 H5 Z M9,9 H11 V11 H9 Z M13,13 H11 V11 H13 Z M9,17 H11 V19 H9 Z M13,9 H15 V11 H13 Z</Geometry>
         <Geometry x:Key="IconNetwork">M12,4 A2.5,2.5 0 1 0 12,9 A2.5,2.5 0 1 0 12,4 M5,14.5 A2.5,2.5 0 1 0 5,19.5 A2.5,2.5 0 1 0 5,14.5 M19,14.5 A2.5,2.5 0 1 0 19,19.5 A2.5,2.5 0 1 0 19,14.5 M12,9 V12 M11.2,11.5 L6.2,14.6 M12.8,11.5 L17.8,14.6</Geometry>
+        <Geometry x:Key="IconGraphics">M3,4 H21 V16 H3 Z M10,16 V20 M14,16 V20 M8,20 H16 M8,8 H11 V11 H8 Z M13,8 H16 V11 H13 Z M8,13 H16</Geometry>
         <Geometry x:Key="IconHistory">M3,12 A9,9 0 1 0 21,12 A9,9 0 1 0 3,12 M12,7 V12 L15,14</Geometry>
         <Geometry x:Key="IconSearch">M4,10.5 A6.5,6.5 0 1 0 17,10.5 A6.5,6.5 0 1 0 4,10.5 M15.5,15.5 L20,20</Geometry>
         <Geometry x:Key="IconLock">M6,11 H18 V20 H6 Z M8.5,11 V8 A3.5,3.5 0 0 1 15.5,8 V11</Geometry>

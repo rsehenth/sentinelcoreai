@@ -21,11 +21,13 @@ public partial class MainWindow : Window
     private readonly EventInvestigationRunner eventRunner;
     private readonly PerformanceSessionRunner performanceRunner;
     private readonly NetworkSessionRunner networkRunner;
+    private readonly GraphicsInvestigationRunner graphicsRunner;
     private readonly IAuditStore store;
     private readonly IHardwareSnapshotStore hardwareStore;
     private readonly IEventInvestigationStore eventStore;
     private readonly IPerformanceSessionStore performanceStore;
     private readonly INetworkSessionStore networkStore;
+    private readonly IGraphicsInvestigationStore graphicsStore;
     private readonly FreshnessEngine freshness = new();
     private readonly DispatcherTimer freshnessTimer = new() { Interval = TimeSpan.FromMinutes(1) };
     private CancellationTokenSource? cancellation;
@@ -46,8 +48,9 @@ public partial class MainWindow : Window
 
     public MainWindow(AuditRunner runner, HardwareRunner hardwareRunner, EventInvestigationRunner eventRunner,
         PerformanceSessionRunner performanceRunner, NetworkSessionRunner networkRunner,
-        IAuditStore store, IHardwareSnapshotStore hardwareStore, IEventInvestigationStore eventStore,
-        IPerformanceSessionStore performanceStore, INetworkSessionStore networkStore)
+        GraphicsInvestigationRunner graphicsRunner, IAuditStore store, IHardwareSnapshotStore hardwareStore,
+        IEventInvestigationStore eventStore, IPerformanceSessionStore performanceStore,
+        INetworkSessionStore networkStore, IGraphicsInvestigationStore graphicsStore)
     {
         InitializeComponent();
         this.runner = runner;
@@ -55,15 +58,18 @@ public partial class MainWindow : Window
         this.eventRunner = eventRunner;
         this.performanceRunner = performanceRunner;
         this.networkRunner = networkRunner;
+        this.graphicsRunner = graphicsRunner;
         this.store = store;
         this.hardwareStore = hardwareStore;
         this.eventStore = eventStore;
         this.performanceStore = performanceStore;
         this.networkStore = networkStore;
+        this.graphicsStore = graphicsStore;
         VersionText.Text = $"v{SoftwareInfo.Version}  •  Local e offline";
         InitializeEvents();
         InitializePerformance();
         InitializeNetwork();
+        InitializeGraphics();
         SetHardwareCategories(null);
         UpdateHardwareButtons();
         freshnessTimer.Tick += (_, _) => UpdateSummary();
@@ -102,7 +108,9 @@ public partial class MainWindow : Window
                 ? PerformanceTabs
                 : NetworkTabs.IsKeyboardFocusWithin
                     ? NetworkTabs
-                    : null;
+                    : GraphicsTabs.IsKeyboardFocusWithin
+                        ? GraphicsTabs
+                        : null;
             if (activeTabs is not null && activeTabs.Items.Count > 0)
             {
                 var step = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? -1 : 1;
@@ -140,6 +148,9 @@ public partial class MainWindow : Window
 
             try { await ReloadNetworksAsync(); }
             catch (Exception error) { ShowNetworkFailure("Não foi possível recuperar as sessões de rede", error); }
+
+            try { await ReloadGraphicsAsync(); }
+            catch (Exception error) { ShowGraphicsFailure("Não foi possível recuperar as investigações gráficas", error); }
         }
         finally
         {
@@ -165,7 +176,7 @@ public partial class MainWindow : Window
 
     private async void OnRun(object sender, RoutedEventArgs e)
     {
-        if (busy || hardwareBusy || eventBusy || performanceBusy || networkBusy) return;
+        if (busy || hardwareBusy || eventBusy || performanceBusy || networkBusy || graphicsBusy) return;
         busy = true;
         RunButton.IsEnabled = false;
         CancelButton.IsEnabled = true;
@@ -305,7 +316,7 @@ public partial class MainWindow : Window
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
-        if (busy || hardwareBusy || eventBusy || performanceBusy || networkBusy)
+        if (busy || hardwareBusy || eventBusy || performanceBusy || networkBusy || graphicsBusy)
         {
             e.Cancel = true;
             if (busy)
@@ -343,11 +354,18 @@ public partial class MainWindow : Window
                 NetworkStatusText.Text = "Encerrando: aguarde o cancelamento e a gravação segura da sessão de rede.";
             }
 
+            if (graphicsBusy)
+            {
+                graphicsClosingAfterSave = true;
+                graphicsCancellation?.Cancel();
+                GraphicsStatusText.Text = "Encerrando: aguarde o cancelamento e a gravação segura da investigação gráfica.";
+            }
+
             return;
         }
 
         if (unsaved is not null || unsavedHardware is not null || unsavedEvent is not null ||
-            unsavedPerformance is not null || unsavedNetwork is not null)
+            unsavedPerformance is not null || unsavedNetwork is not null || unsavedGraphics is not null)
         {
             e.Cancel = true;
             var pending = new List<string>();
@@ -356,6 +374,7 @@ public partial class MainWindow : Window
             if (unsavedEvent is not null) pending.Add("há uma investigação de eventos sem confirmação de gravação");
             if (unsavedPerformance is not null) pending.Add("há uma sessão de desempenho sem confirmação de gravação");
             if (unsavedNetwork is not null) pending.Add("há uma sessão de rede sem confirmação de gravação");
+            if (unsavedGraphics is not null) pending.Add("há uma investigação gráfica sem confirmação de gravação");
             ShowWarning($"{string.Join("; ", pending)}. Use os botões de nova tentativa antes de fechar.");
         }
     }
@@ -647,7 +666,7 @@ public partial class MainWindow : Window
 
     private async void OnHardwareRun(object sender, RoutedEventArgs e)
     {
-        if (hardwareBusy || busy || eventBusy || performanceBusy || networkBusy) return;
+        if (hardwareBusy || busy || eventBusy || performanceBusy || networkBusy || graphicsBusy) return;
         hardwareBusy = true;
         hardwareSaving = false;
         hardwareCancellation = new CancellationTokenSource();
@@ -734,7 +753,7 @@ public partial class MainWindow : Window
 
     private async void OnHardwareReload(object sender, RoutedEventArgs e)
     {
-        if (hardwareBusy || busy || eventBusy || performanceBusy || networkBusy) return;
+        if (hardwareBusy || busy || eventBusy || performanceBusy || networkBusy || graphicsBusy) return;
         hardwareBusy = true;
         RunButton.IsEnabled = false;
         UpdateHardwareButtons();
@@ -836,7 +855,7 @@ public partial class MainWindow : Window
     private void UpdateHardwareButtons()
     {
         var previous = selectedHardware is { } current ? PreviousHardwareSnapshot(current) : null;
-        var idle = !hardwareBusy && !busy && !eventBusy && !performanceBusy && !networkBusy;
+        var idle = !hardwareBusy && !busy && !eventBusy && !performanceBusy && !networkBusy && !graphicsBusy;
         HardwareRunButton.IsEnabled = idle;
         HardwareReloadButton.IsEnabled = idle;
         HardwareCancelButton.IsEnabled = hardwareBusy && !hardwareSaving &&
@@ -851,6 +870,7 @@ public partial class MainWindow : Window
         UpdateEventButtons();
         UpdatePerformanceButtons();
         UpdateNetworkButtons();
+        UpdateGraphicsButtons();
     }
 
     private static string RenderHardwareDiff(HardwareDiff diff, HardwareSnapshot previous, HardwareSnapshot current)

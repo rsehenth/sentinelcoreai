@@ -38,11 +38,14 @@ public partial class App : System.Windows.Application
             var networkRunner = new NetworkSessionRunner(
                 WindowsNetworkCollectors.CreateSampleCollectors(),
                 WindowsNetworkCollectors.CreateFactsCollectors());
+            var graphicsRunner = new GraphicsInvestigationRunner(
+                WindowsHardwareCollectors.Create(),
+                WindowsEventEvidenceCollectors.Create());
             var store = new MemoryStore();
             MainWindow = new MainWindow(new AuditRunner(WindowsCollectors.CreateBasic()),
                 new HardwareRunner(WindowsHardwareCollectors.Create()),
                 new EventInvestigationRunner(WindowsEventEvidenceCollectors.Create()),
-                performanceRunner, networkRunner, store, store, store, store, store);
+                performanceRunner, networkRunner, graphicsRunner, store, store, store, store, store, store);
             MainWindow.Show();
         }
         catch (Exception error)

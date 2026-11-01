@@ -183,7 +183,22 @@ public sealed record NetworkAnalysisNote(
 /// </summary>
 public sealed record NetworkTcpipEventContext(
     Guid? InvestigationId, int AttemptFailureEvents, int EphemeralExhaustionEvents,
-    DateTimeOffset? FirstObservedUtc, DateTimeOffset? LastObservedUtc, string Note);
+    DateTimeOffset? FirstObservedUtc, DateTimeOffset? LastObservedUtc, string Note)
+{
+    /// <summary>ID do evento Tcpip contabilizado em <see cref="AttemptFailureEvents"/>.</summary>
+    public const int AttemptFailureEventId = 4266;
+
+    /// <summary>ID do evento Tcpip contabilizado em <see cref="EphemeralExhaustionEvents"/>.</summary>
+    public const int EphemeralExhaustionEventId = 4231;
+
+    /// <summary>
+    /// Contagens com o ID real do evento de origem, em descrição neutra. Fonte única para a interface; o
+    /// relatório Markdown usa as mesmas constantes. Não afirma causa nem tipo de falha além do ID.
+    /// </summary>
+    public static string FormatCounts(NetworkTcpipEventContext context) =>
+        $"Eventos Tcpip {AttemptFailureEventId}: {context.AttemptFailureEvents} · "
+        + $"Eventos Tcpip {EphemeralExhaustionEventId}: {context.EphemeralExhaustionEvents}";
+}
 
 public sealed record NetworkStatistics(
     int TotalSamples, int ValidSamples,

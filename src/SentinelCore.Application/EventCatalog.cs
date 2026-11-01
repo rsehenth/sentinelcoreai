@@ -29,6 +29,12 @@ public static class EventCatalog
         if (Has(provider, "nvlddmkm") || Has(provider, "nvidia"))
             return Classification(EventCategory.Graphics, "graphics:nvidia", "Eventos do driver NVIDIA",
                 EvidenceSeverity.PotentialImpact);
+        if (Has(provider, "amdkmdap") || Has(provider, "amdkmdag"))
+            return Classification(EventCategory.Graphics, "graphics:amd", "Eventos do driver AMD",
+                EvidenceSeverity.PotentialImpact);
+        if (Has(provider, "igfx") || Has(provider, "intel graphics"))
+            return Classification(EventCategory.Graphics, "graphics:intel", "Eventos do driver Intel",
+                EvidenceSeverity.PotentialImpact);
         if (Has(provider, "display"))
             return Classification(EventCategory.Graphics, "graphics:other", "Outros eventos gráficos",
                 EvidenceSeverity.PotentialImpact);
@@ -85,16 +91,15 @@ public static class EventCatalog
         if (type.Equals("BlueScreen", IgnoreCase))
             return Classification(EventCategory.Power, "power:bugcheck", "Verificação de bug (tela azul)",
                 EvidenceSeverity.ObservedImpact);
-        if ((type.Equals("LiveKernelEvent", IgnoreCase) || type.Equals("Kernel", IgnoreCase)) &&
-            code is "141" or "193")
-            return Classification(EventCategory.Graphics, "graphics:live-kernel",
-                "Eventos de kernel ao vivo (gráficos)", EvidenceSeverity.ObservedImpact);
-        if (code is "141" or "193")
-            return Classification(EventCategory.Graphics, "graphics:live-kernel",
-                "Eventos de kernel ao vivo (gráficos)", EvidenceSeverity.ObservedImpact);
-        if (type.Equals("LiveKernelEvent", IgnoreCase) || type.Equals("Kernel", IgnoreCase))
-            return Classification(EventCategory.Other, "other:device", "Eventos de dispositivo",
-                EvidenceSeverity.PotentialImpact);
+        if (GraphicsEvidenceClassification.IsLiveKernelType(type))
+        {
+            return GraphicsEvidenceClassification.IsLiveKernelKind(
+                GraphicsEvidenceClassification.ClassifyWer(type, code))
+                ? Classification(EventCategory.Graphics, "graphics:live-kernel",
+                    "Eventos de kernel ao vivo (gráficos)", EvidenceSeverity.ObservedImpact)
+                : Classification(EventCategory.Other, "other:device", "Eventos de dispositivo",
+                    EvidenceSeverity.PotentialImpact);
+        }
         if (type.StartsWith("Critical", IgnoreCase) || type.StartsWith("NonCritical", IgnoreCase))
             return Classification(EventCategory.Other, "other:wer", "Relatórios do Windows Error Reporting",
                 EvidenceSeverity.Informational);

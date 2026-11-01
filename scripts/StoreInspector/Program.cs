@@ -36,6 +36,15 @@ bool HasTable(string name) =>
 var hasEventTables = HasTable("EventInvestigations") && HasTable("EventSources") && HasTable("EventGroups");
 var hasPerformanceTables = HasTable("PerformanceSessions") && HasTable("PerformanceSources") &&
     HasTable("PerformanceObservations");
+var hasGraphicsTables = HasTable("GraphicsInvestigations") && HasTable("GraphicsSources") &&
+    HasTable("GraphicsObservations");
+bool ForeignKeysOk()
+{
+    using var command = database.CreateCommand();
+    command.CommandText = "PRAGMA foreign_key_check";
+    using var reader = command.ExecuteReader();
+    return !reader.Read();
+}
 var performance = new List<object>();
 if (hasPerformanceTables)
 {
@@ -63,6 +72,7 @@ if (hasPerformanceTables)
 Console.WriteLine(JsonSerializer.Serialize(new
 {
     Schema = Scalar("PRAGMA user_version"), Integrity = Scalar("PRAGMA quick_check"),
+    FullIntegrity = Scalar("PRAGMA integrity_check"), ForeignKeysOk = ForeignKeysOk(),
     AuditCount = Scalar("SELECT COUNT(*) FROM Audits"), CollectorCount = Scalar("SELECT COUNT(*) FROM CollectorResults"),
     CompletedCollectors = Scalar("SELECT COUNT(*) FROM CollectorResults WHERE Status='Completed'"),
     HardwareSnapshotCount = HasTable("HardwareSnapshots") ? Scalar("SELECT COUNT(*) FROM HardwareSnapshots") : null,
@@ -73,6 +83,9 @@ Console.WriteLine(JsonSerializer.Serialize(new
     PerformanceSessionCount = hasPerformanceTables ? Scalar("SELECT COUNT(*) FROM PerformanceSessions") : null,
     PerformanceSourceCount = hasPerformanceTables ? Scalar("SELECT COUNT(*) FROM PerformanceSources") : null,
     PerformanceObservationCount = hasPerformanceTables ? Scalar("SELECT COUNT(*) FROM PerformanceObservations") : null,
+    GraphicsInvestigationCount = hasGraphicsTables ? Scalar("SELECT COUNT(*) FROM GraphicsInvestigations") : null,
+    GraphicsSourceCount = hasGraphicsTables ? Scalar("SELECT COUNT(*) FROM GraphicsSources") : null,
+    GraphicsObservationCount = hasGraphicsTables ? Scalar("SELECT COUNT(*) FROM GraphicsObservations") : null,
     Audits = audits,
     PerformanceRecords = performance
 }, new JsonSerializerOptions { WriteIndented = true }));

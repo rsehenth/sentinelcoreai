@@ -93,6 +93,8 @@ $RECYCLE.BIN/
 
 # --- Ferramentas de IA, Grafos e Assistentes ---
 graphify-out/
+.commandcode/
 .gemini/
 .claude/
 .chat/
+.playwright-mcp/

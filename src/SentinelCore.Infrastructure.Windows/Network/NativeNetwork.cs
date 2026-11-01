@@ -221,10 +221,28 @@ internal static class NativeNetwork
         _ => TcpConnectionState.Unknown
     };
 
+    /// <summary>
+    /// Lê o contador do cabeçalho e o confronta com os bytes válidos (<paramref name="length"/>), não com o
+    /// tamanho do array de apoio. Contador negativo ou maior que o dado disponível é rejeitado com
+    /// <see cref="ArgumentException"/>, que o coletor converte em limitação.
+    /// </summary>
+    private static int RowCount(byte[] buffer, int length, int rowSize)
+    {
+        var available = Math.Min(length, buffer.Length);
+        if (available < TableHeaderSize)
+            throw new ArgumentException("Tabela nativa menor que o cabeçalho.", nameof(buffer));
+        var count = BinaryPrimitives.ReadInt32LittleEndian(buffer);
+        if (count < 0 || (long)TableHeaderSize + (long)count * rowSize > available)
+            throw new ArgumentException(
+                $"Tabela nativa anuncia {count} linhas de {rowSize} bytes, mas só há {available} bytes válidos.",
+                nameof(buffer));
+        return count;
+    }
+
     internal static IEnumerable<(uint State, IPAddress Local, ushort LocalPort, IPAddress Remote,
         ushort RemotePort, uint Pid)> ReadTcp4(byte[] buffer, int length)
     {
-        var count = BinaryPrimitives.ReadInt32LittleEndian(buffer);
+        var count = RowCount(buffer, length, TcpRowSize);
         for (var index = 0; index < count; index++)
         {
             var offset = TableHeaderSize + index * TcpRowSize;
@@ -242,26 +260,28 @@ internal static class NativeNetwork
     internal static IEnumerable<(uint State, IPAddress Local, ushort LocalPort, IPAddress Remote,
         ushort RemotePort, uint Pid)> ReadTcp6(byte[] buffer, int length)
     {
-        var count = BinaryPrimitives.ReadInt32LittleEndian(buffer);
+        var count = RowCount(buffer, length, Tcp6RowSize);
         for (var index = 0; index < count; index++)
         {
             var offset = TableHeaderSize + index * Tcp6RowSize;
             var row = new ReadOnlySpan<byte>(buffer, offset, Tcp6RowSize);
+            // MIB_TCP6ROW_OWNER_PID: ucLocalAddr 0, dwLocalScopeId 16, dwLocalPort 20, ucRemoteAddr 24,
+            // dwRemoteScopeId 40, dwRemotePort 44, dwState 48, dwOwningPid 52; 56 bytes.
             var localScope = BinaryPrimitives.ReadUInt32LittleEndian(row.Slice(16, 4));
-            var remoteScope = BinaryPrimitives.ReadUInt32LittleEndian(row.Slice(36, 4));
+            var remoteScope = BinaryPrimitives.ReadUInt32LittleEndian(row.Slice(40, 4));
             yield return (
                 BinaryPrimitives.ReadUInt32LittleEndian(row.Slice(48, 4)),
                 new IPAddress(row.Slice(0, 16), localScope),
                 BinaryPrimitives.ReadUInt16BigEndian(row.Slice(20, 2)),
                 new IPAddress(row.Slice(24, 16), remoteScope),
-                BinaryPrimitives.ReadUInt16BigEndian(row.Slice(40, 2)),
+                BinaryPrimitives.ReadUInt16BigEndian(row.Slice(44, 2)),
                 BinaryPrimitives.ReadUInt32LittleEndian(row.Slice(52, 4)));
         }
     }
 
     internal static IEnumerable<(IPAddress Local, ushort LocalPort, uint Pid)> ReadUdp4(byte[] buffer, int length)
     {
-        var count = BinaryPrimitives.ReadInt32LittleEndian(buffer);
+        var count = RowCount(buffer, length, UdpRowSize);
         for (var index = 0; index < count; index++)
         {
             var offset = TableHeaderSize + index * UdpRowSize;
@@ -275,7 +295,7 @@ internal static class NativeNetwork
 
     internal static IEnumerable<(IPAddress Local, ushort LocalPort, uint Pid)> ReadUdp6(byte[] buffer, int length)
     {
-        var count = BinaryPrimitives.ReadInt32LittleEndian(buffer);
+        var count = RowCount(buffer, length, Udp6RowSize);
         for (var index = 0; index < count; index++)
         {
             var offset = TableHeaderSize + index * Udp6RowSize;

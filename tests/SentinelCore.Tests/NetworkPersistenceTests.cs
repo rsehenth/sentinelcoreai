@@ -41,7 +41,7 @@ public sealed class NetworkPersistenceTests : IDisposable
         Assert.True(bytes > 0);
         Assert.True(File.Exists(store.GetNetworkReportPath(session.Id)));
         Assert.True(File.Exists(Path.Combine(root, "memory", "NETWORK.md")));
-        Assert.Equal(6, ReadUserVersion());
+        Assert.Equal(7, ReadUserVersion());
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public sealed class NetworkPersistenceTests : IDisposable
         Assert.Equal(session.Id, rebuilt.Id);
         Assert.Equal(4, rebuilt.Samples.Count);
         Assert.Single(rebuilt.Observations);
-        Assert.Equal(6, ReadUserVersion());
+        Assert.Equal(7, ReadUserVersion());
 
         using var db = Open();
         using var command = db.CreateCommand();
@@ -275,17 +275,17 @@ public sealed class NetworkPersistenceTests : IDisposable
         Assert.Empty(networkLoaded.Sessions);
         Assert.Single((await NewStore().LoadAsync()).Audits);
         Assert.Single((await NewStore().LoadSessionsAsync()).Sessions);
-        Assert.Equal(6, ReadUserVersion());
+        Assert.Equal(7, ReadUserVersion());
     }
 
     [Fact]
-    public async Task FutureSchemaSevenIsRejectedWithoutCorruptingDatabase()
+    public async Task FutureSchemaEightIsRejectedWithoutCorruptingDatabase()
     {
         await NewStore().LoadNetworkSessionsAsync();
         using (var db = Open())
         {
             using var command = db.CreateCommand();
-            command.CommandText = "PRAGMA user_version=7";
+            command.CommandText = "PRAGMA user_version=8";
             command.ExecuteNonQuery();
         }
 
@@ -313,7 +313,7 @@ public sealed class NetworkPersistenceTests : IDisposable
         Assert.Contains("não renova", report, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static NetworkSession CreateValidSession(
+    internal static NetworkSession CreateValidSession(
         int sampleCount = 3,
         NetworkSessionPreset preset = NetworkSessionPreset.Seconds30,
         bool includeAddresses = false,

@@ -26,7 +26,7 @@ public sealed class HardwarePersistenceTests : IDisposable
     {
         var loaded = await NewStore().LoadSnapshotsAsync();
         Assert.Empty(loaded.Snapshots); Assert.Empty(loaded.Warnings);
-        Assert.Equal(6, ReadUserVersion());
+        Assert.Equal(7, ReadUserVersion());
     }
 
     [Fact] public async Task SavesReopensAndIndexesSnapshot()
@@ -111,7 +111,7 @@ public sealed class HardwarePersistenceTests : IDisposable
         var loaded = await NewStore().LoadSnapshotsAsync();
         Assert.Empty(loaded.Snapshots);
         Assert.Single((await NewStore().LoadAsync()).Audits);
-        Assert.Equal(6, ReadUserVersion());
+        Assert.Equal(7, ReadUserVersion());
     }
 
     [Fact] public async Task FutureSchemaIsRejectedForSnapshots()

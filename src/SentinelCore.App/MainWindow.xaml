@@ -37,7 +37,8 @@
                     <ListBoxItem Content="Estabilidade e Eventos" Tag="{StaticResource IconEvents}" ToolTip="Log de Eventos e relatórios de falha (Ctrl+4)"/>
                     <ListBoxItem Content="Desempenho" Tag="{StaticResource IconPerformance}" ToolTip="Monitoramento de desempenho (Ctrl+5)"/>
                     <ListBoxItem Content="Rede" Tag="{StaticResource IconNetwork}" ToolTip="Diagnóstico de rede somente leitura (Ctrl+6)"/>
-                    <ListBoxItem Content="Histórico" Tag="{StaticResource IconHistory}" ToolTip="Auditorias salvas neste computador (Ctrl+7)"/>
+                    <ListBoxItem Content="Gráficos &amp; GPU" Tag="{StaticResource IconGraphics}" ToolTip="Diagnóstico gráfico somente leitura (Ctrl+7)"/>
+                    <ListBoxItem Content="Histórico" Tag="{StaticResource IconHistory}" ToolTip="Auditorias salvas neste computador (Ctrl+8)"/>
                 </ListBox>
 
                 <Border Grid.Row="2" Style="{StaticResource Card}" Padding="14,12">
@@ -1040,6 +1041,341 @@
                                                  SelectionChanged="OnNetworkHistorySelected"
                                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                                                  AutomationProperties.AutomationId="NetworkHistory">
+                                            <ListBox.ItemTemplate><DataTemplate>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding DateText}" FontSize="13" FontWeight="SemiBold" TextWrapping="NoWrap"/>
+                                                    <TextBlock Text="{Binding SummaryText}" Style="{StaticResource Caption}" FontSize="12" Margin="0,4,0,0"/>
+                                                </StackPanel>
+                                            </DataTemplate></ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Border>
+                                </Grid>
+                            </Grid>
+                        </Grid>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ───── Gráficos & GPU ───── -->
+                <TabItem Header="Gráficos &amp; GPU">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                        <Grid Margin="32,28,32,24">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
+                                <TextBlock Text="Período:" VerticalAlignment="Center" Foreground="{StaticResource Muted}"/>
+                                <ComboBox x:Name="GraphicsPresetCombo" Width="150" Margin="8,0,12,0"
+                                          SelectionChanged="OnGraphicsPresetChanged"
+                                          AutomationProperties.AutomationId="GraphicsPreset" DisplayMemberPath="Label"/>
+                                <Button x:Name="GraphicsRunButton" Content="Investigar gráficos" Background="#19506A"
+                                        BorderBrush="#63D8EE" Click="OnGraphicsRun"
+                                        AutomationProperties.AutomationId="StartGraphicsInvestigation"
+                                        MinWidth="150" Margin="12,0,0,0"/>
+                                <Button x:Name="GraphicsCancelButton" Content="Cancelar" Margin="10,0,0,0"
+                                        Click="OnGraphicsCancel" IsEnabled="False"
+                                        AutomationProperties.AutomationId="CancelGraphicsInvestigation"/>
+                                <Button x:Name="GraphicsReportButton" Content="Abrir relatório" Margin="10,0,0,0"
+                                        Click="OnGraphicsReport" IsEnabled="False"
+                                        AutomationProperties.AutomationId="OpenGraphicsReport"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Row="1" Margin="0,10,0,0">
+                                <ProgressBar x:Name="GraphicsProgress" Height="8" Minimum="0" Maximum="1"
+                                             AutomationProperties.AutomationId="GraphicsProgress" Background="#1B2B40"/>
+                                <TextBlock x:Name="GraphicsStatusText" Margin="0,6,0,0" Foreground="{StaticResource Muted}"
+                                           TextWrapping="Wrap" FontSize="13.5"
+                                           Text="Leitura somente de GPU, monitores, drivers, eventos e metadados WER. Nenhuma configuração gráfica será alterada."/>
+                            </StackPanel>
+
+                            <UniformGrid Grid.Row="2" Columns="4" Margin="0,12,0,0">
+                                <Border Style="{StaticResource Card}" Padding="16" CornerRadius="10">
+                                    <StackPanel>
+                                        <TextBlock Text="Adaptadores" Foreground="{StaticResource Muted}" FontSize="12.5" Margin="0,0,0,6"/>
+                                        <TextBlock x:Name="GraphicsAdapterValue" FontSize="22" Foreground="#63D8EE"
+                                                   FontWeight="SemiBold" Text="—" AutomationProperties.AutomationId="GraphicsAdapterValue"/>
+                                        <TextBlock x:Name="GraphicsAdapterDetail" Foreground="{StaticResource Muted}" FontSize="12"
+                                                   TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource Card}" Padding="16" CornerRadius="10">
+                                    <StackPanel>
+                                        <TextBlock Text="Monitores" Foreground="{StaticResource Muted}" FontSize="12.5" Margin="0,0,0,6"/>
+                                        <TextBlock x:Name="GraphicsMonitorValue" FontSize="22" Foreground="#63D8EE"
+                                                   FontWeight="SemiBold" Text="—" AutomationProperties.AutomationId="GraphicsMonitorValue"/>
+                                        <TextBlock x:Name="GraphicsMonitorDetail" Foreground="{StaticResource Muted}" FontSize="12"
+                                                   TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource Card}" Padding="16" CornerRadius="10">
+                                    <StackPanel>
+                                        <TextBlock Text="Eventos gráficos" Foreground="{StaticResource Muted}" FontSize="12.5" Margin="0,0,0,6"/>
+                                        <TextBlock x:Name="GraphicsEventValue" FontSize="22" Foreground="#63D8EE"
+                                                   FontWeight="SemiBold" Text="—" AutomationProperties.AutomationId="GraphicsEventValue"/>
+                                        <TextBlock x:Name="GraphicsEventDetail" Foreground="{StaticResource Muted}" FontSize="12"
+                                                   TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource Card}" Padding="16" CornerRadius="10">
+                                    <StackPanel>
+                                        <TextBlock Text="TDR / LiveKernel" Foreground="{StaticResource Muted}" FontSize="12.5" Margin="0,0,0,6"/>
+                                        <TextBlock x:Name="GraphicsTdrValue" FontSize="22" Foreground="#63D8EE"
+                                                   FontWeight="SemiBold" Text="—" AutomationProperties.AutomationId="GraphicsTdrValue"/>
+                                        <TextBlock x:Name="GraphicsTdrDetail" Foreground="{StaticResource Muted}" FontSize="12"
+                                                   TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+
+                            <Grid Grid.Row="3" Margin="0,14,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*"/>
+                                    <ColumnDefinition Width="1.2*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TabControl x:Name="GraphicsTabs" Grid.Column="0">
+                                    <TabItem Header="Adaptadores">
+                                        <Border Style="{StaticResource Card}">
+                                            <Grid>
+                                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="150"/><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Adaptador" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="1" Text="Driver" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="2" Text="Versão" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="3" Text="Estado reportado" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    </Grid>
+                                                </Border>
+                                                <ListView x:Name="GraphicsAdapterList" Grid.Row="1"
+                                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                          AutomationProperties.AutomationId="GraphicsAdapters"
+                                                          VirtualizingPanel.IsVirtualizing="True"
+                                                          VirtualizingPanel.VirtualizationMode="Recycling">
+                                                    <ListView.ItemTemplate><DataTemplate>
+                                                        <DataTemplate.Resources>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                            </Style>
+                                                        </DataTemplate.Resources>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="150"/><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Provider}" VerticalAlignment="Center" Foreground="{StaticResource Accent}" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Version}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}"/>
+                                                            <TextBlock Grid.Column="3" Text="{Binding State}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}" TextTrimming="CharacterEllipsis" ToolTip="{Binding State}"/>
+                                                        </Grid>
+                                                    </DataTemplate></ListView.ItemTemplate>
+                                                </ListView>
+                                            </Grid>
+                                        </Border>
+                                    </TabItem>
+                                    <TabItem Header="Monitores">
+                                        <Border Style="{StaticResource Card}">
+                                            <Grid>
+                                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="130"/><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Monitor" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="1" Text="Resolução ativa" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="2" Text="Atualização" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="3" Text="Conexão / HDR" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    </Grid>
+                                                </Border>
+                                                <ListView x:Name="GraphicsMonitorList" Grid.Row="1"
+                                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                          AutomationProperties.AutomationId="GraphicsMonitors">
+                                                    <ListView.ItemTemplate><DataTemplate>
+                                                        <DataTemplate.Resources>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                            </Style>
+                                                        </DataTemplate.Resources>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="200"/><ColumnDefinition Width="130"/><ColumnDefinition Width="100"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Resolution}" VerticalAlignment="Center" Foreground="{StaticResource Accent}"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Refresh}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}"/>
+                                                            <TextBlock Grid.Column="3" Text="{Binding Detail}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Detail}"/>
+                                                        </Grid>
+                                                    </DataTemplate></ListView.ItemTemplate>
+                                                </ListView>
+                                            </Grid>
+                                        </Border>
+                                    </TabItem>
+                                    <TabItem Header="Drivers">
+                                        <Border Style="{StaticResource Card}">
+                                            <Grid>
+                                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="150"/><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Driver" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="1" Text="Provedor" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="2" Text="Versão" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="3" Text="Data / INF" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    </Grid>
+                                                </Border>
+                                                <ListView x:Name="GraphicsDriverList" Grid.Row="1"
+                                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                          AutomationProperties.AutomationId="GraphicsDrivers">
+                                                    <ListView.ItemTemplate><DataTemplate>
+                                                        <DataTemplate.Resources>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                            </Style>
+                                                        </DataTemplate.Resources>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="150"/><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Name}"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Provider}" VerticalAlignment="Center" Foreground="{StaticResource Accent}" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Version}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}"/>
+                                                            <TextBlock Grid.Column="3" Text="{Binding Detail}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Detail}"/>
+                                                        </Grid>
+                                                    </DataTemplate></ListView.ItemTemplate>
+                                                </ListView>
+                                            </Grid>
+                                        </Border>
+                                    </TabItem>
+                                    <TabItem Header="Eventos">
+                                        <Border Style="{StaticResource Card}">
+                                            <Grid>
+                                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition Width="140"/><ColumnDefinition Width="70"/><ColumnDefinition Width="160"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Horário" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="1" Text="Provedor" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="2" Text="Event ID" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="3" Text="Classificação" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="4" Text="Mensagem" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    </Grid>
+                                                </Border>
+                                                <ListView x:Name="GraphicsEventList" Grid.Row="1"
+                                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                          AutomationProperties.AutomationId="GraphicsEvents">
+                                                    <ListView.ItemTemplate><DataTemplate>
+                                                        <DataTemplate.Resources>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                            </Style>
+                                                        </DataTemplate.Resources>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition Width="140"/><ColumnDefinition Width="70"/><ColumnDefinition Width="160"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Time}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Provider}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Provider}"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding EventId}" VerticalAlignment="Center" Foreground="{StaticResource Accent}"/>
+                                                            <TextBlock Grid.Column="3" Text="{Binding Classification}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Classification}"/>
+                                                            <TextBlock Grid.Column="4" Text="{Binding Message}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Message}"/>
+                                                        </Grid>
+                                                    </DataTemplate></ListView.ItemTemplate>
+                                                </ListView>
+                                            </Grid>
+                                        </Border>
+                                    </TabItem>
+                                    <TabItem Header="WER">
+                                        <Border Style="{StaticResource Card}">
+                                            <Grid>
+                                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="150"/><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Horário" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="1" Text="Tipo" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="2" Text="Código" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="3" Text="Classificação / aplicativo" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    </Grid>
+                                                </Border>
+                                                <ListView x:Name="GraphicsWerList" Grid.Row="1"
+                                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                          AutomationProperties.AutomationId="GraphicsWer">
+                                                    <ListView.ItemTemplate><DataTemplate>
+                                                        <DataTemplate.Resources>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                            </Style>
+                                                        </DataTemplate.Resources>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="150"/><ColumnDefinition Width="70"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Time}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Type}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Code}" VerticalAlignment="Center" Foreground="{StaticResource Accent}"/>
+                                                            <TextBlock Grid.Column="3" Text="{Binding Detail}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Detail}"/>
+                                                        </Grid>
+                                                    </DataTemplate></ListView.ItemTemplate>
+                                                </ListView>
+                                            </Grid>
+                                        </Border>
+                                    </TabItem>
+                                    <TabItem Header="Evidências">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="*"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+                                            <Border Style="{StaticResource Card}" Grid.Row="0">
+                                                <Grid>
+                                                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                                    <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,7">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="280"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                            <TextBlock Text="Título" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                            <TextBlock Grid.Column="1" Text="Classificação" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        </Grid>
+                                                    </Border>
+                                                    <ListView x:Name="GraphicsObservationList" Grid.Row="1"
+                                                              SelectionChanged="OnGraphicsObservationSelected"
+                                                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                              AutomationProperties.AutomationId="GraphicsObservations">
+                                                        <ListView.ItemTemplate><DataTemplate>
+                                                            <DataTemplate.Resources>
+                                                                <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                    <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                                    <Setter Property="VerticalAlignment" Value="Center"/>
+                                                                </Style>
+                                                            </DataTemplate.Resources>
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions><ColumnDefinition Width="280"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                                <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"/>
+                                                                <TextBlock Grid.Column="1" Text="{Binding Subtitle}" VerticalAlignment="Center"
+                                                                           Foreground="{StaticResource Subtle}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Subtitle}"/>
+                                                            </Grid>
+                                                        </DataTemplate></ListView.ItemTemplate>
+                                                    </ListView>
+                                                </Grid>
+                                            </Border>
+                                            <TextBox x:Name="GraphicsObservationDetail" Grid.Row="1" Margin="0,8,0,0"
+                                                     FontSize="13.5" TextWrapping="Wrap" MaxHeight="130"
+                                                     IsReadOnly="True"
+                                                     AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                                     AutomationProperties.AutomationId="GraphicsObservationDetail"
+                                                     Background="{StaticResource SurfaceGradient}"
+                                                     BorderBrush="{StaticResource LineStrong}" BorderThickness="1"
+                                                     Padding="14"/>
+                                        </Grid>
+                                    </TabItem>
+                                </TabControl>
+
+                                <Grid Grid.Column="1" Margin="14,0,0,0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Histórico de investigações" Foreground="{StaticResource Muted}" FontSize="14"/>
+                                    <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,6,0,0">
+                                        <ListBox x:Name="GraphicsHistoryList"
+                                                 SelectionChanged="OnGraphicsHistorySelected"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                 AutomationProperties.AutomationId="GraphicsHistory">
                                             <ListBox.ItemTemplate><DataTemplate>
                                                 <StackPanel>
                                                     <TextBlock Text="{Binding DateText}" FontSize="13" FontWeight="SemiBold" TextWrapping="NoWrap"/>

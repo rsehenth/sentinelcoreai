@@ -15,7 +15,9 @@ internal sealed class NetworkEndpointCollector : INetworkSampleCollector
     public NetworkEndpointCollector(NetworkLimits? limits = null) => this.limits = limits ?? NetworkLimits.Default;
 
     public string Id => "network-endpoints";
-    public string Version => "1.0.0";
+    // 1.0.1: corrige os offsets de escopo e porta remotos de MIB_TCP6ROW_OWNER_PID (36/40 → 40/44).
+    // Sessões gravadas com 1.0.0 são sinalizadas por NetworkQualityCatalog.
+    public string Version => "1.0.1";
     public string Source => "GetExtendedTcpTable/GetExtendedUdpTable (IP Helper, owner PID)";
     public NetworkSourceCategory Category => NetworkSourceCategory.Endpoints;
 

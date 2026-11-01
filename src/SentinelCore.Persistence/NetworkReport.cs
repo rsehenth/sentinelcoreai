@@ -215,8 +215,8 @@ public static class NetworkReport
             text.AppendLine("## Contexto de eventos Tcpip");
             text.AppendLine();
             text.AppendLine($"- Investigação de origem: {events.InvestigationId?.ToString("D") ?? "não informada"}");
-            text.AppendLine($"- Eventos 4266 (limite de tentativas de conexão): {events.AttemptFailureEvents}");
-            text.AppendLine($"- Eventos 4231 (falha ao alocar porta dinâmica): {events.EphemeralExhaustionEvents}");
+            text.AppendLine($"- Eventos Tcpip {NetworkTcpipEventContext.AttemptFailureEventId}: {events.AttemptFailureEvents}");
+            text.AppendLine($"- Eventos Tcpip {NetworkTcpipEventContext.EphemeralExhaustionEventId}: {events.EphemeralExhaustionEvents}");
             text.AppendLine($"- Primeira observação UTC: {events.FirstObservedUtc?.ToString("O") ?? "indisponível"}");
             text.AppendLine($"- Última observação UTC: {events.LastObservedUtc?.ToString("O") ?? "indisponível"}");
             text.AppendLine($"- Nota: {Safe(events.Note)}");

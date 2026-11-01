@@ -57,6 +57,7 @@ internal sealed class MonitorCollector : HardwareCollectorBase
             Add(properties, "supported_resolutions", path.SupportedModes.Count == 0
                 ? null : string.Join("; ", path.SupportedModes));
             Add(properties, "supported_resolution_count", HardwareNormalizers.Number((uint)path.SupportedModes.Count));
+            Add(properties, "supported_modes_truncated", path.SupportedModesTruncated ? "Sim" : "Não");
             Add(properties, "edid_manufacturer_code", path.ManufacturerCode);
             Add(properties, "edid_product_code", productCode);
             Add(properties, "gdi_device", path.GdiDeviceName);

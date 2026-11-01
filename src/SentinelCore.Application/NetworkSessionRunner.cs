@@ -263,20 +263,21 @@ public sealed class NetworkSessionRunner
         if (investigation is null) return null;
         var tcpip = investigation.Groups.Where(group =>
                 string.Equals(group.Provider, "Tcpip", StringComparison.OrdinalIgnoreCase))
-            .Where(group => group.EventId is 4231 or 4266).ToArray();
+            .Where(group => group.EventId is NetworkTcpipEventContext.EphemeralExhaustionEventId
+                or NetworkTcpipEventContext.AttemptFailureEventId).ToArray();
         if (tcpip.Length == 0)
             return new(investigation.Id, 0, 0, null, null,
                 "A investigação de eventos associada não contém eventos Tcpip 4231/4266.");
-        var ephemeral = tcpip.Where(group => group.EventId == 4231).ToArray();
-        var attempts = tcpip.Where(group => group.EventId == 4266).ToArray();
+        var ephemeral = tcpip.Where(group => group.EventId == NetworkTcpipEventContext.EphemeralExhaustionEventId).ToArray();
+        var attempts = tcpip.Where(group => group.EventId == NetworkTcpipEventContext.AttemptFailureEventId).ToArray();
         var first = tcpip.Select(group => group.FirstObservedUtc).Where(value => value is not null).Min();
         var last = tcpip.Select(group => group.LastObservedUtc).Where(value => value is not null).Max();
         return new(investigation.Id,
             attempts.Sum(group => group.EventRecordCount),
             ephemeral.Sum(group => group.EventRecordCount),
             first, last,
-            "Eventos Tcpip indicam que o sistema registrou falha de alocação de porta dinâmica ou limite de "
-            + "tentativas de conexão; isso não comprova esgotamento na janela desta sessão nem atribui causa.");
+            "O sistema registrou eventos Tcpip 4231 e/ou 4266 na investigação associada; a contagem não identifica "
+            + "a causa, não comprova esgotamento na janela desta sessão nem atribui causa.");
     }
 
     private static SelfOverheadSample MeasureSelf(Process self, TimeSpan wallElapsed,

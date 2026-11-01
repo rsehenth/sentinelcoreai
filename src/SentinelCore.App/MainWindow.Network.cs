@@ -176,7 +176,13 @@ public partial class MainWindow
         if (session.TcpipEvents is { } tcpip)
         {
             text.AppendLine();
-            text.AppendLine($"Contexto Tcpip: falhas 4227={tcpip.AttemptFailureEvents}, portas dinâmicas 4231/4266={tcpip.EphemeralExhaustionEvents}. {tcpip.Note}");
+            text.AppendLine($"Contexto Tcpip: {NetworkTcpipEventContext.FormatCounts(tcpip)}. {tcpip.Note}");
+        }
+
+        if (NetworkQualityCatalog.Evaluate(session) is { } quality)
+        {
+            text.AppendLine();
+            text.AppendLine(quality.Summary);
         }
 
         if (session.AnalysisNotes.Count > 0)
@@ -200,7 +206,7 @@ public partial class MainWindow
 
     private async void OnNetworkRun(object sender, RoutedEventArgs e)
     {
-        if (busy || hardwareBusy || eventBusy || performanceBusy || networkBusy) return;
+        if (busy || hardwareBusy || eventBusy || performanceBusy || networkBusy || graphicsBusy) return;
 
         if (unsavedNetwork is not null)
         {
@@ -428,7 +434,7 @@ public partial class MainWindow
 
     private void UpdateNetworkButtons()
     {
-        var idle = !networkBusy && !busy && !hardwareBusy && !eventBusy && !performanceBusy;
+        var idle = !networkBusy && !busy && !hardwareBusy && !eventBusy && !performanceBusy && !graphicsBusy;
         NetworkRunButton.IsEnabled = idle;
         NetworkCancelButton.IsEnabled = networkBusy && !networkSaving &&
             networkCancellation is { IsCancellationRequested: false };
@@ -437,6 +443,7 @@ public partial class MainWindow
         NetworkHistoryList.IsEnabled = !networkBusy;
         NetworkReportButton.IsEnabled = !networkBusy && selectedNetworkSession is not null &&
             File.Exists(networkStore.GetNetworkReportPath(selectedNetworkSession.Id));
+        UpdateGraphicsButtons();
     }
 
     private void ShowNetworkFailure(string message, Exception error)
@@ -506,7 +513,10 @@ public partial class MainWindow
     private static string Value(double? value) =>
         value is { } number ? number.ToString("0.###", CultureInfo.CurrentCulture) : "Indisponível";
 
-    private sealed record NetworkPresetRow(NetworkSessionPreset Preset, string Label);
+    private sealed record NetworkPresetRow(NetworkSessionPreset Preset, string Label)
+    {
+        public override string ToString() => Label;
+    }
 
     private sealed record NetworkHistoryRow(NetworkSession Session)
     {

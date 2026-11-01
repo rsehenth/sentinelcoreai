@@ -248,6 +248,17 @@ public sealed class NetworkSessionRunnerTests
         });
     }
 
+    internal static EventInvestigation InvestigationWithTcpipEvents()
+    {
+        var baseInvestigation = Samples.Investigation();
+        var group4231 = new EvidenceGroup(
+            "network:tcpip-4231", EventCategory.Network, "Tcpip 4231", "Tcpip", 4231, null,
+            EvidenceSeverity.PotentialImpact, EvidenceConfidence.Medium, CausalityStatus.NotAssessed,
+            4, 0, 0, BaseUtc.AddMinutes(-10), BaseUtc.AddMinutes(-2), ["System"], ["System"], []);
+        var group4266 = group4231 with { Id = "network:tcpip-4266", EventId = 4266, EventRecordCount = 7 };
+        return baseInvestigation with { Groups = [.. baseInvestigation.Groups, group4231, group4266] };
+    }
+
     [Fact]
     public void BuildTcpipContextExtractsEvents4231And4266WithoutClaimingCausality()
     {

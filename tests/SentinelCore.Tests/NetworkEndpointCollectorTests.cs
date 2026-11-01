@@ -41,34 +41,24 @@ public sealed class NetworkEndpointCollectorTests
         Assert.Equal(4321u, parsed.Pid);
     }
 
+    // O parsing de MIB_TCP6ROW_OWNER_PID é protegido por NativeTcp6LayoutTests, cuja fixture segue o layout
+    // oficial da Microsoft. A versão anterior deste teste escrevia a fixture nos mesmos offsets do parser
+    // (escopo remoto @36, porta remota @40) e por isso não detectava o defeito D1.
+
     [Fact]
-    public void ReadTcp6ParsesAddressesScopeIdsBigEndianPortsStateAndPid()
+    public void ReadTcp4AndUdpReadersRejectCountsThatExceedTheValidLength()
     {
-        // 1 row of MIB_TCP6ROW_OWNER_PID: 4-byte count + 56-byte row = 60 bytes
-        var buffer = new byte[60];
-        BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(0, 4), 1);
-        var row = buffer.AsSpan(4, 56);
+        var tcp4 = new byte[4 + 24];
+        BinaryPrimitives.WriteInt32LittleEndian(tcp4, 2);
+        Assert.Throws<ArgumentException>(() => NativeNetwork.ReadTcp4(tcp4, tcp4.Length).ToArray());
 
-        var localBytes = IPAddress.IPv6Loopback.GetAddressBytes();
-        localBytes.CopyTo(row.Slice(0, 16));
-        BinaryPrimitives.WriteUInt32LittleEndian(row.Slice(16, 4), 0); // local scope
-        BinaryPrimitives.WriteUInt16BigEndian(row.Slice(20, 2), 8443);
+        var udp4 = new byte[4 + 12];
+        BinaryPrimitives.WriteInt32LittleEndian(udp4, 2);
+        Assert.Throws<ArgumentException>(() => NativeNetwork.ReadUdp4(udp4, udp4.Length).ToArray());
 
-        var remoteBytes = IPAddress.Parse("fe80::1").GetAddressBytes();
-        remoteBytes.CopyTo(row.Slice(24, 16));
-        BinaryPrimitives.WriteUInt32LittleEndian(row.Slice(36, 4), 7); // remote scope = 7
-        BinaryPrimitives.WriteUInt16BigEndian(row.Slice(40, 2), 52100);
-
-        BinaryPrimitives.WriteUInt32LittleEndian(row.Slice(48, 4), 2); // Listen
-        BinaryPrimitives.WriteUInt32LittleEndian(row.Slice(52, 4), 900);
-
-        var parsed = Assert.Single(NativeNetwork.ReadTcp6(buffer, buffer.Length));
-        Assert.Equal(TcpConnectionState.Listen, NativeNetwork.MapTcpState(parsed.State));
-        Assert.Equal(IPAddress.IPv6Loopback, parsed.Local);
-        Assert.Equal((ushort)8443, parsed.LocalPort);
-        Assert.Equal(7L, parsed.Remote.ScopeId);
-        Assert.Equal((ushort)52100, parsed.RemotePort);
-        Assert.Equal(900u, parsed.Pid);
+        var udp6 = new byte[4 + 28];
+        BinaryPrimitives.WriteInt32LittleEndian(udp6, 2);
+        Assert.Throws<ArgumentException>(() => NativeNetwork.ReadUdp6(udp6, udp6.Length).ToArray());
     }
 
     [Fact]

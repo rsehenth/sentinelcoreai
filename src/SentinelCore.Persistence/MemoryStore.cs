@@ -7,7 +7,7 @@ using SentinelCore.Domain;
 namespace SentinelCore.Persistence;
 
 public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInvestigationStore,
-    IPerformanceSessionStore, INetworkSessionStore
+    IPerformanceSessionStore, INetworkSessionStore, IGraphicsInvestigationStore
 {
     private readonly string root;
     private string Database => Path.Combine(root, "data", "sentinelcore.db");
@@ -15,6 +15,7 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
     private string EventRecordPath(Guid id) => Path.Combine(root, "memory", "events", $"{id:D}.md");
     private string PerformanceRecordPath(Guid id) => Path.Combine(root, "memory", "performance", $"{id:D}.md");
     private string NetworkRecordPath(Guid id) => Path.Combine(root, "memory", "network", $"{id:D}.md");
+    private string GraphicsRecordPath(Guid id) => Path.Combine(root, "memory", "graphics", $"{id:D}.md");
     public static string DefaultRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SentinelCoreAI");
     public MemoryStore(string? dataRoot = null) => root = Path.GetFullPath(dataRoot ?? DefaultRoot);
     public string GetReportPath(Guid auditId) => Path.Combine(root, "reports", $"{auditId:D}.md");
@@ -22,6 +23,7 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
     public string GetEventReportPath(Guid investigationId) => Path.Combine(root, "reports", "events", $"{investigationId:D}.md");
     public string GetPerformanceReportPath(Guid sessionId) => Path.Combine(root, "reports", "performance", $"{sessionId:D}.md");
     public string GetNetworkReportPath(Guid sessionId) => Path.Combine(root, "reports", "network", $"{sessionId:D}.md");
+    public string GetGraphicsReportPath(Guid investigationId) => Path.Combine(root, "reports", "graphics", $"{investigationId:D}.md");
     private string RecordPath(AuditRecord audit) => Path.Combine(root, "memory", "audits", audit.Kind.ToString().ToLowerInvariant(), $"{audit.Id:D}.md");
 
     public Task<StoreSnapshot> LoadAsync(CancellationToken cancellationToken = default) => Task.Run(() =>
@@ -49,7 +51,8 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
         var otherKind = audit.Kind == AuditKind.Basic ? AuditKind.Full : AuditKind.Basic;
         if (File.Exists(RecordPath(audit with { Kind = otherKind })) ||
             File.Exists(HardwareRecordPath(audit.Id)) || File.Exists(EventRecordPath(audit.Id)) ||
-            File.Exists(PerformanceRecordPath(audit.Id)) || File.Exists(NetworkRecordPath(audit.Id)))
+            File.Exists(PerformanceRecordPath(audit.Id)) || File.Exists(NetworkRecordPath(audit.Id)) ||
+            File.Exists(GraphicsRecordPath(audit.Id)))
             throw new InvalidDataException("ID já existe em outro histórico; histórico preservado.");
         var json = CanonicalJson(audit);
         var path = RecordPath(audit);
@@ -79,7 +82,7 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
 
     private void EnsureDirectories()
     {
-        foreach (var relative in new[] { "memory", "memory/inventory", "memory/events", "memory/performance", "memory/network", "data", "reports", "reports/hardware", "reports/events", "reports/performance", "reports/network", "logs", Path.Combine("memory", "audits", "basic") })
+        foreach (var relative in new[] { "memory", "memory/inventory", "memory/events", "memory/performance", "memory/network", "memory/graphics", "data", "reports", "reports/hardware", "reports/events", "reports/performance", "reports/network", "reports/graphics", "logs", Path.Combine("memory", "audits", "basic") })
             Directory.CreateDirectory(Path.Combine(root, relative));
     }
 
@@ -116,9 +119,9 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
     {
         using var version = database.CreateCommand(); version.CommandText = "PRAGMA user_version";
         var schema = Convert.ToInt32(version.ExecuteScalar());
-        if (schema > 6)
+        if (schema > 7)
             throw new InvalidDataException("Banco de uma versão mais recente. Abra com uma versão compatível do aplicativo.");
-        if (schema == 6) return;
+        if (schema == 7) return;
         using var transaction = database.BeginTransaction();
         using var command = database.CreateCommand(); command.Transaction = transaction;
         if (schema < 1)
@@ -268,7 +271,43 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
                 """;
             command.ExecuteNonQuery();
         }
-        command.CommandText = "PRAGMA user_version = 6";
+        if (schema < 7)
+        {
+            command.CommandText = """
+                CREATE TABLE IF NOT EXISTS GraphicsInvestigations (
+                    Id TEXT PRIMARY KEY, FormatVersion INTEGER NOT NULL, SchemaVersion TEXT NOT NULL,
+                    SoftwareVersion TEXT NOT NULL, WindowPreset TEXT NOT NULL,
+                    PeriodFromUtc TEXT NOT NULL, PeriodToUtc TEXT NOT NULL,
+                    StartedUtc TEXT NOT NULL, CompletedUtc TEXT NOT NULL, DurationSeconds REAL NOT NULL,
+                    Status TEXT NOT NULL, ExecutionStatus TEXT NULL, CoverageStatus TEXT NULL,
+                    HardwareReadingId TEXT NULL, EventReadingId TEXT NULL, PreviousInvestigationId TEXT NULL,
+                    AdapterCount INTEGER NOT NULL, MonitorCount INTEGER NOT NULL, DriverCount INTEGER NOT NULL,
+                    EventCount INTEGER NOT NULL, WerReportCount INTEGER NOT NULL, ChangeCount INTEGER NOT NULL,
+                    ChangesComparable INTEGER NOT NULL, MarkdownPath TEXT NOT NULL UNIQUE, PayloadHash TEXT NOT NULL,
+                    CoverageJson TEXT NOT NULL, AdaptersJson TEXT NOT NULL, MonitorsJson TEXT NOT NULL,
+                    DriversJson TEXT NOT NULL, EventsJson TEXT NOT NULL, WerJson TEXT NOT NULL,
+                    ObservationsJson TEXT NOT NULL, NotesJson TEXT NOT NULL, ChangesJson TEXT NOT NULL,
+                    LimitationsJson TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS GraphicsSources (
+                    InvestigationId TEXT NOT NULL REFERENCES GraphicsInvestigations(Id) ON DELETE CASCADE,
+                    CollectorId TEXT NOT NULL, CollectorVersion TEXT NOT NULL, Category TEXT NOT NULL,
+                    Source TEXT NOT NULL, Status TEXT NOT NULL, StartedUtc TEXT NOT NULL,
+                    CompletedUtc TEXT NOT NULL, DurationMs REAL NOT NULL, RecordsRead INTEGER NOT NULL,
+                    EvidenceCount INTEGER NOT NULL, LimitHit INTEGER NOT NULL, LimitationsJson TEXT NOT NULL,
+                    PRIMARY KEY (InvestigationId, CollectorId));
+                CREATE TABLE IF NOT EXISTS GraphicsObservations (
+                    InvestigationId TEXT NOT NULL REFERENCES GraphicsInvestigations(Id) ON DELETE CASCADE,
+                    ObservationId TEXT NOT NULL, RuleId TEXT NOT NULL, Kind TEXT NOT NULL,
+                    Severity TEXT NOT NULL, Confidence TEXT NOT NULL, Causality TEXT NOT NULL,
+                    Metric TEXT NOT NULL, ObservedValue REAL NULL,
+                    WindowFromUtc TEXT NOT NULL, WindowToUtc TEXT NOT NULL, EvidenceCount INTEGER NOT NULL,
+                    PRIMARY KEY (InvestigationId, ObservationId));
+                CREATE INDEX IF NOT EXISTS IX_GraphicsInvestigations_Completed ON GraphicsInvestigations(CompletedUtc DESC);
+                CREATE INDEX IF NOT EXISTS IX_GraphicsObservations_Rule ON GraphicsObservations(InvestigationId, RuleId);
+                """;
+            command.ExecuteNonQuery();
+        }
+        command.CommandText = "PRAGMA user_version = 7";
         command.ExecuteNonQuery();
         transaction.Commit();
     }
@@ -409,6 +448,8 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
             throw new InvalidDataException("ID já existe em uma sessão de desempenho; histórico preservado.");
         if (File.Exists(NetworkRecordPath(snapshot.Id)))
             throw new InvalidDataException("ID já existe em uma sessão de rede; histórico preservado.");
+        if (File.Exists(GraphicsRecordPath(snapshot.Id)))
+            throw new InvalidDataException("ID já existe em uma investigação gráfica; histórico preservado.");
         var json = CanonicalJson(snapshot);
         var path = HardwareRecordPath(snapshot.Id);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -467,6 +508,8 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
             throw new InvalidDataException("ID já existe em uma sessão de desempenho; histórico preservado.");
         if (File.Exists(NetworkRecordPath(investigation.Id)))
             throw new InvalidDataException("ID já existe em uma sessão de rede; histórico preservado.");
+        if (File.Exists(GraphicsRecordPath(investigation.Id)))
+            throw new InvalidDataException("ID já existe em uma investigação gráfica; histórico preservado.");
         var json = CanonicalJson(investigation);
         var path = EventRecordPath(investigation.Id);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -528,6 +571,8 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
             throw new InvalidDataException("ID já existe em uma investigação; histórico preservado.");
         if (File.Exists(NetworkRecordPath(session.Id)))
             throw new InvalidDataException("ID já existe em uma sessão de rede; histórico preservado.");
+        if (File.Exists(GraphicsRecordPath(session.Id)))
+            throw new InvalidDataException("ID já existe em uma investigação gráfica; histórico preservado.");
         var json = CanonicalJson(session);
         var path = PerformanceRecordPath(session.Id);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -911,6 +956,8 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
             throw new InvalidDataException("ID já existe em uma investigação; histórico preservado.");
         if (File.Exists(PerformanceRecordPath(session.Id)))
             throw new InvalidDataException("ID já existe em uma sessão de desempenho; histórico preservado.");
+        if (File.Exists(GraphicsRecordPath(session.Id)))
+            throw new InvalidDataException("ID já existe em uma investigação gráfica; histórico preservado.");
         var json = CanonicalJson(session);
         var path = NetworkRecordPath(session.Id);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -1277,6 +1324,465 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
 
     private static string CanonicalJson(NetworkSession session) =>
         JsonSerializer.Serialize(session, AuditJson.Options).Replace("\r\n", "\n");
+
+    public Task<GraphicsStoreSnapshot> LoadGraphicsInvestigationsAsync(
+        CancellationToken cancellationToken = default) => Task.Run(() =>
+    {
+        EnsureDirectories();
+        using var storeLock = Lock();
+        var warnings = new List<string>();
+        using var database = OpenDatabase(warnings);
+        var investigations = ReconcileGraphics(database, warnings, cancellationToken);
+        WriteGraphicsProjection(investigations);
+        var byId = investigations.ToDictionary(investigation => investigation.Id);
+        var ordered = new List<GraphicsInvestigation>();
+        using var query = database.CreateCommand();
+        query.CommandText = "SELECT Id FROM GraphicsInvestigations ORDER BY CompletedUtc DESC, Id";
+        using var reader = query.ExecuteReader();
+        while (reader.Read())
+            if (Guid.TryParse(reader.GetString(0), out var id) && byId.TryGetValue(id, out var investigation))
+                ordered.Add(investigation);
+        return new GraphicsStoreSnapshot(ordered, warnings);
+    }, cancellationToken);
+
+    public Task<long> SaveGraphicsInvestigationAsync(GraphicsInvestigation investigation,
+        CancellationToken cancellationToken = default) => Task.Run(() =>
+    {
+        ValidateGraphicsInvestigation(investigation);
+        EnsureDirectories();
+        using var storeLock = Lock();
+        foreach (var kind in Enum.GetValues<AuditKind>())
+            if (File.Exists(Path.Combine(root, "memory", "audits", kind.ToString().ToLowerInvariant(),
+                    $"{investigation.Id:D}.md")))
+                throw new InvalidDataException("ID já existe em uma auditoria; histórico preservado.");
+        if (File.Exists(HardwareRecordPath(investigation.Id)))
+            throw new InvalidDataException("ID já existe em um inventário; histórico preservado.");
+        if (File.Exists(EventRecordPath(investigation.Id)))
+            throw new InvalidDataException("ID já existe em uma investigação; histórico preservado.");
+        if (File.Exists(PerformanceRecordPath(investigation.Id)))
+            throw new InvalidDataException("ID já existe em uma sessão de desempenho; histórico preservado.");
+        if (File.Exists(NetworkRecordPath(investigation.Id)))
+            throw new InvalidDataException("ID já existe em uma sessão de rede; histórico preservado.");
+        var json = CanonicalJson(investigation);
+        var path = GraphicsRecordPath(investigation.Id);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        long bytes;
+        if (File.Exists(path))
+        {
+            var (existing, existingHash) = ReadGraphicsRecord(path);
+            if (existingHash != RecordEnvelope.Hash(json) && CanonicalJson(existing) != json)
+                throw new InvalidDataException("ID já existe com conteúdo diferente; histórico preservado.");
+            bytes = new FileInfo(path).Length;
+        }
+        else
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var report = GraphicsReport.Render(investigation);
+            var document = RecordEnvelope.Wrap(report, json);
+            bytes = Encoding.UTF8.GetByteCount(document);
+            if (bytes > RecordEnvelope.MaximumRecordBytes)
+                throw new InvalidDataException(
+                    "Investigação gráfica excede 4 MiB e não pode ser persistida neste formato.");
+            RecordEnvelope.AtomicWrite(path, document, overwrite: false);
+            RecordEnvelope.AtomicWrite(GetGraphicsReportPath(investigation.Id), report, overwrite: false);
+        }
+        using var database = OpenDatabase([]);
+        var investigations = ReconcileGraphics(database, [], CancellationToken.None);
+        WriteGraphicsProjection(investigations);
+        if (!investigations.Any(item => item.Id == investigation.Id) ||
+            !File.Exists(GetGraphicsReportPath(investigation.Id)))
+            throw new IOException("A gravação da investigação gráfica não foi concluída. O registro durável, " +
+                "se existente, será recuperado na próxima tentativa.");
+        return bytes;
+    }, cancellationToken);
+
+    private List<GraphicsInvestigation> ReconcileGraphics(SqliteConnection database, List<string> warnings,
+        CancellationToken cancellationToken)
+    {
+        var investigations = new List<GraphicsInvestigation>();
+        var hashes = new Dictionary<Guid, string>();
+        var seen = new HashSet<Guid>();
+        var directory = Path.Combine(root, "memory", "graphics");
+        if (Directory.Exists(directory))
+        {
+            foreach (var path in Directory.EnumerateFiles(directory, "*.md", SearchOption.TopDirectoryOnly)
+                         .OrderBy(item => item, StringComparer.OrdinalIgnoreCase))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    var (investigation, payloadHash) = ReadGraphicsRecord(path);
+                    if (Path.GetFileName(path) != $"{investigation.Id:D}.md" || !seen.Add(investigation.Id))
+                        throw new InvalidDataException("Identidade ou localização de investigação gráfica inválida.");
+                    investigations.Add(investigation);
+                    hashes[investigation.Id] = payloadHash;
+                    RecordEnvelope.AtomicWrite(GetGraphicsReportPath(investigation.Id),
+                        GraphicsReport.Render(investigation), overwrite: true);
+                }
+                catch (Exception error) when (error is InvalidDataException or JsonException or IOException
+                    or UnauthorizedAccessException or ArgumentException or NullReferenceException)
+                {
+                    warnings.Add($"Investigação gráfica {Path.GetFileName(path)} não recuperada " +
+                        $"({error.GetType().Name}): {error.Message}. Original preservado.");
+                }
+            }
+        }
+        using (var read = database.CreateCommand())
+        {
+            read.CommandText = "SELECT Id FROM GraphicsInvestigations";
+            using var reader = read.ExecuteReader();
+            while (reader.Read())
+                if (!Guid.TryParse(reader.GetString(0), out var id) || !seen.Contains(id))
+                    warnings.Add($"Investigação gráfica indexada {reader.GetString(0)} sem registro Markdown válido; " +
+                        "excluída da validade.");
+        }
+        using var transaction = database.BeginTransaction();
+        using (var clear = database.CreateCommand())
+        {
+            clear.Transaction = transaction;
+            clear.CommandText =
+                "DELETE FROM GraphicsObservations; DELETE FROM GraphicsSources; DELETE FROM GraphicsInvestigations";
+            clear.ExecuteNonQuery();
+        }
+        foreach (var investigation in investigations)
+            IndexGraphics(database, transaction, investigation, hashes.GetValueOrDefault(investigation.Id));
+        transaction.Commit();
+        if (warnings.Count > 0)
+            File.AppendAllText(Path.Combine(root, "logs", "storage.log"),
+                $"{DateTimeOffset.UtcNow:O}\n{string.Join("\n", warnings)}\n", Encoding.UTF8);
+        return investigations;
+    }
+
+    private void IndexGraphics(SqliteConnection database, SqliteTransaction transaction,
+        GraphicsInvestigation investigation, string? payloadHash = null)
+    {
+        using var command = database.CreateCommand(); command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO GraphicsInvestigations
+                (Id, FormatVersion, SchemaVersion, SoftwareVersion, WindowPreset, PeriodFromUtc, PeriodToUtc,
+                 StartedUtc, CompletedUtc, DurationSeconds, Status, ExecutionStatus, CoverageStatus,
+                 HardwareReadingId, EventReadingId, PreviousInvestigationId, AdapterCount, MonitorCount,
+                 DriverCount, EventCount, WerReportCount, ChangeCount, ChangesComparable, MarkdownPath,
+                 PayloadHash, CoverageJson, AdaptersJson, MonitorsJson, DriversJson, EventsJson, WerJson,
+                 ObservationsJson, NotesJson, ChangesJson, LimitationsJson)
+            VALUES ($id,$format,$schema,$software,$window,$from,$to,$start,$end,$duration,$status,$execution,
+                 $coverage,$hardware,$events,$previous,$adapters,$monitors,$drivers,$eventCount,$werCount,
+                 $changeCount,$comparable,$path,$hash,$coverageJson,$adaptersJson,$monitorsJson,$driversJson,
+                 $eventsJson,$werJson,$observationsJson,$notesJson,$changesJson,$limits)
+            """;
+        command.Parameters.AddWithValue("$id", investigation.Id.ToString("D"));
+        command.Parameters.AddWithValue("$format", investigation.FormatVersion);
+        command.Parameters.AddWithValue("$schema", investigation.SchemaVersion);
+        command.Parameters.AddWithValue("$software", investigation.SoftwareVersion);
+        command.Parameters.AddWithValue("$window", investigation.Window.ToString());
+        command.Parameters.AddWithValue("$from", investigation.PeriodFromUtc.ToUniversalTime().ToString("O"));
+        command.Parameters.AddWithValue("$to", investigation.PeriodToUtc.ToUniversalTime().ToString("O"));
+        command.Parameters.AddWithValue("$start", investigation.StartedUtc.ToUniversalTime().ToString("O"));
+        command.Parameters.AddWithValue("$end", investigation.CompletedUtc.ToUniversalTime().ToString("O"));
+        command.Parameters.AddWithValue("$duration", investigation.Duration.TotalSeconds);
+        command.Parameters.AddWithValue("$status", investigation.Status.ToString());
+        command.Parameters.AddWithValue("$execution", investigation.Coverage.Execution.ToString());
+        command.Parameters.AddWithValue("$coverage", investigation.Coverage.Status.ToString());
+        command.Parameters.AddWithValue("$hardware", investigation.HardwareReadingId.ToString("D"));
+        command.Parameters.AddWithValue("$events",
+            (object?)investigation.EventReadingId?.ToString("D") ?? DBNull.Value);
+        command.Parameters.AddWithValue("$previous",
+            (object?)investigation.PreviousInvestigationId?.ToString("D") ?? DBNull.Value);
+        command.Parameters.AddWithValue("$adapters", investigation.Adapters.Count);
+        command.Parameters.AddWithValue("$monitors", investigation.Monitors.Count);
+        command.Parameters.AddWithValue("$drivers", investigation.Drivers.Count);
+        command.Parameters.AddWithValue("$eventCount", investigation.Events.Count);
+        command.Parameters.AddWithValue("$werCount", investigation.WerReports.Count);
+        command.Parameters.AddWithValue("$changeCount", investigation.Changes.Count);
+        command.Parameters.AddWithValue("$comparable", investigation.ChangesComparable ? 1 : 0);
+        command.Parameters.AddWithValue("$path", Path.GetRelativePath(root, GraphicsRecordPath(investigation.Id)));
+        command.Parameters.AddWithValue("$hash", payloadHash ?? RecordEnvelope.Hash(CanonicalJson(investigation)));
+        command.Parameters.AddWithValue("$coverageJson",
+            JsonSerializer.Serialize(investigation.Coverage, AuditJson.Options));
+        command.Parameters.AddWithValue("$adaptersJson",
+            JsonSerializer.Serialize(investigation.Adapters, AuditJson.Options));
+        command.Parameters.AddWithValue("$monitorsJson",
+            JsonSerializer.Serialize(investigation.Monitors, AuditJson.Options));
+        command.Parameters.AddWithValue("$driversJson",
+            JsonSerializer.Serialize(investigation.Drivers, AuditJson.Options));
+        command.Parameters.AddWithValue("$eventsJson",
+            JsonSerializer.Serialize(investigation.Events, AuditJson.Options));
+        command.Parameters.AddWithValue("$werJson",
+            JsonSerializer.Serialize(investigation.WerReports, AuditJson.Options));
+        command.Parameters.AddWithValue("$observationsJson",
+            JsonSerializer.Serialize(investigation.Observations, AuditJson.Options));
+        command.Parameters.AddWithValue("$notesJson",
+            JsonSerializer.Serialize(investigation.AnalysisNotes, AuditJson.Options));
+        command.Parameters.AddWithValue("$changesJson",
+            JsonSerializer.Serialize(investigation.Changes, AuditJson.Options));
+        command.Parameters.AddWithValue("$limits",
+            JsonSerializer.Serialize(investigation.Limitations, AuditJson.Options));
+        command.ExecuteNonQuery();
+        foreach (var source in investigation.Sources)
+        {
+            using var child = database.CreateCommand(); child.Transaction = transaction;
+            child.CommandText = """
+                INSERT INTO GraphicsSources
+                    (InvestigationId, CollectorId, CollectorVersion, Category, Source, Status, StartedUtc,
+                     CompletedUtc, DurationMs, RecordsRead, EvidenceCount, LimitHit, LimitationsJson)
+                VALUES ($investigation,$id,$version,$category,$source,$status,$start,$end,$duration,$records,
+                     $evidence,$limit,$limits)
+                """;
+            child.Parameters.AddWithValue("$investigation", investigation.Id.ToString("D"));
+            child.Parameters.AddWithValue("$id", source.CollectorId);
+            child.Parameters.AddWithValue("$version", source.CollectorVersion);
+            child.Parameters.AddWithValue("$category", source.Category.ToString());
+            child.Parameters.AddWithValue("$source", source.Source);
+            child.Parameters.AddWithValue("$status", source.Status.ToString());
+            child.Parameters.AddWithValue("$start", source.StartedUtc.ToUniversalTime().ToString("O"));
+            child.Parameters.AddWithValue("$end", source.CompletedUtc.ToUniversalTime().ToString("O"));
+            child.Parameters.AddWithValue("$duration", source.Duration.TotalMilliseconds);
+            child.Parameters.AddWithValue("$records", source.RecordsRead);
+            child.Parameters.AddWithValue("$evidence", source.EvidenceCount);
+            child.Parameters.AddWithValue("$limit", source.LimitHit ? 1 : 0);
+            child.Parameters.AddWithValue("$limits", JsonSerializer.Serialize(source.Limitations, AuditJson.Options));
+            child.ExecuteNonQuery();
+        }
+        foreach (var observation in investigation.Observations)
+        {
+            using var row = database.CreateCommand(); row.Transaction = transaction;
+            row.CommandText = """
+                INSERT INTO GraphicsObservations
+                    (InvestigationId, ObservationId, RuleId, Kind, Severity, Confidence, Causality, Metric,
+                     ObservedValue, WindowFromUtc, WindowToUtc, EvidenceCount)
+                VALUES ($investigation,$id,$rule,$kind,$severity,$confidence,$causality,$metric,$value,$from,$to,
+                     $evidence)
+                """;
+            row.Parameters.AddWithValue("$investigation", investigation.Id.ToString("D"));
+            row.Parameters.AddWithValue("$id", observation.Id);
+            row.Parameters.AddWithValue("$rule", observation.RuleId);
+            row.Parameters.AddWithValue("$kind", observation.Kind.ToString());
+            row.Parameters.AddWithValue("$severity", observation.Severity.ToString());
+            row.Parameters.AddWithValue("$confidence", observation.Confidence.ToString());
+            row.Parameters.AddWithValue("$causality", observation.Causality.ToString());
+            row.Parameters.AddWithValue("$metric", observation.Metric);
+            row.Parameters.AddWithValue("$value", (object?)observation.ObservedValue ?? DBNull.Value);
+            row.Parameters.AddWithValue("$from", observation.WindowFromUtc.ToUniversalTime().ToString("O"));
+            row.Parameters.AddWithValue("$to", observation.WindowToUtc.ToUniversalTime().ToString("O"));
+            row.Parameters.AddWithValue("$evidence", observation.EvidenceCount);
+            row.ExecuteNonQuery();
+        }
+    }
+
+    private void WriteGraphicsProjection(IReadOnlyList<GraphicsInvestigation> investigations)
+    {
+        var latest = investigations.OrderByDescending(item => item.CompletedUtc).ToArray();
+        var lastCompleted = latest.FirstOrDefault(item => item.Coverage.Status == GraphicsCoverageStatus.Complete);
+        var text = new StringBuilder();
+        text.AppendLine("# SentinelCore AI — Investigações gráficas");
+        text.AppendLine();
+        text.AppendLine("Formato: 1");
+        text.AppendLine();
+        text.AppendLine("Projeção derivada dos registros Markdown imutáveis; não é fonte de verdade.");
+        text.AppendLine("Diagnóstico gráfico não renova a validade de auditorias, inventários, eventos ou sessões.");
+        text.AppendLine();
+        text.AppendLine("## Última investigação com cobertura completa");
+        text.AppendLine();
+        text.AppendLine(lastCompleted is null ? "Nenhuma investigação com cobertura completa."
+            : $"{lastCompleted.Id:D} — {lastCompleted.CompletedUtc:O} — {lastCompleted.Adapters.Count} adaptador(es) — " +
+              $"{lastCompleted.Events.Count} evento(s) — {lastCompleted.Observations.Count} observação(ões)");
+        text.AppendLine();
+        text.AppendLine("## Histórico");
+        text.AppendLine();
+        if (latest.Length == 0) text.AppendLine("Nenhuma investigação anterior.");
+        else
+            foreach (var investigation in latest)
+                text.AppendLine($"- [{investigation.Id:D}](graphics/{investigation.Id:D}.md) — " +
+                    $"{investigation.CompletedUtc:O} — situação {GraphicsStatusName(investigation.Status)} — " +
+                    $"cobertura {GraphicsCoverageName(investigation.Coverage.Status)} — " +
+                    $"{investigation.Adapters.Count} adaptador(es) — {investigation.Monitors.Count} monitor(es) — " +
+                    $"{investigation.Events.Count} evento(s) — {investigation.WerReports.Count} relatório(s) WER — " +
+                    $"{investigation.Observations.Count} observação(ões)");
+        RecordEnvelope.AtomicWrite(Path.Combine(root, "memory", "GRAPHICS.md"), text.ToString(), overwrite: true);
+    }
+
+    private static string GraphicsStatusName(GraphicsInvestigationStatus status) => status switch
+    {
+        GraphicsInvestigationStatus.Completed => "concluída",
+        GraphicsInvestigationStatus.Partial => "parcial",
+        GraphicsInvestigationStatus.Cancelled => "cancelada",
+        GraphicsInvestigationStatus.Failed => "falhou",
+        GraphicsInvestigationStatus.Unsupported => "não suportada",
+        GraphicsInvestigationStatus.Running => "em execução",
+        _ => status.ToString()
+    };
+
+    private static string GraphicsCoverageName(GraphicsCoverageStatus status) => status switch
+    {
+        GraphicsCoverageStatus.Complete => "completa",
+        GraphicsCoverageStatus.Partial => "parcial",
+        GraphicsCoverageStatus.Unavailable => "indisponível",
+        _ => status.ToString()
+    };
+
+    private static (GraphicsInvestigation Investigation, string PayloadHash) ReadGraphicsRecord(string path)
+    {
+        if (new FileInfo(path).Length > RecordEnvelope.MaximumRecordBytes)
+            throw new InvalidDataException("Investigação gráfica excede 4 MiB.");
+        var text = File.ReadAllText(path, Encoding.UTF8).Replace("\r\n", "\n");
+        var json = RecordEnvelope.Unwrap(text);
+        var hash = RecordEnvelope.Hash(json);
+        var investigation = JsonSerializer.Deserialize<GraphicsInvestigation>(json, AuditJson.Options)
+            ?? throw new InvalidDataException("Payload de investigação gráfica nulo.");
+        ValidateGraphicsInvestigation(investigation);
+        return (investigation, hash);
+    }
+
+    private static void ValidateGraphicsInvestigation(GraphicsInvestigation investigation)
+    {
+        if (investigation is null) throw new InvalidDataException("Investigação gráfica nula.");
+        var sources = investigation.Sources;
+        var adapters = investigation.Adapters;
+        var monitors = investigation.Monitors;
+        var drivers = investigation.Drivers;
+        var events = investigation.Events;
+        var werReports = investigation.WerReports;
+        var observations = investigation.Observations;
+        var notes = investigation.AnalysisNotes;
+        var changes = investigation.Changes;
+
+        if (investigation.FormatVersion != 1 || investigation.Id == Guid.Empty ||
+            string.IsNullOrWhiteSpace(investigation.SoftwareVersion) ||
+            string.IsNullOrWhiteSpace(investigation.SchemaVersion) ||
+            !Enum.IsDefined(investigation.Window) || !Enum.IsDefined(investigation.Status) ||
+            investigation.Status == GraphicsInvestigationStatus.Running ||
+            investigation.PeriodFromUtc.Offset != TimeSpan.Zero ||
+            investigation.PeriodToUtc.Offset != TimeSpan.Zero ||
+            investigation.StartedUtc.Offset != TimeSpan.Zero ||
+            investigation.CompletedUtc.Offset != TimeSpan.Zero ||
+            investigation.PeriodFromUtc >= investigation.PeriodToUtc ||
+            investigation.StartedUtc > investigation.CompletedUtc || investigation.Duration < TimeSpan.Zero ||
+            sources is null || adapters is null || monitors is null || drivers is null || events is null ||
+            werReports is null || observations is null || notes is null || changes is null ||
+            investigation.ComparisonLimitations is null || investigation.Limitations is null ||
+            investigation.Coverage is null)
+            throw new InvalidDataException("Registro de investigação gráfica inválido ou versão incompatível.");
+
+        var zeroSourcesAllowed = investigation.Status == GraphicsInvestigationStatus.Cancelled &&
+            investigation.Coverage.Execution == GraphicsExecutionStatus.Cancelled;
+        if (sources.Count == 0 && !zeroSourcesAllowed ||
+            sources.Select(source => source?.CollectorId).Distinct(StringComparer.Ordinal).Count() != sources.Count ||
+            sources.Any(source => source is null || string.IsNullOrWhiteSpace(source.CollectorId) ||
+                string.IsNullOrWhiteSpace(source.CollectorVersion) || string.IsNullOrWhiteSpace(source.Source) ||
+                !Enum.IsDefined(source.Category) || !Enum.IsDefined(source.Status) ||
+                source.Status == GraphicsSourceStatus.Running || source.StartedUtc > source.CompletedUtc ||
+                source.Duration < TimeSpan.Zero || source.RecordsRead < 0 || source.EvidenceCount < 0 ||
+                source.Limitations is null))
+            throw new InvalidDataException("Fontes da investigação gráfica inválidas.");
+
+        var coverage = investigation.Coverage;
+        bool SourceCategoryAvailable(GraphicsSourceCategory category) => sources.Any(source =>
+            source.Category == category && source.Status is GraphicsSourceStatus.Completed or GraphicsSourceStatus.Partial);
+        var completedSourceCount = sources.Count(source => source.Status == GraphicsSourceStatus.Completed);
+        var unavailableSourceIds = sources.Where(source => source.Status is GraphicsSourceStatus.Failed
+                or GraphicsSourceStatus.Unsupported)
+            .Select(source => source.CollectorId).ToHashSet(StringComparer.Ordinal);
+        if (coverage.UnavailableSources is null ||
+            coverage.CompletedSources != completedSourceCount ||
+            !coverage.UnavailableSources.ToHashSet(StringComparer.Ordinal).SetEquals(unavailableSourceIds) ||
+            investigation.Status != GraphicsInvestigationStatus.Cancelled &&
+            coverage.ExpectedSources != sources.Count)
+            throw new InvalidDataException("Contadores ou fontes indisponíveis da cobertura gráfica inconsistentes.");
+        if (!Enum.IsDefined(coverage.Execution) || coverage.Execution == GraphicsExecutionStatus.Running ||
+            !Enum.IsDefined(coverage.Status) || coverage.ExpectedSources <= 0 ||
+            coverage.CompletedSources < 0 || coverage.CompletedSources > coverage.ExpectedSources ||
+            coverage.UnavailableSources is null || coverage.Limitations is null ||
+            coverage.UnavailableSources.Distinct(StringComparer.Ordinal).Count() != coverage.UnavailableSources.Count ||
+            coverage.UnavailableSources.Any(string.IsNullOrWhiteSpace) ||
+            coverage.AdaptersUnavailable != !SourceCategoryAvailable(GraphicsSourceCategory.Adapters) ||
+            coverage.MonitorsUnavailable != !SourceCategoryAvailable(GraphicsSourceCategory.Monitors) ||
+            coverage.DriversUnavailable != !SourceCategoryAvailable(GraphicsSourceCategory.Drivers) ||
+            coverage.EventsUnavailable != !sources.Any(source =>
+                source.Category is GraphicsSourceCategory.Events or GraphicsSourceCategory.Wer &&
+                source.Status is GraphicsSourceStatus.Completed or GraphicsSourceStatus.Partial) ||
+            coverage.Status == GraphicsCoverageStatus.Complete &&
+            (coverage.AdaptersUnavailable || coverage.MonitorsUnavailable || coverage.DriversUnavailable ||
+             coverage.EventsUnavailable || sources.Any(source => source.LimitHit)) ||
+            coverage.Execution == GraphicsExecutionStatus.Cancelled &&
+            investigation.Status != GraphicsInvestigationStatus.Cancelled ||
+            coverage.Execution == GraphicsExecutionStatus.Failed &&
+            investigation.Status != GraphicsInvestigationStatus.Failed ||
+            coverage.Execution == GraphicsExecutionStatus.Unsupported &&
+            investigation.Status != GraphicsInvestigationStatus.Unsupported ||
+            coverage.Execution == GraphicsExecutionStatus.Completed &&
+            investigation.Status is GraphicsInvestigationStatus.Cancelled or GraphicsInvestigationStatus.Failed
+                or GraphicsInvestigationStatus.Unsupported ||
+            coverage.Status == GraphicsCoverageStatus.Complete &&
+            (coverage.Execution != GraphicsExecutionStatus.Completed ||
+             coverage.CompletedSources != coverage.ExpectedSources || coverage.UnavailableSources.Count != 0 ||
+             sources.Count != coverage.ExpectedSources ||
+             sources.Any(source => source.Status != GraphicsSourceStatus.Completed)))
+            throw new InvalidDataException("Cobertura da investigação gráfica inválida.");
+
+        if (adapters.Select(item => item?.StableId).Distinct(StringComparer.Ordinal).Count() != adapters.Count ||
+            adapters.Any(item => item is null || string.IsNullOrWhiteSpace(item.StableId) ||
+                string.IsNullOrWhiteSpace(item.Source) || item.Properties is null || item.Limitations is null ||
+                item.DriverDateUtc?.Offset is { } driverOffset && driverOffset != TimeSpan.Zero))
+            throw new InvalidDataException("Adaptadores da investigação gráfica inválidos.");
+        if (monitors.Select(item => item?.StableId).Distinct(StringComparer.Ordinal).Count() != monitors.Count ||
+            monitors.Any(item => item is null || string.IsNullOrWhiteSpace(item.StableId) ||
+                string.IsNullOrWhiteSpace(item.Source) || item.Properties is null || item.Limitations is null ||
+                item.SupportedModes is null))
+            throw new InvalidDataException("Monitores da investigação gráfica inválidos.");
+        if (drivers.Select(item => item?.StableId).Distinct(StringComparer.Ordinal).Count() != drivers.Count ||
+            drivers.Any(item => item is null || string.IsNullOrWhiteSpace(item.StableId) ||
+                string.IsNullOrWhiteSpace(item.Source) || item.Limitations is null ||
+                item.DateUtc?.Offset is { } driverDateOffset && driverDateOffset != TimeSpan.Zero))
+            throw new InvalidDataException("Drivers da investigação gráfica inválidos.");
+
+        if (events.Select(item => item?.Id).Distinct(StringComparer.Ordinal).Count() != events.Count ||
+            events.Any(item => item is null || string.IsNullOrWhiteSpace(item.Id) ||
+                string.IsNullOrWhiteSpace(item.Channel) || string.IsNullOrWhiteSpace(item.Provider) ||
+                item.EventId <= 0 || item.OccurredUtc.Offset != TimeSpan.Zero || !Enum.IsDefined(item.Kind) ||
+                !Enum.IsDefined(item.Level) || item.Data is null || item.Limitations is null))
+            throw new InvalidDataException("Eventos da investigação gráfica inválidos.");
+        if (werReports.Select(item => item?.Id).Distinct(StringComparer.Ordinal).Count() != werReports.Count ||
+            werReports.Any(item => item is null || string.IsNullOrWhiteSpace(item.Id) ||
+                string.IsNullOrWhiteSpace(item.ReportId) || string.IsNullOrWhiteSpace(item.Source) ||
+                !Enum.IsDefined(item.Kind) || !Enum.IsDefined(item.Confidence) ||
+                item.EventTimeUtc?.Offset is { } eventOffset && eventOffset != TimeSpan.Zero ||
+                item.CreationTimeUtc?.Offset is { } creationOffset && creationOffset != TimeSpan.Zero ||
+                item.Data is null || item.Limitations is null))
+            throw new InvalidDataException("Relatórios WER da investigação gráfica inválidos.");
+
+        if (observations.Select(item => item?.Id).Distinct(StringComparer.Ordinal).Count() != observations.Count ||
+            observations.Any(item => item is null || string.IsNullOrWhiteSpace(item.Id) ||
+                string.IsNullOrWhiteSpace(item.RuleId) || string.IsNullOrWhiteSpace(item.Title) ||
+                string.IsNullOrWhiteSpace(item.Statement) || string.IsNullOrWhiteSpace(item.Metric) ||
+                string.IsNullOrWhiteSpace(item.Unit) || string.IsNullOrWhiteSpace(item.Source) ||
+                !Enum.IsDefined(item.Kind) || !Enum.IsDefined(item.Severity) ||
+                !Enum.IsDefined(item.Confidence) || !Enum.IsDefined(item.Causality) ||
+                item.Causality != CausalityStatus.NotAssessed ||
+                item.WindowFromUtc.Offset != TimeSpan.Zero || item.WindowToUtc.Offset != TimeSpan.Zero ||
+                item.WindowFromUtc > item.WindowToUtc ||
+                item.FirstObservedUtc?.Offset is { } firstOffset && firstOffset != TimeSpan.Zero ||
+                item.LastObservedUtc?.Offset is { } lastOffset && lastOffset != TimeSpan.Zero ||
+                item.FirstObservedUtc > item.LastObservedUtc || item.EvidenceCount < 0 ||
+                item.Limitations is null))
+            throw new InvalidDataException("Observações da investigação gráfica inválidas.");
+        if (notes.Any(note => note is null || string.IsNullOrWhiteSpace(note.RuleId) ||
+                string.IsNullOrWhiteSpace(note.RuleVersion) || note.Detail is null ||
+                !Enum.IsDefined(note.Reason)))
+            throw new InvalidDataException("Notas de análise da investigação gráfica inválidas.");
+        if (changes.Any(change => change is null || string.IsNullOrWhiteSpace(change.Subject) ||
+                !Enum.IsDefined(change.Type)) ||
+            !investigation.ChangesComparable && changes.Count > 0)
+            throw new InvalidDataException("Alterações da investigação gráfica inválidas.");
+        if (!investigation.Limitations.Contains(GraphicsEvidenceClassification.ExtraScopeLimitation,
+                StringComparer.Ordinal) ||
+            !investigation.Limitations.Contains(GraphicsEvidenceClassification.CausalityLimitation,
+                StringComparer.Ordinal))
+            throw new InvalidDataException(
+                "Limitações obrigatórias de escopo/causalidade ausentes na investigação gráfica.");
+    }
+
+    private static string CanonicalJson(GraphicsInvestigation investigation) =>
+        JsonSerializer.Serialize(investigation, AuditJson.Options).Replace("\r\n", "\n");
 
     private List<EventInvestigation> ReconcileEvents(SqliteConnection database, List<string> warnings,
         CancellationToken cancellationToken)
