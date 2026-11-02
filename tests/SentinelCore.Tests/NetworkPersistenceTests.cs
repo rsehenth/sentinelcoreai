@@ -41,7 +41,7 @@ public sealed class NetworkPersistenceTests : IDisposable
         Assert.True(bytes > 0);
         Assert.True(File.Exists(store.GetNetworkReportPath(session.Id)));
         Assert.True(File.Exists(Path.Combine(root, "memory", "NETWORK.md")));
-        Assert.Equal(7, ReadUserVersion());
+        Assert.Equal(9, ReadUserVersion());
     }
 
     [Fact]
@@ -155,7 +155,7 @@ public sealed class NetworkPersistenceTests : IDisposable
         Assert.Equal(session.Id, rebuilt.Id);
         Assert.Equal(4, rebuilt.Samples.Count);
         Assert.Single(rebuilt.Observations);
-        Assert.Equal(7, ReadUserVersion());
+        Assert.Equal(9, ReadUserVersion());
 
         using var db = Open();
         using var command = db.CreateCommand();
@@ -275,17 +275,17 @@ public sealed class NetworkPersistenceTests : IDisposable
         Assert.Empty(networkLoaded.Sessions);
         Assert.Single((await NewStore().LoadAsync()).Audits);
         Assert.Single((await NewStore().LoadSessionsAsync()).Sessions);
-        Assert.Equal(7, ReadUserVersion());
+        Assert.Equal(9, ReadUserVersion());
     }
 
     [Fact]
-    public async Task FutureSchemaEightIsRejectedWithoutCorruptingDatabase()
+    public async Task FutureSchemaTenIsRejectedWithoutCorruptingDatabase()
     {
         await NewStore().LoadNetworkSessionsAsync();
         using (var db = Open())
         {
             using var command = db.CreateCommand();
-            command.CommandText = "PRAGMA user_version=8";
+            command.CommandText = "PRAGMA user_version=10";
             command.ExecuteNonQuery();
         }
 

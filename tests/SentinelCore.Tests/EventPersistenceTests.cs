@@ -29,7 +29,7 @@ public sealed class EventPersistenceTests : IDisposable
         Assert.True(File.Exists(store.GetEventReportPath(investigation.Id)));
         Assert.Contains("Investigação de estabilidade e eventos",
             File.ReadAllText(store.GetEventReportPath(investigation.Id)));
-        Assert.Equal(7, ReadUserVersion());
+        Assert.Equal(9, ReadUserVersion());
     }
 
     [Fact]
@@ -139,13 +139,13 @@ public sealed class EventPersistenceTests : IDisposable
     }
 
     [Fact]
-    public async Task FutureSchemaSixIsRejected()
+    public async Task FutureSchemaTenIsRejected()
     {
         await NewStore().LoadAsync();
         using (var db = Open())
         {
             using var command = db.CreateCommand();
-            command.CommandText = "PRAGMA user_version=8";
+            command.CommandText = "PRAGMA user_version=10";
             command.ExecuteNonQuery();
         }
 
@@ -174,7 +174,7 @@ public sealed class EventPersistenceTests : IDisposable
         Assert.Empty(loaded.Investigations);
         Assert.Single((await NewStore().LoadAsync()).Audits);
         Assert.Single((await NewStore().LoadSnapshotsAsync()).Snapshots);
-        Assert.Equal(7, ReadUserVersion());
+        Assert.Equal(9, ReadUserVersion());
     }
 
     [Fact]

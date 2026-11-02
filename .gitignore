@@ -98,3 +98,6 @@ graphify-out/
 .claude/
 .chat/
 .playwright-mcp/
+
+# --- Arquivos avulsos sem relação com o produto ---
+/turmas-1440.png

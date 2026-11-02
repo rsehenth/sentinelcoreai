@@ -206,7 +206,8 @@ public partial class MainWindow
 
     private async void OnNetworkRun(object sender, RoutedEventArgs e)
     {
-        if (busy || hardwareBusy || eventBusy || performanceBusy || networkBusy || graphicsBusy) return;
+        if (busy || hardwareBusy || eventBusy || performanceBusy || networkBusy || graphicsBusy || correlationBusy || monitoringBusy)
+            return;
 
         if (unsavedNetwork is not null)
         {
@@ -434,7 +435,8 @@ public partial class MainWindow
 
     private void UpdateNetworkButtons()
     {
-        var idle = !networkBusy && !busy && !hardwareBusy && !eventBusy && !performanceBusy && !graphicsBusy;
+        var idle = !networkBusy && !busy && !hardwareBusy && !eventBusy && !performanceBusy && !graphicsBusy &&
+            !correlationBusy && !monitoringBusy;
         NetworkRunButton.IsEnabled = idle;
         NetworkCancelButton.IsEnabled = networkBusy && !networkSaving &&
             networkCancellation is { IsCancellationRequested: false };

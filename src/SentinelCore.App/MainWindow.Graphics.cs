@@ -226,7 +226,8 @@ public partial class MainWindow
 
     private async void OnGraphicsRun(object sender, RoutedEventArgs e)
     {
-        if (graphicsBusy || busy || hardwareBusy || eventBusy || performanceBusy || networkBusy) return;
+        if (graphicsBusy || busy || hardwareBusy || eventBusy || performanceBusy || networkBusy || correlationBusy || monitoringBusy)
+            return;
 
         if (unsavedGraphics is not null)
         {
@@ -428,7 +429,8 @@ public partial class MainWindow
 
     private void UpdateGraphicsButtons()
     {
-        var idle = !graphicsBusy && !busy && !hardwareBusy && !eventBusy && !performanceBusy && !networkBusy;
+        var idle = !graphicsBusy && !busy && !hardwareBusy && !eventBusy && !performanceBusy && !networkBusy &&
+            !correlationBusy && !monitoringBusy;
         GraphicsRunButton.IsEnabled = idle;
         GraphicsCancelButton.IsEnabled = graphicsBusy && !graphicsSaving &&
             graphicsCancellation is { IsCancellationRequested: false };
@@ -436,6 +438,7 @@ public partial class MainWindow
         GraphicsHistoryList.IsEnabled = !graphicsBusy;
         GraphicsReportButton.IsEnabled = !graphicsBusy && selectedGraphics is not null &&
             File.Exists(graphicsStore.GetGraphicsReportPath(selectedGraphics.Id));
+        UpdateCorrelationButtons();
     }
 
     private void ShowGraphicsFailure(string message, Exception error)

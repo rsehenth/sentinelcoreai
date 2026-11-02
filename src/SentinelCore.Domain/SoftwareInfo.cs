@@ -16,6 +16,8 @@ public static class SoftwareInfo
     public const string PerformanceSchemaVersion = "2";
     public const string NetworkSchemaVersion = "1";
     public const string GraphicsSchemaVersion = "1";
+    public const string CorrelationSchemaVersion = "1";
+    public const string MonitoringSchemaVersion = "1";
 
     private static string ReadProductVersion()
     {

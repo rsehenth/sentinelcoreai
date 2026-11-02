@@ -48,7 +48,7 @@ public sealed class GraphicsPersistenceTests : IDisposable
         Assert.True(bytes > 0);
         Assert.True(File.Exists(store.GetGraphicsReportPath(investigation.Id)));
         Assert.True(File.Exists(Path.Combine(root, "memory", "GRAPHICS.md")));
-        Assert.Equal(7, ReadUserVersion());
+        Assert.Equal(9, ReadUserVersion());
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public sealed class GraphicsPersistenceTests : IDisposable
         var rebuilt = Assert.Single(loaded.Investigations);
         Assert.Equal(investigation.Id, rebuilt.Id);
         Assert.Equal(investigation.Events.Count, rebuilt.Events.Count);
-        Assert.Equal(7, ReadUserVersion());
+        Assert.Equal(9, ReadUserVersion());
 
         using var db = Open();
         using var command = db.CreateCommand();
@@ -191,17 +191,17 @@ public sealed class GraphicsPersistenceTests : IDisposable
         Assert.Single((await NewStore().LoadAsync()).Audits);
         Assert.Single((await NewStore().LoadInvestigationsAsync()).Investigations);
         Assert.Single((await NewStore().LoadSessionsAsync()).Sessions);
-        Assert.Equal(7, ReadUserVersion());
+        Assert.Equal(9, ReadUserVersion());
     }
 
     [Fact]
-    public async Task FutureSchemaEightIsRejectedWithoutCorruptingDatabase()
+    public async Task FutureSchemaTenIsRejectedWithoutCorruptingDatabase()
     {
         await NewStore().LoadGraphicsInvestigationsAsync();
         using (var db = Open())
         {
             using var command = db.CreateCommand();
-            command.CommandText = "PRAGMA user_version=8";
+            command.CommandText = "PRAGMA user_version=10";
             command.ExecuteNonQuery();
         }
 

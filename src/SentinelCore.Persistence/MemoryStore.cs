@@ -7,7 +7,8 @@ using SentinelCore.Domain;
 namespace SentinelCore.Persistence;
 
 public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInvestigationStore,
-    IPerformanceSessionStore, INetworkSessionStore, IGraphicsInvestigationStore
+    IPerformanceSessionStore, INetworkSessionStore, IGraphicsInvestigationStore, ICorrelationInvestigationStore,
+    IMonitoringSessionStore
 {
     private readonly string root;
     private string Database => Path.Combine(root, "data", "sentinelcore.db");
@@ -16,6 +17,12 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
     private string PerformanceRecordPath(Guid id) => Path.Combine(root, "memory", "performance", $"{id:D}.md");
     private string NetworkRecordPath(Guid id) => Path.Combine(root, "memory", "network", $"{id:D}.md");
     private string GraphicsRecordPath(Guid id) => Path.Combine(root, "memory", "graphics", $"{id:D}.md");
+    private string CorrelationRecordPath(Guid id) => Path.Combine(root, "memory", "correlation", $"{id:D}.md");
+    private string MonitoringRecordPath(Guid id) => Path.Combine(root, "memory", "monitoring", $"{id:D}.md");
+    private string MonitoringSegmentDirectory(Guid sessionId) =>
+        Path.Combine(root, "memory", "monitoring", $"{sessionId:D}", "segments");
+    private string MonitoringSegmentPath(Guid sessionId, Guid segmentId) =>
+        Path.Combine(MonitoringSegmentDirectory(sessionId), $"{segmentId:D}.md");
     public static string DefaultRoot => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SentinelCoreAI");
     public MemoryStore(string? dataRoot = null) => root = Path.GetFullPath(dataRoot ?? DefaultRoot);
     public string GetReportPath(Guid auditId) => Path.Combine(root, "reports", $"{auditId:D}.md");
@@ -24,6 +31,8 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
     public string GetPerformanceReportPath(Guid sessionId) => Path.Combine(root, "reports", "performance", $"{sessionId:D}.md");
     public string GetNetworkReportPath(Guid sessionId) => Path.Combine(root, "reports", "network", $"{sessionId:D}.md");
     public string GetGraphicsReportPath(Guid investigationId) => Path.Combine(root, "reports", "graphics", $"{investigationId:D}.md");
+    public string GetCorrelationReportPath(Guid investigationId) => Path.Combine(root, "reports", "correlation", $"{investigationId:D}.md");
+    public string GetMonitoringReportPath(Guid sessionId) => Path.Combine(root, "reports", "monitoring", $"{sessionId:D}.md");
     private string RecordPath(AuditRecord audit) => Path.Combine(root, "memory", "audits", audit.Kind.ToString().ToLowerInvariant(), $"{audit.Id:D}.md");
 
     public Task<StoreSnapshot> LoadAsync(CancellationToken cancellationToken = default) => Task.Run(() =>
@@ -46,13 +55,14 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
     public Task SaveAsync(AuditRecord audit, CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         Validate(audit);
+        EnsureNoMonitoringRecord(audit.Id);
         EnsureDirectories();
         using var storeLock = Lock();
         var otherKind = audit.Kind == AuditKind.Basic ? AuditKind.Full : AuditKind.Basic;
         if (File.Exists(RecordPath(audit with { Kind = otherKind })) ||
             File.Exists(HardwareRecordPath(audit.Id)) || File.Exists(EventRecordPath(audit.Id)) ||
             File.Exists(PerformanceRecordPath(audit.Id)) || File.Exists(NetworkRecordPath(audit.Id)) ||
-            File.Exists(GraphicsRecordPath(audit.Id)))
+            File.Exists(GraphicsRecordPath(audit.Id)) || File.Exists(CorrelationRecordPath(audit.Id)))
             throw new InvalidDataException("ID já existe em outro histórico; histórico preservado.");
         var json = CanonicalJson(audit);
         var path = RecordPath(audit);
@@ -82,7 +92,7 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
 
     private void EnsureDirectories()
     {
-        foreach (var relative in new[] { "memory", "memory/inventory", "memory/events", "memory/performance", "memory/network", "memory/graphics", "data", "reports", "reports/hardware", "reports/events", "reports/performance", "reports/network", "reports/graphics", "logs", Path.Combine("memory", "audits", "basic") })
+        foreach (var relative in new[] { "memory", "memory/inventory", "memory/events", "memory/performance", "memory/network", "memory/graphics", "memory/correlation", "memory/monitoring", "data", "reports", "reports/hardware", "reports/events", "reports/performance", "reports/network", "reports/graphics", "reports/correlation", "reports/monitoring", "logs", Path.Combine("memory", "audits", "basic") })
             Directory.CreateDirectory(Path.Combine(root, relative));
     }
 
@@ -119,9 +129,9 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
     {
         using var version = database.CreateCommand(); version.CommandText = "PRAGMA user_version";
         var schema = Convert.ToInt32(version.ExecuteScalar());
-        if (schema > 7)
+        if (schema > 9)
             throw new InvalidDataException("Banco de uma versão mais recente. Abra com uma versão compatível do aplicativo.");
-        if (schema == 7) return;
+        if (schema == 9) return;
         using var transaction = database.BeginTransaction();
         using var command = database.CreateCommand(); command.Transaction = transaction;
         if (schema < 1)
@@ -307,7 +317,86 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
                 """;
             command.ExecuteNonQuery();
         }
-        command.CommandText = "PRAGMA user_version = 7";
+        if (schema < 8)
+        {
+            command.CommandText = """
+                CREATE TABLE IF NOT EXISTS CorrelationInvestigations (
+                    Id TEXT PRIMARY KEY, FormatVersion INTEGER NOT NULL, SchemaVersion TEXT NOT NULL,
+                    SoftwareVersion TEXT NOT NULL, WindowPreset TEXT NOT NULL,
+                    PeriodFromUtc TEXT NOT NULL, PeriodToUtc TEXT NOT NULL,
+                    StartedUtc TEXT NOT NULL, CompletedUtc TEXT NOT NULL, DurationSeconds REAL NOT NULL,
+                    Status TEXT NOT NULL, ExecutionStatus TEXT NOT NULL, CoverageStatus TEXT NOT NULL,
+                    RequestedSources INTEGER NOT NULL, LastBootUtc TEXT NULL, BootAuditId TEXT NULL,
+                    EvidenceCount INTEGER NOT NULL, TimelineCount INTEGER NOT NULL, RelationCount INTEGER NOT NULL,
+                    UndatedCount INTEGER NOT NULL, MergedReferenceCount INTEGER NOT NULL, LimitHit INTEGER NOT NULL,
+                    MarkdownPath TEXT NOT NULL UNIQUE, PayloadHash TEXT NOT NULL,
+                    SourcesJson TEXT NOT NULL, BootJson TEXT NOT NULL, CoverageJson TEXT NOT NULL,
+                    NotesJson TEXT NOT NULL, LimitationsJson TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS CorrelationSources (
+                    InvestigationId TEXT NOT NULL REFERENCES CorrelationInvestigations(Id) ON DELETE CASCADE,
+                    Source TEXT NOT NULL, Status TEXT NOT NULL, RecordsRead INTEGER NOT NULL,
+                    RecordsUsed INTEGER NOT NULL, EvidenceCount INTEGER NOT NULL, LimitHit INTEGER NOT NULL,
+                    Note TEXT NULL, LimitationsJson TEXT NOT NULL,
+                    PRIMARY KEY (InvestigationId, Source));
+                CREATE TABLE IF NOT EXISTS CorrelationEvidence (
+                    InvestigationId TEXT NOT NULL REFERENCES CorrelationInvestigations(Id) ON DELETE CASCADE,
+                    EvidenceId TEXT NOT NULL, Source TEXT NOT NULL, Kind TEXT NOT NULL,
+                    SourceRecordId TEXT NOT NULL, EffectiveTimestampUtc TEXT NULL, Precision TEXT NOT NULL,
+                    IdentityKey TEXT NULL, IdentityKind TEXT NOT NULL, Severity TEXT NOT NULL,
+                    Confidence TEXT NOT NULL, Title TEXT NOT NULL, OriginsJson TEXT NOT NULL,
+                    LimitationsJson TEXT NOT NULL,
+                    PRIMARY KEY (InvestigationId, EvidenceId));
+                CREATE TABLE IF NOT EXISTS CorrelationRelations (
+                    InvestigationId TEXT NOT NULL REFERENCES CorrelationInvestigations(Id) ON DELETE CASCADE,
+                    RelationId TEXT NOT NULL, RuleId TEXT NOT NULL, Kind TEXT NOT NULL,
+                    Severity TEXT NOT NULL, Confidence TEXT NOT NULL, Causality TEXT NOT NULL,
+                    WindowFromUtc TEXT NULL, WindowToUtc TEXT NULL, MaximumGapSeconds REAL NULL,
+                    EvidenceIdsJson TEXT NOT NULL, LimitationsJson TEXT NOT NULL,
+                    PRIMARY KEY (InvestigationId, RelationId));
+                CREATE INDEX IF NOT EXISTS IX_CorrelationInvestigations_Completed ON CorrelationInvestigations(CompletedUtc DESC);
+                CREATE INDEX IF NOT EXISTS IX_CorrelationRelations_Rule ON CorrelationRelations(InvestigationId, RuleId);
+                CREATE INDEX IF NOT EXISTS IX_CorrelationEvidence_Source ON CorrelationEvidence(InvestigationId, Source);
+                """;
+            command.ExecuteNonQuery();
+        }
+        if (schema < 9)
+        {
+            command.CommandText = """
+                CREATE TABLE IF NOT EXISTS MonitoringSessions (
+                    Id TEXT PRIMARY KEY, FormatVersion INTEGER NOT NULL, SchemaVersion TEXT NOT NULL,
+                    SoftwareVersion TEXT NOT NULL, Preset TEXT NOT NULL,
+                    AuthorizedDurationSeconds REAL NOT NULL,
+                    StartedUtc TEXT NOT NULL, CompletedUtc TEXT NOT NULL, DurationSeconds REAL NOT NULL,
+                    Status TEXT NOT NULL, CoverageStatus TEXT NOT NULL, RequestedSources INTEGER NOT NULL,
+                    SegmentCount INTEGER NOT NULL, IncidentCount INTEGER NOT NULL, Recovered INTEGER NOT NULL,
+                    BudgetJson TEXT NOT NULL, SourcesJson TEXT NOT NULL, RecoveryJson TEXT NOT NULL,
+                    LimitationsJson TEXT NOT NULL, MarkdownPath TEXT NOT NULL UNIQUE, PayloadHash TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS MonitoringSegments (
+                    SessionId TEXT NOT NULL REFERENCES MonitoringSessions(Id) ON DELETE CASCADE,
+                    SegmentId TEXT PRIMARY KEY, Sequence INTEGER NOT NULL, Source TEXT NOT NULL,
+                    CollectorId TEXT NOT NULL, CollectorVersion TEXT NOT NULL,
+                    FromUtc TEXT NOT NULL, ToUtc TEXT NOT NULL, Status TEXT NOT NULL,
+                    ObservationCount INTEGER NOT NULL,
+                    MarkdownPath TEXT NOT NULL UNIQUE, PayloadHash TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS MonitoringIncidents (
+                    SessionId TEXT NOT NULL REFERENCES MonitoringSessions(Id) ON DELETE CASCADE,
+                    IncidentId TEXT PRIMARY KEY, RecordedUtc TEXT NOT NULL, OccurredUtc TEXT NULL,
+                    Precision TEXT NOT NULL, Category TEXT NOT NULL, Description TEXT NULL,
+                    SessionElapsedSeconds REAL NOT NULL, EvidenceJson TEXT NOT NULL,
+                    LimitationsJson TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS MonitoringRecoveries (
+                    SessionId TEXT PRIMARY KEY, DetectedUtc TEXT NOT NULL,
+                    FirstSegmentUtc TEXT NOT NULL, LastSegmentUtc TEXT NOT NULL,
+                    SegmentCount INTEGER NOT NULL, PerformanceObservations INTEGER NOT NULL,
+                    EventObservations INTEGER NOT NULL, NetworkObservations INTEGER NOT NULL,
+                    Detail TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS IX_MonitoringSessions_Completed ON MonitoringSessions(CompletedUtc DESC);
+                CREATE INDEX IF NOT EXISTS IX_MonitoringSegments_Session ON MonitoringSegments(SessionId, Source, Sequence);
+                CREATE INDEX IF NOT EXISTS IX_MonitoringIncidents_Session ON MonitoringIncidents(SessionId, RecordedUtc);
+                """;
+            command.ExecuteNonQuery();
+        }
+        command.CommandText = "PRAGMA user_version = 9";
         command.ExecuteNonQuery();
         transaction.Commit();
     }
@@ -437,6 +526,7 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
     public Task SaveSnapshotAsync(HardwareSnapshot snapshot, CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         ValidateHardware(snapshot);
+        EnsureNoMonitoringRecord(snapshot.Id);
         EnsureDirectories();
         using var storeLock = Lock();
         foreach (var kind in Enum.GetValues<AuditKind>())
@@ -450,6 +540,8 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
             throw new InvalidDataException("ID já existe em uma sessão de rede; histórico preservado.");
         if (File.Exists(GraphicsRecordPath(snapshot.Id)))
             throw new InvalidDataException("ID já existe em uma investigação gráfica; histórico preservado.");
+        if (File.Exists(CorrelationRecordPath(snapshot.Id)))
+            throw new InvalidDataException("ID já existe em uma correlação; histórico preservado.");
         var json = CanonicalJson(snapshot);
         var path = HardwareRecordPath(snapshot.Id);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -497,6 +589,7 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
         CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         ValidateInvestigation(investigation);
+        EnsureNoMonitoringRecord(investigation.Id);
         EnsureDirectories();
         using var storeLock = Lock();
         foreach (var kind in Enum.GetValues<AuditKind>())
@@ -510,6 +603,8 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
             throw new InvalidDataException("ID já existe em uma sessão de rede; histórico preservado.");
         if (File.Exists(GraphicsRecordPath(investigation.Id)))
             throw new InvalidDataException("ID já existe em uma investigação gráfica; histórico preservado.");
+        if (File.Exists(CorrelationRecordPath(investigation.Id)))
+            throw new InvalidDataException("ID já existe em uma correlação; histórico preservado.");
         var json = CanonicalJson(investigation);
         var path = EventRecordPath(investigation.Id);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -560,6 +655,7 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
         CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         ValidateSession(session);
+        EnsureNoMonitoringRecord(session.Id);
         EnsureDirectories();
         using var storeLock = Lock();
         foreach (var kind in Enum.GetValues<AuditKind>())
@@ -573,6 +669,8 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
             throw new InvalidDataException("ID já existe em uma sessão de rede; histórico preservado.");
         if (File.Exists(GraphicsRecordPath(session.Id)))
             throw new InvalidDataException("ID já existe em uma investigação gráfica; histórico preservado.");
+        if (File.Exists(CorrelationRecordPath(session.Id)))
+            throw new InvalidDataException("ID já existe em uma correlação; histórico preservado.");
         var json = CanonicalJson(session);
         var path = PerformanceRecordPath(session.Id);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -945,6 +1043,7 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
         CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         ValidateNetworkSession(session);
+        EnsureNoMonitoringRecord(session.Id);
         EnsureDirectories();
         using var storeLock = Lock();
         foreach (var kind in Enum.GetValues<AuditKind>())
@@ -958,6 +1057,8 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
             throw new InvalidDataException("ID já existe em uma sessão de desempenho; histórico preservado.");
         if (File.Exists(GraphicsRecordPath(session.Id)))
             throw new InvalidDataException("ID já existe em uma investigação gráfica; histórico preservado.");
+        if (File.Exists(CorrelationRecordPath(session.Id)))
+            throw new InvalidDataException("ID já existe em uma correlação; histórico preservado.");
         var json = CanonicalJson(session);
         var path = NetworkRecordPath(session.Id);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -1349,6 +1450,7 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
         CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         ValidateGraphicsInvestigation(investigation);
+        EnsureNoMonitoringRecord(investigation.Id);
         EnsureDirectories();
         using var storeLock = Lock();
         foreach (var kind in Enum.GetValues<AuditKind>())
@@ -1363,6 +1465,8 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
             throw new InvalidDataException("ID já existe em uma sessão de desempenho; histórico preservado.");
         if (File.Exists(NetworkRecordPath(investigation.Id)))
             throw new InvalidDataException("ID já existe em uma sessão de rede; histórico preservado.");
+        if (File.Exists(CorrelationRecordPath(investigation.Id)))
+            throw new InvalidDataException("ID já existe em uma correlação; histórico preservado.");
         var json = CanonicalJson(investigation);
         var path = GraphicsRecordPath(investigation.Id);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -2218,6 +2322,1170 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
 
     private static string CanonicalJson(HardwareSnapshot snapshot) =>
         JsonSerializer.Serialize(snapshot, AuditJson.Options).Replace("\r\n", "\n");
+
+    public Task<CorrelationStoreSnapshot> LoadCorrelationInvestigationsAsync(
+        CancellationToken cancellationToken = default) => Task.Run(() =>
+    {
+        EnsureDirectories();
+        using var storeLock = Lock();
+        var warnings = new List<string>();
+        using var database = OpenDatabase(warnings);
+        var investigations = ReconcileCorrelations(database, warnings, cancellationToken);
+        WriteCorrelationProjection(investigations);
+        var byId = investigations.ToDictionary(investigation => investigation.Id);
+        var ordered = new List<CorrelationInvestigation>();
+        using var query = database.CreateCommand();
+        query.CommandText = "SELECT Id FROM CorrelationInvestigations ORDER BY CompletedUtc DESC, Id";
+        using var reader = query.ExecuteReader();
+        while (reader.Read())
+            if (Guid.TryParse(reader.GetString(0), out var id) && byId.TryGetValue(id, out var investigation))
+                ordered.Add(investigation);
+        return new CorrelationStoreSnapshot(ordered, warnings);
+    }, cancellationToken);
+
+    public Task<long> SaveCorrelationInvestigationAsync(CorrelationInvestigation investigation,
+        CancellationToken cancellationToken = default) => Task.Run(() =>
+    {
+        ValidateCorrelationInvestigation(investigation);
+        EnsureNoMonitoringRecord(investigation.Id);
+        EnsureDirectories();
+        using var storeLock = Lock();
+        foreach (var kind in Enum.GetValues<AuditKind>())
+            if (File.Exists(Path.Combine(root, "memory", "audits", kind.ToString().ToLowerInvariant(),
+                    $"{investigation.Id:D}.md")))
+                throw new InvalidDataException("ID já existe em uma auditoria; histórico preservado.");
+        if (File.Exists(HardwareRecordPath(investigation.Id)))
+            throw new InvalidDataException("ID já existe em um inventário; histórico preservado.");
+        if (File.Exists(EventRecordPath(investigation.Id)))
+            throw new InvalidDataException("ID já existe em uma investigação; histórico preservado.");
+        if (File.Exists(PerformanceRecordPath(investigation.Id)))
+            throw new InvalidDataException("ID já existe em uma sessão de desempenho; histórico preservado.");
+        if (File.Exists(NetworkRecordPath(investigation.Id)))
+            throw new InvalidDataException("ID já existe em uma sessão de rede; histórico preservado.");
+        if (File.Exists(GraphicsRecordPath(investigation.Id)))
+            throw new InvalidDataException("ID já existe em uma investigação gráfica; histórico preservado.");
+        var json = CanonicalJson(investigation);
+        var path = CorrelationRecordPath(investigation.Id);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        long bytes;
+        if (File.Exists(path))
+        {
+            var (existing, existingHash) = ReadCorrelationRecord(path);
+            if (existingHash != RecordEnvelope.Hash(json) && CanonicalJson(existing) != json)
+                throw new InvalidDataException("ID já existe com conteúdo diferente; histórico preservado.");
+            bytes = new FileInfo(path).Length;
+        }
+        else
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var report = CorrelationReport.Render(investigation);
+            var document = RecordEnvelope.Wrap(report, json);
+            bytes = Encoding.UTF8.GetByteCount(document);
+            if (bytes > RecordEnvelope.MaximumRecordBytes)
+                throw new InvalidDataException(
+                    "Investigação de correlação excede 4 MiB e não pode ser persistida neste formato.");
+            RecordEnvelope.AtomicWrite(path, document, overwrite: false);
+            RecordEnvelope.AtomicWrite(GetCorrelationReportPath(investigation.Id), report, overwrite: false);
+        }
+        using var database = OpenDatabase([]);
+        var investigations = ReconcileCorrelations(database, [], CancellationToken.None);
+        WriteCorrelationProjection(investigations);
+        if (!investigations.Any(item => item.Id == investigation.Id) ||
+            !File.Exists(GetCorrelationReportPath(investigation.Id)))
+            throw new IOException("A gravação da investigação de correlação não foi concluída. O registro durável, " +
+                "se existente, será recuperado na próxima tentativa.");
+        return bytes;
+    }, cancellationToken);
+
+    private List<CorrelationInvestigation> ReconcileCorrelations(SqliteConnection database,
+        List<string> warnings, CancellationToken cancellationToken)
+    {
+        var investigations = new List<CorrelationInvestigation>();
+        var hashes = new Dictionary<Guid, string>();
+        var seen = new HashSet<Guid>();
+        var directory = Path.Combine(root, "memory", "correlation");
+        if (Directory.Exists(directory))
+        {
+            foreach (var path in Directory.EnumerateFiles(directory, "*.md", SearchOption.TopDirectoryOnly)
+                         .OrderBy(item => item, StringComparer.OrdinalIgnoreCase))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                try
+                {
+                    var (investigation, payloadHash) = ReadCorrelationRecord(path);
+                    if (Path.GetFileName(path) != $"{investigation.Id:D}.md" || !seen.Add(investigation.Id))
+                        throw new InvalidDataException("Identidade ou localização de correlação inválida.");
+                    investigations.Add(investigation);
+                    hashes[investigation.Id] = payloadHash;
+                    RecordEnvelope.AtomicWrite(GetCorrelationReportPath(investigation.Id),
+                        CorrelationReport.Render(investigation), overwrite: true);
+                }
+                catch (Exception error) when (error is InvalidDataException or JsonException or IOException
+                    or UnauthorizedAccessException or ArgumentException or NullReferenceException)
+                {
+                    warnings.Add($"Investigação de correlação {Path.GetFileName(path)} não recuperada " +
+                        $"({error.GetType().Name}): {error.Message}. Original preservado.");
+                }
+            }
+        }
+        using (var read = database.CreateCommand())
+        {
+            read.CommandText = "SELECT Id FROM CorrelationInvestigations";
+            using var reader = read.ExecuteReader();
+            while (reader.Read())
+                if (!Guid.TryParse(reader.GetString(0), out var id) || !seen.Contains(id))
+                    warnings.Add($"Investigação de correlação indexada {reader.GetString(0)} sem registro Markdown " +
+                        "válido; excluída da validade.");
+        }
+        using var transaction = database.BeginTransaction();
+        using (var clear = database.CreateCommand())
+        {
+            clear.Transaction = transaction;
+            clear.CommandText = "DELETE FROM CorrelationRelations; DELETE FROM CorrelationEvidence; " +
+                "DELETE FROM CorrelationSources; DELETE FROM CorrelationInvestigations";
+            clear.ExecuteNonQuery();
+        }
+        foreach (var investigation in investigations)
+            IndexCorrelation(database, transaction, investigation, hashes.GetValueOrDefault(investigation.Id));
+        transaction.Commit();
+        if (warnings.Count > 0)
+            File.AppendAllText(Path.Combine(root, "logs", "storage.log"),
+                $"{DateTimeOffset.UtcNow:O}\n{string.Join("\n", warnings)}\n", Encoding.UTF8);
+        return investigations;
+    }
+
+    private void IndexCorrelation(SqliteConnection database, SqliteTransaction transaction,
+        CorrelationInvestigation investigation, string? payloadHash = null)
+    {
+        using var command = database.CreateCommand(); command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO CorrelationInvestigations
+                (Id, FormatVersion, SchemaVersion, SoftwareVersion, WindowPreset, PeriodFromUtc, PeriodToUtc,
+                 StartedUtc, CompletedUtc, DurationSeconds, Status, ExecutionStatus, CoverageStatus,
+                 RequestedSources, LastBootUtc, BootAuditId, EvidenceCount, TimelineCount, RelationCount,
+                 UndatedCount, MergedReferenceCount, LimitHit, MarkdownPath, PayloadHash, SourcesJson, BootJson,
+                 CoverageJson, NotesJson, LimitationsJson)
+            VALUES ($id,$format,$schema,$software,$window,$from,$to,$start,$end,$duration,$status,$execution,
+                 $coverage,$sources,$boot,$bootAudit,$evidence,$timeline,$relations,$undated,$merged,$limit,
+                 $path,$hash,$sourcesJson,$bootJson,$coverageJson,$notesJson,$limits)
+            """;
+        command.Parameters.AddWithValue("$id", investigation.Id.ToString("D"));
+        command.Parameters.AddWithValue("$format", investigation.FormatVersion);
+        command.Parameters.AddWithValue("$schema", investigation.SchemaVersion);
+        command.Parameters.AddWithValue("$software", investigation.SoftwareVersion);
+        command.Parameters.AddWithValue("$window", investigation.Window.ToString());
+        command.Parameters.AddWithValue("$from", investigation.PeriodFromUtc.ToUniversalTime().ToString("O"));
+        command.Parameters.AddWithValue("$to", investigation.PeriodToUtc.ToUniversalTime().ToString("O"));
+        command.Parameters.AddWithValue("$start", investigation.StartedUtc.ToUniversalTime().ToString("O"));
+        command.Parameters.AddWithValue("$end", investigation.CompletedUtc.ToUniversalTime().ToString("O"));
+        command.Parameters.AddWithValue("$duration", investigation.Duration.TotalSeconds);
+        command.Parameters.AddWithValue("$status", investigation.Status.ToString());
+        command.Parameters.AddWithValue("$execution", investigation.Execution.ToString());
+        command.Parameters.AddWithValue("$coverage", investigation.Coverage.Status.ToString());
+        command.Parameters.AddWithValue("$sources", (int)investigation.RequestedSources);
+        command.Parameters.AddWithValue("$boot",
+            (object?)investigation.Boot.LastBootUtc?.ToUniversalTime().ToString("O") ?? DBNull.Value);
+        command.Parameters.AddWithValue("$bootAudit",
+            (object?)investigation.Boot.AuditId?.ToString("D") ?? DBNull.Value);
+        command.Parameters.AddWithValue("$evidence", investigation.Evidence.Count);
+        command.Parameters.AddWithValue("$timeline", investigation.Timeline.Count);
+        command.Parameters.AddWithValue("$relations", investigation.Relations.Count);
+        command.Parameters.AddWithValue("$undated", investigation.Coverage.UndatedEvidence);
+        command.Parameters.AddWithValue("$merged", investigation.Coverage.MergedReferences);
+        command.Parameters.AddWithValue("$limit", investigation.Coverage.LimitHit ? 1 : 0);
+        command.Parameters.AddWithValue("$path", Path.GetRelativePath(root, CorrelationRecordPath(investigation.Id)));
+        command.Parameters.AddWithValue("$hash", payloadHash ?? RecordEnvelope.Hash(CanonicalJson(investigation)));
+        command.Parameters.AddWithValue("$sourcesJson",
+            JsonSerializer.Serialize(investigation.Sources, AuditJson.Options));
+        command.Parameters.AddWithValue("$bootJson",
+            JsonSerializer.Serialize(investigation.Boot, AuditJson.Options));
+        command.Parameters.AddWithValue("$coverageJson",
+            JsonSerializer.Serialize(investigation.Coverage, AuditJson.Options));
+        command.Parameters.AddWithValue("$notesJson",
+            JsonSerializer.Serialize(investigation.AnalysisNotes, AuditJson.Options));
+        command.Parameters.AddWithValue("$limits",
+            JsonSerializer.Serialize(investigation.Limitations, AuditJson.Options));
+        command.ExecuteNonQuery();
+
+        foreach (var source in investigation.Sources)
+        {
+            using var child = database.CreateCommand(); child.Transaction = transaction;
+            child.CommandText = """
+                INSERT INTO CorrelationSources
+                    (InvestigationId, Source, Status, RecordsRead, RecordsUsed, EvidenceCount, LimitHit, Note,
+                     LimitationsJson)
+                VALUES ($investigation,$source,$status,$read,$used,$evidence,$limit,$note,$limits)
+                """;
+            child.Parameters.AddWithValue("$investigation", investigation.Id.ToString("D"));
+            child.Parameters.AddWithValue("$source", source.Source.ToString());
+            child.Parameters.AddWithValue("$status", source.Status.ToString());
+            child.Parameters.AddWithValue("$read", source.RecordsRead);
+            child.Parameters.AddWithValue("$used", source.RecordsUsed);
+            child.Parameters.AddWithValue("$evidence", source.EvidenceCount);
+            child.Parameters.AddWithValue("$limit", source.LimitHit ? 1 : 0);
+            child.Parameters.AddWithValue("$note", (object?)source.Note ?? DBNull.Value);
+            child.Parameters.AddWithValue("$limits",
+                JsonSerializer.Serialize(source.Limitations, AuditJson.Options));
+            child.ExecuteNonQuery();
+        }
+
+        foreach (var evidence in investigation.Evidence)
+        {
+            using var row = database.CreateCommand(); row.Transaction = transaction;
+            row.CommandText = """
+                INSERT INTO CorrelationEvidence
+                    (InvestigationId, EvidenceId, Source, Kind, SourceRecordId, EffectiveTimestampUtc, Precision,
+                     IdentityKey, IdentityKind, Severity, Confidence, Title, OriginsJson, LimitationsJson)
+                VALUES ($investigation,$id,$source,$kind,$record,$timestamp,$precision,$identity,$identityKind,
+                     $severity,$confidence,$title,$origins,$limits)
+                """;
+            row.Parameters.AddWithValue("$investigation", investigation.Id.ToString("D"));
+            row.Parameters.AddWithValue("$id", evidence.Id);
+            row.Parameters.AddWithValue("$source", evidence.Source.ToString());
+            row.Parameters.AddWithValue("$kind", evidence.Kind.ToString());
+            row.Parameters.AddWithValue("$record", evidence.SourceRecordId);
+            row.Parameters.AddWithValue("$timestamp",
+                (object?)evidence.EffectiveTimestampUtc?.ToUniversalTime().ToString("O") ?? DBNull.Value);
+            row.Parameters.AddWithValue("$precision", evidence.Precision.ToString());
+            row.Parameters.AddWithValue("$identity", (object?)evidence.IdentityKey ?? DBNull.Value);
+            row.Parameters.AddWithValue("$identityKind", evidence.IdentityKind.ToString());
+            row.Parameters.AddWithValue("$severity", evidence.Severity.ToString());
+            row.Parameters.AddWithValue("$confidence", evidence.Confidence.ToString());
+            row.Parameters.AddWithValue("$title", evidence.Title);
+            row.Parameters.AddWithValue("$origins",
+                JsonSerializer.Serialize(evidence.Origins, AuditJson.Options));
+            row.Parameters.AddWithValue("$limits",
+                JsonSerializer.Serialize(evidence.Limitations, AuditJson.Options));
+            row.ExecuteNonQuery();
+        }
+
+        foreach (var relation in investigation.Relations)
+        {
+            using var row = database.CreateCommand(); row.Transaction = transaction;
+            row.CommandText = """
+                INSERT INTO CorrelationRelations
+                    (InvestigationId, RelationId, RuleId, Kind, Severity, Confidence, Causality,
+                     WindowFromUtc, WindowToUtc, MaximumGapSeconds, EvidenceIdsJson, LimitationsJson)
+                VALUES ($investigation,$id,$rule,$kind,$severity,$confidence,$causality,$from,$to,$gap,$evidence,
+                     $limits)
+                """;
+            row.Parameters.AddWithValue("$investigation", investigation.Id.ToString("D"));
+            row.Parameters.AddWithValue("$id", relation.Id);
+            row.Parameters.AddWithValue("$rule", relation.RuleId);
+            row.Parameters.AddWithValue("$kind", relation.Kind.ToString());
+            row.Parameters.AddWithValue("$severity", relation.Severity.ToString());
+            row.Parameters.AddWithValue("$confidence", relation.Confidence.ToString());
+            row.Parameters.AddWithValue("$causality", relation.Causality.ToString());
+            row.Parameters.AddWithValue("$from",
+                (object?)relation.WindowFromUtc?.ToUniversalTime().ToString("O") ?? DBNull.Value);
+            row.Parameters.AddWithValue("$to",
+                (object?)relation.WindowToUtc?.ToUniversalTime().ToString("O") ?? DBNull.Value);
+            row.Parameters.AddWithValue("$gap", (object?)relation.MaximumGapSeconds ?? DBNull.Value);
+            row.Parameters.AddWithValue("$evidence",
+                JsonSerializer.Serialize(relation.EvidenceIds, AuditJson.Options));
+            row.Parameters.AddWithValue("$limits",
+                JsonSerializer.Serialize(relation.Limitations, AuditJson.Options));
+            row.ExecuteNonQuery();
+        }
+    }
+
+    private void WriteCorrelationProjection(IReadOnlyList<CorrelationInvestigation> investigations)
+    {
+        var latest = investigations.OrderByDescending(item => item.CompletedUtc).ToArray();
+        var lastComplete = latest.FirstOrDefault(item => item.Coverage.Status == CorrelationCoverageStatus.Complete);
+        var text = new StringBuilder();
+        text.AppendLine("# SentinelCore AI — Investigações de correlação");
+        text.AppendLine();
+        text.AppendLine("Formato: 1");
+        text.AppendLine();
+        text.AppendLine("Projeção derivada dos registros Markdown imutáveis; não é fonte de verdade.");
+        text.AppendLine("Correlação não é causalidade e não renova a validade dos registros de origem.");
+        text.AppendLine();
+        text.AppendLine("## Última investigação com cobertura completa");
+        text.AppendLine();
+        text.AppendLine(lastComplete is null ? "Nenhuma investigação com cobertura completa."
+            : $"{lastComplete.Id:D} — {lastComplete.CompletedUtc:O} — {lastComplete.Evidence.Count} evidência(s) — " +
+              $"{lastComplete.Relations.Count(relation => relation.IsHypothesis)} relação(ões)");
+        text.AppendLine();
+        text.AppendLine("## Histórico");
+        text.AppendLine();
+        if (latest.Length == 0) text.AppendLine("Nenhuma investigação anterior.");
+        else
+            foreach (var investigation in latest)
+                text.AppendLine($"- [{investigation.Id:D}](correlation/{investigation.Id:D}.md) — " +
+                    $"{investigation.CompletedUtc:O} — situação {CorrelationStatusName(investigation.Status)} — " +
+                    $"cobertura {CorrelationCoverageName(investigation.Coverage.Status)} — " +
+                    $"{investigation.Coverage.EvidenceFound} referência(s) — " +
+                    $"{investigation.Coverage.DistinctOccurrences} ocorrência(s) — " +
+                    $"{investigation.Relations.Count(relation => relation.IsHypothesis)} relação(ões)");
+        RecordEnvelope.AtomicWrite(Path.Combine(root, "memory", "CORRELATION.md"), text.ToString(),
+            overwrite: true);
+    }
+
+    private static string CorrelationStatusName(CorrelationStatus status) => status switch
+    {
+        CorrelationStatus.Completed => "concluída",
+        CorrelationStatus.Partial => "parcial",
+        CorrelationStatus.Cancelled => "cancelada",
+        CorrelationStatus.Failed => "falhou",
+        CorrelationStatus.Running => "em execução",
+        _ => status.ToString()
+    };
+
+    private static string CorrelationCoverageName(CorrelationCoverageStatus status) => status switch
+    {
+        CorrelationCoverageStatus.Complete => "completa",
+        CorrelationCoverageStatus.Partial => "parcial",
+        CorrelationCoverageStatus.Unavailable => "indisponível",
+        _ => status.ToString()
+    };
+
+    private static (CorrelationInvestigation Investigation, string PayloadHash) ReadCorrelationRecord(string path)
+    {
+        if (new FileInfo(path).Length > RecordEnvelope.MaximumRecordBytes)
+            throw new InvalidDataException("Investigação de correlação excede 4 MiB.");
+        var text = File.ReadAllText(path, Encoding.UTF8).Replace("\r\n", "\n");
+        var json = RecordEnvelope.Unwrap(text);
+        var hash = RecordEnvelope.Hash(json);
+        var investigation = JsonSerializer.Deserialize<CorrelationInvestigation>(json, AuditJson.Options)
+            ?? throw new InvalidDataException("Payload de correlação nulo.");
+        ValidateCorrelationInvestigation(investigation);
+        return (investigation, hash);
+    }
+
+    private static void ValidateCorrelationInvestigation(CorrelationInvestigation investigation)
+    {
+        if (investigation is null) throw new InvalidDataException("Investigação de correlação nula.");
+        var sources = investigation.Sources;
+        var evidence = investigation.Evidence;
+        var timeline = investigation.Timeline;
+        var relations = investigation.Relations;
+        var notes = investigation.AnalysisNotes;
+        var coverage = investigation.Coverage;
+
+        if (investigation.FormatVersion != 1 || investigation.Id == Guid.Empty ||
+            string.IsNullOrWhiteSpace(investigation.SoftwareVersion) ||
+            string.IsNullOrWhiteSpace(investigation.SchemaVersion) ||
+            !Enum.IsDefined(investigation.Window) || !Enum.IsDefined(investigation.Status) ||
+            investigation.Status == CorrelationStatus.Running ||
+            investigation.RequestedSources == CorrelationSources.None ||
+            (investigation.RequestedSources & ~CorrelationSources.All) != 0 ||
+            investigation.PeriodFromUtc.Offset != TimeSpan.Zero ||
+            investigation.PeriodToUtc.Offset != TimeSpan.Zero ||
+            investigation.StartedUtc.Offset != TimeSpan.Zero ||
+            investigation.CompletedUtc.Offset != TimeSpan.Zero ||
+            investigation.PeriodFromUtc >= investigation.PeriodToUtc ||
+            investigation.StartedUtc > investigation.CompletedUtc || investigation.Duration < TimeSpan.Zero ||
+            sources is null || evidence is null || timeline is null || relations is null || notes is null ||
+            coverage is null || investigation.Boot is null || investigation.Limitations is null)
+            throw new InvalidDataException("Registro de investigação de correlação inválido ou versão incompatível.");
+
+        var requested = Enum.GetValues<CorrelationSource>()
+            .Where(source => investigation.RequestedSources.HasFlag(FlagFor(source))).ToArray();
+        if (sources.Select(source => source?.Source).Distinct().Count() != sources.Count ||
+            sources.Any(source => source is null || !Enum.IsDefined(source.Source) ||
+                !Enum.IsDefined(source.Status) || source.RecordsRead < 0 || source.RecordsUsed < 0 ||
+                source.EvidenceCount < 0 || source.Limitations is null ||
+                source.Status == CorrelationSourceStatus.Skipped &&
+                investigation.RequestedSources.HasFlag(FlagFor(source.Source))) ||
+            requested.Any(source => !sources.Any(item => item.Source == source)))
+            throw new InvalidDataException("Fontes da investigação de correlação inválidas.");
+
+        if (evidence.Select(item => item?.Id).Distinct(StringComparer.Ordinal).Count() != evidence.Count ||
+            evidence.Any(item => item is null || string.IsNullOrWhiteSpace(item.Id) ||
+                string.IsNullOrWhiteSpace(item.SourceRecordId) || string.IsNullOrWhiteSpace(item.Title) ||
+                !Enum.IsDefined(item.Source) || !Enum.IsDefined(item.Kind) || !Enum.IsDefined(item.Precision) ||
+                !Enum.IsDefined(item.IdentityKind) || !Enum.IsDefined(item.Severity) ||
+                !Enum.IsDefined(item.Confidence) || item.Origins is null || item.Origins.Count == 0 ||
+                item.Limitations is null ||
+                item.EffectiveTimestampUtc?.Offset is { } effectiveOffset && effectiveOffset != TimeSpan.Zero ||
+                item.OriginalTimestampUtc?.Offset is { } originalOffset && originalOffset != TimeSpan.Zero ||
+                item.WindowFromUtc?.Offset is { } windowFromOffset && windowFromOffset != TimeSpan.Zero ||
+                item.WindowToUtc?.Offset is { } windowToOffset && windowToOffset != TimeSpan.Zero ||
+                item.WindowFromUtc > item.WindowToUtc ||
+                item.Precision == CorrelationTimestampPrecision.Unknown && item.EffectiveTimestampUtc is not null ||
+                item.Precision != CorrelationTimestampPrecision.Unknown && item.EffectiveTimestampUtc is null ||
+                item.Origins.Any(origin => origin is null || !Enum.IsDefined(origin.Source) ||
+                    string.IsNullOrWhiteSpace(origin.SourceRecordId) ||
+                    string.IsNullOrWhiteSpace(origin.OriginReference))))
+            throw new InvalidDataException("Evidências da investigação de correlação inválidas.");
+
+        var evidenceIds = evidence.Select(item => item.Id).ToHashSet(StringComparer.Ordinal);
+        if (timeline.Select(item => item?.EvidenceId).Distinct(StringComparer.Ordinal).Count() != timeline.Count ||
+            timeline.Any(item => item is null || !evidenceIds.Contains(item.EvidenceId) ||
+                item.TimestampUtc.Offset != TimeSpan.Zero || !Enum.IsDefined(item.Precision) ||
+                !Enum.IsDefined(item.Source) || !Enum.IsDefined(item.Kind) ||
+                string.IsNullOrWhiteSpace(item.Title) || string.IsNullOrWhiteSpace(item.SourceRecordId) ||
+                !Enum.IsDefined(item.Severity) || !Enum.IsDefined(item.Confidence)) ||
+            !timeline.SequenceEqual(timeline.OrderBy(item => item.TimestampUtc)
+                .ThenBy(item => item.EvidenceId, StringComparer.Ordinal)))
+            throw new InvalidDataException("Linha do tempo da investigação de correlação inválida.");
+
+        if (relations.Select(item => item?.Id).Distinct(StringComparer.Ordinal).Count() != relations.Count ||
+            relations.Any(relation => relation is null || string.IsNullOrWhiteSpace(relation.Id) ||
+                string.IsNullOrWhiteSpace(relation.RuleId) || string.IsNullOrWhiteSpace(relation.RuleVersion) ||
+                string.IsNullOrWhiteSpace(relation.Title) || string.IsNullOrWhiteSpace(relation.Statement) ||
+                string.IsNullOrWhiteSpace(relation.Justification) ||
+                !Enum.IsDefined(relation.Kind) || !Enum.IsDefined(relation.Severity) ||
+                !Enum.IsDefined(relation.Confidence) || !Enum.IsDefined(relation.Causality) ||
+                relation.Causality != CausalityStatus.NotAssessed ||
+                relation.EvidenceIds is null || relation.Limitations is null ||
+                relation.WindowFromUtc?.Offset is { } relationFromOffset && relationFromOffset != TimeSpan.Zero ||
+                relation.WindowToUtc?.Offset is { } relationToOffset && relationToOffset != TimeSpan.Zero ||
+                relation.WindowFromUtc > relation.WindowToUtc ||
+                relation.MaximumGapSeconds is < 0 ||
+                relation.Kind != CorrelationRelationKind.InsufficientEvidence && relation.EvidenceIds.Count < 2 ||
+                relation.EvidenceIds.Any(id => !evidenceIds.Contains(id))) ||
+            relations.Count(relation => relation.Kind == CorrelationRelationKind.InsufficientEvidence) > 1)
+            throw new InvalidDataException("Relações da investigação de correlação inválidas.");
+
+        if (notes.Any(note => note is null || string.IsNullOrWhiteSpace(note.RuleId) ||
+                string.IsNullOrWhiteSpace(note.RuleVersion) || note.Detail is null ||
+                !Enum.IsDefined(note.Reason)))
+            throw new InvalidDataException("Notas da investigação de correlação inválidas.");
+
+        if (investigation.Boot.LastBootUtc?.Offset is { } bootOffset && bootOffset != TimeSpan.Zero)
+            throw new InvalidDataException("Horário de inicialização da correlação inválido.");
+
+        var completed = sources.Count(source => source.Status == CorrelationSourceStatus.Completed);
+        var partial = sources.Count(source => source.Status == CorrelationSourceStatus.Partial);
+        var unavailable = sources.Count(source => source.Status == CorrelationSourceStatus.Unavailable);
+        var cancelled = sources.Count(source => source.Status == CorrelationSourceStatus.Cancelled);
+        var undated = evidence.Count(item => !item.HasReliableTimestamp);
+        var mergedOriginCount = evidence.Sum(item => item.Origins.Count - 1);
+
+        if (!Enum.IsDefined(coverage.Status) || coverage.ExpectedSources != requested.Length ||
+            coverage.CompletedSources != completed || coverage.PartialSources != partial ||
+            coverage.UnavailableSources != unavailable || coverage.CancelledSources != cancelled ||
+            coverage.CompletedSources + coverage.PartialSources + coverage.UnavailableSources +
+            coverage.CancelledSources != coverage.ExpectedSources ||
+            coverage.DistinctOccurrences != evidence.Count || coverage.UndatedEvidence != undated ||
+            coverage.MergedReferences != mergedOriginCount ||
+            coverage.EvidenceFound != coverage.DistinctOccurrences + coverage.MergedReferences ||
+            coverage.EvidenceFound != sources.Sum(source => source.EvidenceCount) ||
+            sources.Any(source => source.RecordsUsed > source.RecordsRead) ||
+            coverage.Limitations is null ||
+            coverage.Status == CorrelationCoverageStatus.Complete &&
+            (coverage.LimitHit || undated > 0 || completed != coverage.ExpectedSources ||
+             coverage.PartialSources > 0 || coverage.UnavailableSources > 0 || coverage.CancelledSources > 0) ||
+            investigation.Status == CorrelationStatus.Completed &&
+            coverage.Status != CorrelationCoverageStatus.Complete ||
+            investigation.Status == CorrelationStatus.Failed && unavailable != coverage.ExpectedSources ||
+            // Cancelamento após a leitura preserva as evidências já consolidadas: nenhuma fonte fica
+            // marcada como cancelada, mas a cobertura não pode ser declarada completa.
+            investigation.Status == CorrelationStatus.Cancelled && cancelled == 0 &&
+            coverage.Status == CorrelationCoverageStatus.Complete ||
+            investigation.Status == CorrelationStatus.Partial &&
+            coverage.Status == CorrelationCoverageStatus.Unavailable && unavailable < coverage.ExpectedSources)
+            throw new InvalidDataException("Cobertura da investigação de correlação inválida.");
+
+        if (!investigation.Limitations.Contains(CorrelationGuidance.CausalityLimitation, StringComparer.Ordinal) ||
+            !investigation.Limitations.Contains(CorrelationGuidance.ScopeLimitation, StringComparer.Ordinal) ||
+            !investigation.Limitations.Contains(CorrelationGuidance.NonRenewalLimitation, StringComparer.Ordinal))
+            throw new InvalidDataException(
+                "Limitações obrigatórias de causalidade/escopo ausentes na investigação de correlação.");
+
+        foreach (var relation in relations)
+            if (!relation.Limitations.Contains(CorrelationGuidance.CausalityLimitation, StringComparer.Ordinal) &&
+                relation.Kind != CorrelationRelationKind.InsufficientEvidence)
+                throw new InvalidDataException(
+                    "Relação de correlação sem a limitação obrigatória de causalidade.");
+    }
+
+    private static CorrelationSources FlagFor(CorrelationSource source) => source switch
+    {
+        CorrelationSource.Audits => CorrelationSources.Audits,
+        CorrelationSource.Hardware => CorrelationSources.Hardware,
+        CorrelationSource.Events => CorrelationSources.Events,
+        CorrelationSource.Performance => CorrelationSources.Performance,
+        CorrelationSource.Network => CorrelationSources.Network,
+        CorrelationSource.Graphics => CorrelationSources.Graphics,
+        CorrelationSource.Monitoring => CorrelationSources.Monitoring,
+        _ => CorrelationSources.None
+    };
+
+    private static string CanonicalJson(CorrelationInvestigation investigation) =>
+        JsonSerializer.Serialize(investigation, AuditJson.Options).Replace("\r\n", "\n");
+
+    public Task<MonitoringStoreSnapshot> LoadMonitoringSessionsAsync(
+        CancellationToken cancellationToken = default) => Task.Run(() =>
+    {
+        EnsureDirectories();
+        using var storeLock = Lock();
+        var warnings = new List<string>();
+        using var database = OpenDatabase(warnings);
+        var (sessions, segments, recoveries) = ReconcileMonitoring(database, warnings, cancellationToken);
+        WriteMonitoringProjection(sessions);
+        var byId = sessions.ToDictionary(session => session.Id);
+        var ordered = new List<MonitoringSession>();
+        using var query = database.CreateCommand();
+        query.CommandText = "SELECT Id FROM MonitoringSessions ORDER BY CompletedUtc DESC, Id";
+        using var reader = query.ExecuteReader();
+        while (reader.Read())
+            if (Guid.TryParse(reader.GetString(0), out var id) && byId.TryGetValue(id, out var session))
+                ordered.Add(session);
+        foreach (var recovered in sessions.Where(session => !ordered.Any(item => item.Id == session.Id))
+                     .OrderByDescending(session => session.CompletedUtc))
+            ordered.Add(recovered);
+        ordered = ordered.OrderByDescending(session => session.CompletedUtc)
+            .ThenBy(session => session.Id)
+            .ToList();
+        return new MonitoringStoreSnapshot(ordered, segments, recoveries, warnings);
+    }, cancellationToken);
+
+    public Task<long> SaveMonitoringSegmentAsync(MonitoringSegment segment,
+        CancellationToken cancellationToken = default) => Task.Run(() =>
+    {
+        ValidateMonitoringSegment(segment);
+        EnsureDirectories();
+        using var storeLock = Lock();
+        EnsureNoOtherRecord(segment.SessionId);
+        var path = MonitoringSegmentPath(segment.SessionId, segment.Id);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        var finalSessionPath = MonitoringRecordPath(segment.SessionId);
+        if (File.Exists(finalSessionPath))
+        {
+            var (finalSession, _) = ReadMonitoringSession(finalSessionPath);
+            if (!finalSession.Segments.Any(reference => reference.SegmentId == segment.Id))
+                throw new InvalidDataException("A sessão já possui registro final; um novo checkpoint não é aceito " +
+                    "para não divergir do registro imutável.");
+        }
+        var json = CanonicalJson(segment);
+        if (File.Exists(path))
+        {
+            var (existing, existingHash) = ReadMonitoringSegment(path);
+            if (existingHash != RecordEnvelope.Hash(json) && CanonicalJson(existing) != json)
+                throw new InvalidDataException("Segmento já existe com conteúdo diferente; histórico preservado.");
+            return new FileInfo(path).Length;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var report = MonitoringReport.RenderSegment(segment);
+        var document = RecordEnvelope.Wrap(report, json);
+        var bytes = Encoding.UTF8.GetByteCount(document);
+        if (bytes > RecordEnvelope.MaximumRecordBytes)
+            throw new InvalidDataException("Checkpoint de monitoramento excede 4 MiB e não pode ser persistido.");
+        RecordEnvelope.AtomicWrite(path, document, overwrite: false);
+        return bytes;
+    }, cancellationToken);
+
+    public Task<long> SaveMonitoringSessionAsync(MonitoringSession session,
+        CancellationToken cancellationToken = default) => Task.Run(() =>
+    {
+        ValidateMonitoringSession(session);
+        EnsureDirectories();
+        using var storeLock = Lock();
+        EnsureNoOtherRecord(session.Id);
+        var availableSegments = new Dictionary<Guid, MonitoringSegment>();
+        foreach (var reference in session.Segments)
+        {
+            var segmentPath = MonitoringSegmentPath(session.Id, reference.SegmentId);
+            if (!File.Exists(segmentPath))
+                throw new InvalidDataException("Segmento referenciado pela sessão não está confirmado em disco; " +
+                    "o registro final não foi gravado.");
+            var (segment, _) = ReadMonitoringSegment(segmentPath);
+            availableSegments[segment.Id] = segment;
+        }
+        ValidateSegmentReferences(session, availableSegments);
+        var json = CanonicalJson(session);
+        var path = MonitoringRecordPath(session.Id);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        long bytes;
+        if (File.Exists(path))
+        {
+            var (existing, existingHash) = ReadMonitoringSession(path);
+            if (existingHash != RecordEnvelope.Hash(json) && CanonicalJson(existing) != json)
+                throw new InvalidDataException("ID já existe com conteúdo diferente; histórico preservado.");
+            RecordEnvelope.AtomicWrite(GetMonitoringReportPath(session.Id), MonitoringReport.Render(session),
+                overwrite: true);
+            bytes = new FileInfo(path).Length;
+        }
+        else
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var report = MonitoringReport.Render(session);
+            var document = RecordEnvelope.Wrap(report, json);
+            bytes = Encoding.UTF8.GetByteCount(document);
+            if (bytes > RecordEnvelope.MaximumRecordBytes)
+                throw new InvalidDataException(
+                    "Sessão de monitoramento excede 4 MiB e não pode ser persistida neste formato.");
+            RecordEnvelope.AtomicWrite(path, document, overwrite: false);
+            RecordEnvelope.AtomicWrite(GetMonitoringReportPath(session.Id), report, overwrite: false);
+        }
+
+        using var database = OpenDatabase([]);
+        var (sessions, _, _) = ReconcileMonitoring(database, [], CancellationToken.None);
+        WriteMonitoringProjection(sessions);
+        if (!sessions.Any(item => item.Id == session.Id) || !File.Exists(GetMonitoringReportPath(session.Id)))
+            throw new IOException("A gravação da sessão de monitoramento não foi concluída. O registro durável, " +
+                "se existente, será recuperado na próxima tentativa.");
+        return bytes;
+    }, cancellationToken);
+
+    private (List<MonitoringSession> Sessions, List<MonitoringSegment> Segments,
+        List<MonitoringRecovery> Recoveries) ReconcileMonitoring(SqliteConnection database,
+        List<string> warnings, CancellationToken cancellationToken)
+    {
+        var segments = new List<MonitoringSegment>();
+        var segmentHashes = new Dictionary<Guid, string>();
+        var segmentsBySession = new Dictionary<Guid, List<MonitoringSegment>>();
+        var seenSegments = new HashSet<Guid>();
+        var segmentsRoot = Path.Combine(root, "memory", "monitoring");
+        if (Directory.Exists(segmentsRoot))
+        {
+            foreach (var directory in Directory.EnumerateDirectories(segmentsRoot)
+                         .OrderBy(item => item, StringComparer.OrdinalIgnoreCase))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (!Guid.TryParse(Path.GetFileName(directory), out var sessionId))
+                {
+                    warnings.Add($"Pasta de monitoramento {Path.GetFileName(directory)} sem identificador válido; " +
+                        "preservada e não indexada.");
+                    continue;
+                }
+
+                var segmentsDirectory = Path.Combine(directory, "segments");
+                if (!Directory.Exists(segmentsDirectory)) continue;
+                foreach (var path in Directory.EnumerateFiles(segmentsDirectory, "*.md",
+                             SearchOption.TopDirectoryOnly).OrderBy(item => item, StringComparer.OrdinalIgnoreCase))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    try
+                    {
+                        var (segment, hash) = ReadMonitoringSegment(path);
+                        if (segment.SessionId != sessionId)
+                            throw new InvalidDataException("Segmento fora da pasta da sessão informada.");
+                        if (Path.GetFileName(path) != $"{segment.Id:D}.md" || !seenSegments.Add(segment.Id))
+                            throw new InvalidDataException("Identidade ou localização de segmento inválida.");
+                        segments.Add(segment);
+                        segmentHashes[segment.Id] = hash;
+                        if (!segmentsBySession.TryGetValue(sessionId, out var list))
+                            segmentsBySession[sessionId] = list = [];
+                        list.Add(segment);
+                    }
+                    catch (Exception error) when (error is InvalidDataException or JsonException or IOException
+                        or UnauthorizedAccessException or ArgumentException or NullReferenceException)
+                    {
+                        warnings.Add($"Checkpoint de monitoramento {Path.GetFileName(path)} não recuperado " +
+                            $"({error.GetType().Name}): {error.Message}. Original preservado.");
+                    }
+                }
+            }
+        }
+
+        var sessions = new List<MonitoringSession>();
+        var sessionHashes = new Dictionary<Guid, string>();
+        var seenSessions = new HashSet<Guid>();
+        var rejectedFinalSessions = new HashSet<Guid>();
+        if (Directory.Exists(segmentsRoot))
+        {
+            foreach (var path in Directory.EnumerateFiles(segmentsRoot, "*.md", SearchOption.TopDirectoryOnly)
+                         .OrderBy(item => item, StringComparer.OrdinalIgnoreCase))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                MonitoringSession? accepted = null;
+                try
+                {
+                    var (session, hash) = ReadMonitoringSession(path);
+                    if (Path.GetFileName(path) != $"{session.Id:D}.md" || !seenSessions.Add(session.Id))
+                        throw new InvalidDataException("Identidade ou localização de sessão inválida.");
+                    var available = segmentsBySession.TryGetValue(session.Id, out var list)
+                        ? list.ToDictionary(segment => segment.Id)
+                        : [];
+                    ValidateSegmentReferences(session, available);
+                    foreach (var segment in available.Values)
+                        if (!session.Segments.Any(reference => reference.SegmentId == segment.Id))
+                            warnings.Add($"Checkpoint {segment.Id:D} da sessão {session.Id:D} não é referenciado " +
+                                "pelo registro final; preservado e indexado fora da contagem da sessão.");
+                    sessions.Add(session);
+                    sessionHashes[session.Id] = hash;
+                    accepted = session;
+                }
+                catch (Exception error) when (error is InvalidDataException or JsonException or IOException
+                    or UnauthorizedAccessException or ArgumentException or NullReferenceException)
+                {
+                    if (Guid.TryParse(Path.GetFileNameWithoutExtension(path), out var rejectedId))
+                        rejectedFinalSessions.Add(rejectedId);
+                    warnings.Add($"Sessão de monitoramento {Path.GetFileName(path)} não recuperada " +
+                        $"({error.GetType().Name}): {error.Message}. Original preservado; o registro final existe, " +
+                        "mas está ilegível e não é tratado como ausente.");
+                }
+
+                if (accepted is not null)
+                {
+                    try
+                    {
+                        RecordEnvelope.AtomicWrite(GetMonitoringReportPath(accepted.Id),
+                            MonitoringReport.Render(accepted), overwrite: true);
+                    }
+                    catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                    {
+                        warnings.Add($"O registro final da sessão {accepted.Id:D} é válido, mas o relatório " +
+                            $"derivado não pôde ser regenerado ({error.GetType().Name}): {error.Message}. " +
+                            "Isso não invalida a sessão nem indica registro ilegível.");
+                    }
+                }
+            }
+        }
+
+        var recoveries = new List<MonitoringRecovery>();
+        var recoveredSessions = new List<MonitoringSession>();
+        foreach (var pair in segmentsBySession.OrderBy(item => item.Key))
+        {
+            if (seenSessions.Contains(pair.Key)) continue;
+            if (rejectedFinalSessions.Contains(pair.Key))
+            {
+                warnings.Add($"Sessão de monitoramento {pair.Key:D} possui registro final ilegível; os checkpoints " +
+                    "foram preservados, mas nenhuma sessão foi derivada como se o registro estivesse ausente.");
+                continue;
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+            var ordered = pair.Value.OrderBy(segment => segment.Source).ThenBy(segment => segment.Sequence).ToArray();
+            var derived = BuildRecoveredSession(pair.Key, ordered);
+            recoveredSessions.Add(derived);
+            recoveries.Add(new MonitoringRecovery(pair.Key, DateTimeOffset.UtcNow,
+                ordered.Min(segment => segment.FromUtc), ordered.Max(segment => segment.ToUtc), ordered.Length,
+                ordered.Sum(segment => segment.Performance.Count),
+                ordered.Sum(segment => segment.Events.Count),
+                ordered.Sum(segment => segment.Network.Count),
+                "Registro final ausente: sessão identificada como interrompida apenas pelos checkpoints imutáveis, " +
+                "sem atribuir conclusão normal."));
+            warnings.Add($"Sessão de monitoramento {pair.Key:D} sem registro final; recuperada como interrompida " +
+                $"a partir de {ordered.Length} checkpoint(s). Nenhum registro foi gravado ou alterado.");
+        }
+
+        using (var read = database.CreateCommand())
+        {
+            read.CommandText = "SELECT Id FROM MonitoringSessions";
+            using var reader = read.ExecuteReader();
+            while (reader.Read())
+                if (!Guid.TryParse(reader.GetString(0), out var id) || !seenSessions.Contains(id))
+                    warnings.Add($"Sessão de monitoramento indexada {reader.GetString(0)} sem registro Markdown " +
+                        "válido; excluída da validade.");
+        }
+
+        using var transaction = database.BeginTransaction();
+        using (var clear = database.CreateCommand())
+        {
+            clear.Transaction = transaction;
+            clear.CommandText = "DELETE FROM MonitoringIncidents; DELETE FROM MonitoringSegments; " +
+                "DELETE FROM MonitoringRecoveries; DELETE FROM MonitoringSessions";
+            clear.ExecuteNonQuery();
+        }
+
+        foreach (var session in sessions)
+        {
+            var sessionSegments = segmentsBySession.TryGetValue(session.Id, out var list) ? list : [];
+            IndexMonitoring(database, transaction, session, sessionHashes.GetValueOrDefault(session.Id),
+                sessionSegments, segmentHashes);
+        }
+
+        foreach (var recovery in recoveries)
+        {
+            using var insert = database.CreateCommand(); insert.Transaction = transaction;
+            insert.CommandText = """
+                INSERT INTO MonitoringRecoveries
+                    (SessionId, DetectedUtc, FirstSegmentUtc, LastSegmentUtc, SegmentCount,
+                     PerformanceObservations, EventObservations, NetworkObservations, Detail)
+                VALUES ($id,$detected,$first,$last,$count,$performance,$events,$network,$detail)
+                """;
+            insert.Parameters.AddWithValue("$id", recovery.SessionId.ToString("D"));
+            insert.Parameters.AddWithValue("$detected", recovery.DetectedUtc.ToUniversalTime().ToString("O"));
+            insert.Parameters.AddWithValue("$first", recovery.FirstSegmentUtc.ToUniversalTime().ToString("O"));
+            insert.Parameters.AddWithValue("$last", recovery.LastSegmentUtc.ToUniversalTime().ToString("O"));
+            insert.Parameters.AddWithValue("$count", recovery.SegmentCount);
+            insert.Parameters.AddWithValue("$performance", recovery.PerformanceObservations);
+            insert.Parameters.AddWithValue("$events", recovery.EventObservations);
+            insert.Parameters.AddWithValue("$network", recovery.NetworkObservations);
+            insert.Parameters.AddWithValue("$detail", recovery.Detail);
+            insert.ExecuteNonQuery();
+        }
+
+        transaction.Commit();
+        if (warnings.Count > 0)
+            File.AppendAllText(Path.Combine(root, "logs", "storage.log"),
+                $"{DateTimeOffset.UtcNow:O}\n{string.Join("\n", warnings)}\n", Encoding.UTF8);
+        var all = sessions.Concat(recoveredSessions)
+            .OrderByDescending(session => session.CompletedUtc)
+            .ThenBy(session => session.Id)
+            .ToList();
+        return (all, segments, recoveries);
+    }
+
+    private static MonitoringSession BuildRecoveredSession(Guid sessionId,
+        IReadOnlyList<MonitoringSegment> segments)
+    {
+        var ordered = segments.OrderBy(segment => segment.Source).ThenBy(segment => segment.Sequence).ToArray();
+        var first = ordered.Min(segment => segment.FromUtc);
+        var last = ordered.Max(segment => segment.ToUtc);
+        var sources = ordered.GroupBy(segment => segment.Source).Select(group => new MonitoringSourceSummary(
+            group.Key, group.First().CollectorId, group.First().CollectorVersion,
+            MonitoringSourceStatus.Partial, TimeSpan.Zero, group.Count(), group.Count(), 0, 0,
+            group.Sum(segment => segment.ObservationCount), false, false,
+            [
+                MonitoringGuidance.RecoveryLimitation,
+                "Contagem derivada dos checkpoints confirmados; o número de ciclos esperados e a cadência " +
+                "original são desconhecidos."
+            ])).ToArray();
+        var performance = ordered.Sum(segment => segment.Performance.Count);
+        var events = ordered.Sum(segment => segment.Events.Count);
+        var network = ordered.Sum(segment => segment.Network.Count);
+        MonitoringSources requested = MonitoringSources.None;
+        foreach (var source in sources) requested |= MonitoringGuidance.Flag(source.Source);
+        var observations = performance + events + network;
+        var budget = new MonitoringBudgetReport(TimeSpan.Zero, TimeSpan.Zero, ordered.Length, ordered.Length, 0,
+            0, 0, performance, events, 0, 0, false, false, false, false,
+            "desconhecida (sessão interrompida)", [MonitoringGuidance.RecoveryLimitation]);
+        var recovery = new MonitoringRecoveryInfo(true, last, ordered.Length,
+            "Registro final ausente: a sessão foi interrompida e o estado foi derivado somente dos checkpoints " +
+            "confirmados. Nenhum estado Completed foi atribuído, nenhum horário ausente foi inventado e os " +
+            "incidentes registrados em memória não puderam ser recuperados.");
+        return new MonitoringSession(1, sessionId, "desconhecida (registro final ausente)",
+            SoftwareInfo.MonitoringSchemaVersion, MonitoringDurationPreset.Unknown, TimeSpan.Zero,
+            first, last, last - first, MonitoringExecutionStatus.Interrupted,
+            observations == 0 ? MonitoringCoverageStatus.Unavailable : MonitoringCoverageStatus.Partial,
+            requested, sources, ordered.Select(segment => segment.Reference).ToArray(), [], budget, recovery,
+            [
+                MonitoringGuidance.AuthorizationLimitation,
+                MonitoringGuidance.ScopeLimitation,
+                MonitoringGuidance.CausalityLimitation,
+                MonitoringGuidance.BudgetLimitation,
+                MonitoringGuidance.RecoveryLimitation,
+                "O registro final que confirmaria autorização, duração e incidentes está ausente; a recuperação " +
+                "não reconstitui esses dados e não atribui conclusão normal."
+            ]);
+    }
+
+    private void IndexMonitoring(SqliteConnection database, SqliteTransaction transaction,
+        MonitoringSession session, string? payloadHash, IReadOnlyList<MonitoringSegment> sessionSegments,
+        IReadOnlyDictionary<Guid, string> segmentHashes)
+    {
+        using var command = database.CreateCommand(); command.Transaction = transaction;
+        command.CommandText = """
+            INSERT INTO MonitoringSessions
+                (Id, FormatVersion, SchemaVersion, SoftwareVersion, Preset, AuthorizedDurationSeconds,
+                 StartedUtc, CompletedUtc, DurationSeconds, Status, CoverageStatus, RequestedSources,
+                 SegmentCount, IncidentCount, Recovered, BudgetJson, SourcesJson, RecoveryJson,
+                 LimitationsJson, MarkdownPath, PayloadHash)
+            VALUES ($id,$format,$schema,$software,$preset,$authorized,$start,$end,$duration,$status,$coverage,
+                 $sources,$segments,$incidents,$recovered,$budget,$sourcesJson,$recovery,$limits,$path,$hash)
+            """;
+        command.Parameters.AddWithValue("$id", session.Id.ToString("D"));
+        command.Parameters.AddWithValue("$format", session.FormatVersion);
+        command.Parameters.AddWithValue("$schema", session.SchemaVersion);
+        command.Parameters.AddWithValue("$software", session.SoftwareVersion);
+        command.Parameters.AddWithValue("$preset", session.Preset.ToString());
+        command.Parameters.AddWithValue("$authorized", session.AuthorizedDuration.TotalSeconds);
+        command.Parameters.AddWithValue("$start", session.StartedUtc.ToUniversalTime().ToString("O"));
+        command.Parameters.AddWithValue("$end", session.CompletedUtc.ToUniversalTime().ToString("O"));
+        command.Parameters.AddWithValue("$duration", session.Duration.TotalSeconds);
+        command.Parameters.AddWithValue("$status", session.Status.ToString());
+        command.Parameters.AddWithValue("$coverage", session.CoverageStatus.ToString());
+        command.Parameters.AddWithValue("$sources", (int)session.RequestedSources);
+        command.Parameters.AddWithValue("$segments", session.Segments.Count);
+        command.Parameters.AddWithValue("$incidents", session.Incidents.Count);
+        command.Parameters.AddWithValue("$recovered", session.Recovery.Recovered ? 1 : 0);
+        command.Parameters.AddWithValue("$budget",
+            JsonSerializer.Serialize(session.Budget, AuditJson.Options));
+        command.Parameters.AddWithValue("$sourcesJson",
+            JsonSerializer.Serialize(session.Sources, AuditJson.Options));
+        command.Parameters.AddWithValue("$recovery",
+            JsonSerializer.Serialize(session.Recovery, AuditJson.Options));
+        command.Parameters.AddWithValue("$limits",
+            JsonSerializer.Serialize(session.Limitations, AuditJson.Options));
+        command.Parameters.AddWithValue("$path", Path.GetRelativePath(root, MonitoringRecordPath(session.Id)));
+        command.Parameters.AddWithValue("$hash",
+            payloadHash ?? RecordEnvelope.Hash(CanonicalJson(session)));
+        command.ExecuteNonQuery();
+
+        foreach (var segment in sessionSegments)
+        {
+            using var row = database.CreateCommand(); row.Transaction = transaction;
+            row.CommandText = """
+                INSERT INTO MonitoringSegments
+                    (SessionId, SegmentId, Sequence, Source, CollectorId, CollectorVersion,
+                     FromUtc, ToUtc, Status, ObservationCount, MarkdownPath, PayloadHash)
+                VALUES ($session,$id,$sequence,$source,$collector,$version,$from,$to,$status,$count,$path,$hash)
+                """;
+            row.Parameters.AddWithValue("$session", session.Id.ToString("D"));
+            row.Parameters.AddWithValue("$id", segment.Id.ToString("D"));
+            row.Parameters.AddWithValue("$sequence", segment.Sequence);
+            row.Parameters.AddWithValue("$source", segment.Source.ToString());
+            row.Parameters.AddWithValue("$collector", segment.CollectorId);
+            row.Parameters.AddWithValue("$version", segment.CollectorVersion);
+            row.Parameters.AddWithValue("$from", segment.FromUtc.ToUniversalTime().ToString("O"));
+            row.Parameters.AddWithValue("$to", segment.ToUtc.ToUniversalTime().ToString("O"));
+            row.Parameters.AddWithValue("$status", segment.Status.ToString());
+            row.Parameters.AddWithValue("$count", segment.ObservationCount);
+            row.Parameters.AddWithValue("$path",
+                Path.GetRelativePath(root, MonitoringSegmentPath(segment.SessionId, segment.Id)));
+            row.Parameters.AddWithValue("$hash", segmentHashes.GetValueOrDefault(segment.Id) ??
+                RecordEnvelope.Hash(CanonicalJson(segment)));
+            row.ExecuteNonQuery();
+        }
+
+        foreach (var incident in session.Incidents)
+        {
+            using var row = database.CreateCommand(); row.Transaction = transaction;
+            row.CommandText = """
+                INSERT INTO MonitoringIncidents
+                    (SessionId, IncidentId, RecordedUtc, OccurredUtc, Precision, Category, Description,
+                     SessionElapsedSeconds, EvidenceJson, LimitationsJson)
+                VALUES ($session,$id,$recorded,$occurred,$precision,$category,$description,$elapsed,$evidence,$limits)
+                """;
+            row.Parameters.AddWithValue("$session", session.Id.ToString("D"));
+            row.Parameters.AddWithValue("$id", incident.Id.ToString("D"));
+            row.Parameters.AddWithValue("$recorded", incident.RecordedUtc.ToUniversalTime().ToString("O"));
+            row.Parameters.AddWithValue("$occurred",
+                (object?)incident.OccurredUtc?.ToUniversalTime().ToString("O") ?? DBNull.Value);
+            row.Parameters.AddWithValue("$precision", incident.Precision.ToString());
+            row.Parameters.AddWithValue("$category", incident.Category.ToString());
+            row.Parameters.AddWithValue("$description", (object?)incident.Description ?? DBNull.Value);
+            row.Parameters.AddWithValue("$elapsed", incident.SessionElapsedSeconds);
+            row.Parameters.AddWithValue("$evidence",
+                JsonSerializer.Serialize(incident.Evidence, AuditJson.Options));
+            row.Parameters.AddWithValue("$limits",
+                JsonSerializer.Serialize(incident.Limitations, AuditJson.Options));
+            row.ExecuteNonQuery();
+        }
+    }
+
+    private void WriteMonitoringProjection(IReadOnlyList<MonitoringSession> sessions)
+    {
+        var latest = sessions.OrderByDescending(item => item.CompletedUtc).ToArray();
+        var text = new StringBuilder();
+        text.AppendLine("# SentinelCore AI — Sessões de monitoramento");
+        text.AppendLine();
+        text.AppendLine("Formato: 1");
+        text.AppendLine();
+        text.AppendLine("Projeção derivada dos registros Markdown imutáveis; não é fonte de verdade.");
+        text.AppendLine("O histórico preserva as sessões; a observação não permanece ativa após o encerramento.");
+        text.AppendLine();
+        text.AppendLine("## Histórico");
+        text.AppendLine();
+        if (latest.Length == 0) text.AppendLine("Nenhuma sessão anterior.");
+        else
+            foreach (var session in latest)
+            {
+                var label = session.Recovery.Recovered
+                    ? $"{session.Id:D} (interrompida, derivada de checkpoints)"
+                    : $"[{session.Id:D}](monitoring/{session.Id:D}.md)";
+                text.AppendLine($"- {label} — {session.CompletedUtc:O} — " +
+                    $"{MonitoringGuidance.StatusName(session.Status)} — " +
+                    $"cobertura {MonitoringGuidance.CoverageName(session.CoverageStatus)} — " +
+                    $"{session.Incidents.Count} incidente(s) — {session.Segments.Count} checkpoint(s)");
+            }
+        RecordEnvelope.AtomicWrite(Path.Combine(root, "memory", "MONITORING.md"), text.ToString(),
+            overwrite: true);
+    }
+
+    private static (MonitoringSession Session, string PayloadHash) ReadMonitoringSession(string path)
+    {
+        if (new FileInfo(path).Length > RecordEnvelope.MaximumRecordBytes)
+            throw new InvalidDataException("Sessão de monitoramento excede 4 MiB.");
+        var text = File.ReadAllText(path, Encoding.UTF8).Replace("\r\n", "\n");
+        var json = RecordEnvelope.Unwrap(text);
+        var hash = RecordEnvelope.Hash(json);
+        var session = JsonSerializer.Deserialize<MonitoringSession>(json, AuditJson.Options)
+            ?? throw new InvalidDataException("Payload de monitoramento nulo.");
+        ValidateMonitoringSession(session);
+        return (session, hash);
+    }
+
+    private static (MonitoringSegment Segment, string PayloadHash) ReadMonitoringSegment(string path)
+    {
+        if (new FileInfo(path).Length > RecordEnvelope.MaximumRecordBytes)
+            throw new InvalidDataException("Checkpoint de monitoramento excede 4 MiB.");
+        var text = File.ReadAllText(path, Encoding.UTF8).Replace("\r\n", "\n");
+        var json = RecordEnvelope.Unwrap(text);
+        var hash = RecordEnvelope.Hash(json);
+        var segment = JsonSerializer.Deserialize<MonitoringSegment>(json, AuditJson.Options)
+            ?? throw new InvalidDataException("Payload de checkpoint nulo.");
+        ValidateMonitoringSegment(segment);
+        return (segment, hash);
+    }
+
+    private static void ValidateMonitoringSegment(MonitoringSegment segment)
+    {
+        if (segment is null) throw new InvalidDataException("Checkpoint de monitoramento nulo.");
+        if (segment.FormatVersion != 1 || segment.Id == Guid.Empty || segment.SessionId == Guid.Empty ||
+            segment.Sequence < 0 || !Enum.IsDefined(segment.Source) || !Enum.IsDefined(segment.Status) ||
+            string.IsNullOrWhiteSpace(segment.CollectorId) ||
+            string.IsNullOrWhiteSpace(segment.CollectorVersion) ||
+            segment.FromUtc.Offset != TimeSpan.Zero || segment.ToUtc.Offset != TimeSpan.Zero ||
+            segment.FromUtc > segment.ToUtc || segment.Performance is null || segment.Events is null ||
+            segment.Network is null || segment.Limitations is null)
+            throw new InvalidDataException("Checkpoint de monitoramento inválido ou versão incompatível.");
+
+        if (segment.Performance.Select(item => item.Index).Distinct().Count() != segment.Performance.Count ||
+            segment.Performance.Any(item => item is null || item.Index < 0 ||
+                item.TimestampUtc.Offset != TimeSpan.Zero ||
+                item.TimestampUtc < segment.FromUtc || item.TimestampUtc > segment.ToUtc ||
+                item.ElapsedSeconds < 0 || item.Limitations is null))
+            throw new InvalidDataException("Amostras de desempenho do checkpoint inválidas.");
+
+        if (segment.Events.Select(item => item.Index).Distinct().Count() != segment.Events.Count ||
+            segment.Events.Any(item => item is null || item.Index < 0 ||
+                item.TimestampUtc.Offset != TimeSpan.Zero || item.OccurredUtc.Offset != TimeSpan.Zero ||
+                item.TimestampUtc < segment.FromUtc || item.TimestampUtc > segment.ToUtc ||
+                string.IsNullOrWhiteSpace(item.Channel) || string.IsNullOrWhiteSpace(item.Provider) ||
+                string.IsNullOrWhiteSpace(item.GroupId) || !Enum.IsDefined(item.Level) ||
+                !Enum.IsDefined(item.Category) || !Enum.IsDefined(item.Severity)))
+            throw new InvalidDataException("Eventos do checkpoint inválidos.");
+
+        if (segment.Network.Select(item => item.Index).Distinct().Count() != segment.Network.Count ||
+            segment.Network.Any(item => item is null || item.Index < 0 ||
+                item.TimestampUtc.Offset != TimeSpan.Zero ||
+                item.TimestampUtc < segment.FromUtc || item.TimestampUtc > segment.ToUtc ||
+                item.TcpConnections < 0 || item.UdpEndpoints < 0 || item.ListeningTcp < 0 ||
+                item.EstablishedTcp < 0 || item.DistinctLocalPorts < 0 || item.ProcessesObserved < 0 ||
+                item.Limitations is null))
+            throw new InvalidDataException("Observações de rede do checkpoint inválidas.");
+
+        if (segment.ObservationCount != segment.Performance.Count + segment.Events.Count + segment.Network.Count)
+            throw new InvalidDataException("Contagem de observações do checkpoint inconsistente.");
+    }
+
+    private static void ValidateSegmentReferences(MonitoringSession session,
+        IReadOnlyDictionary<Guid, MonitoringSegment> available)
+    {
+        foreach (var reference in session.Segments)
+            if (!available.TryGetValue(reference.SegmentId, out var segment) ||
+                segment.Source != reference.Source || segment.Sequence != reference.Sequence ||
+                segment.FromUtc != reference.FromUtc || segment.ToUtc != reference.ToUtc ||
+                segment.Status != reference.Status ||
+                segment.ObservationCount != reference.ObservationCount)
+                throw new InvalidDataException(
+                    $"Segmento referenciado {reference.SegmentId:D} ausente ou incompatível com o registro final.");
+    }
+
+    private static void ValidateMonitoringSession(MonitoringSession session)
+    {
+        if (session is null) throw new InvalidDataException("Sessão de monitoramento nula.");
+        var sources = session.Sources;
+        var segments = session.Segments;
+        var incidents = session.Incidents;
+        var budget = session.Budget;
+
+        if (session.FormatVersion != 1 || session.Id == Guid.Empty ||
+            string.IsNullOrWhiteSpace(session.SoftwareVersion) ||
+            string.IsNullOrWhiteSpace(session.SchemaVersion) || !Enum.IsDefined(session.Preset) ||
+            !Enum.IsDefined(session.Status) || !Enum.IsDefined(session.CoverageStatus) ||
+            session.Status is MonitoringExecutionStatus.Running ||
+            session.Status == MonitoringExecutionStatus.Interrupted && !(session.Recovery?.Recovered ?? false) ||
+            session.RequestedSources == MonitoringSources.None ||
+            (session.RequestedSources & ~MonitoringSources.All) != 0 ||
+            session.StartedUtc.Offset != TimeSpan.Zero || session.CompletedUtc.Offset != TimeSpan.Zero ||
+            session.StartedUtc > session.CompletedUtc || session.Duration < TimeSpan.Zero ||
+            session.AuthorizedDuration < TimeSpan.Zero ||
+            sources is null || segments is null || incidents is null || budget is null ||
+            session.Recovery is null || session.Limitations is null)
+            throw new InvalidDataException("Registro de sessão de monitoramento inválido ou versão incompatível.");
+
+        var requested = Enum.GetValues<MonitoringSource>()
+            .Where(source => session.RequestedSources.HasFlag(MonitoringGuidance.Flag(source))).ToArray();
+        if (!session.Recovery!.Recovered)
+        {
+            TimeSpan? expected = session.Preset switch
+            {
+                MonitoringDurationPreset.Minutes5 => TimeSpan.FromMinutes(5),
+                MonitoringDurationPreset.Minutes15 => TimeSpan.FromMinutes(15),
+                MonitoringDurationPreset.Minutes30 => TimeSpan.FromMinutes(30),
+                MonitoringDurationPreset.Custom => session.AuthorizedDuration,
+                _ => null
+            };
+            if (expected is null || session.AuthorizedDuration != expected ||
+                session.AuthorizedDuration <= TimeSpan.Zero ||
+                session.AuthorizedDuration > TimeSpan.FromMinutes(30) ||
+                session.Duration > session.AuthorizedDuration + TimeSpan.FromSeconds(10))
+                throw new InvalidDataException("Duração autorizada incompatível com o preset ou ultrapassada.");
+        }
+
+        if (session.Recovery.Recovered && session.Status == MonitoringExecutionStatus.Completed)
+            throw new InvalidDataException("Sessão recuperada não pode ser declarada concluída.");
+
+        if (sources.Select(source => source?.Source).Distinct().Count() != sources.Count ||
+            sources.Any(source => source is null || !Enum.IsDefined(source.Source) ||
+                !Enum.IsDefined(source.Status) || source.ExpectedTicks < 0 || source.CollectedTicks < 0 ||
+                source.MissedOpportunities < 0 || source.TruncatedTicks < 0 || source.ObservationCount < 0 ||
+                source.Interval < TimeSpan.Zero || source.Limitations is null ||
+                source.Status == MonitoringSourceStatus.Completed && source.CollectedTicks < source.ExpectedTicks ||
+                !session.RequestedSources.HasFlag(MonitoringGuidance.Flag(source.Source))) ||
+            requested.Any(source => !sources.Any(item => item.Source == source)))
+            throw new InvalidDataException("Fontes da sessão de monitoramento inválidas.");
+
+        if (segments.Select(reference => reference?.SegmentId).Distinct().Count() != segments.Count ||
+            segments.Select(reference => $"{reference?.Source}:{reference?.Sequence}")
+                .Distinct(StringComparer.Ordinal).Count() != segments.Count ||
+            segments.Any(reference => reference is null || reference.SegmentId == Guid.Empty ||
+                reference.Sequence < 0 || !Enum.IsDefined(reference.Source) ||
+                !Enum.IsDefined(reference.Status) || reference.FromUtc.Offset != TimeSpan.Zero ||
+                reference.ToUtc.Offset != TimeSpan.Zero || reference.FromUtc > reference.ToUtc ||
+                reference.ObservationCount < 0 ||
+                !session.RequestedSources.HasFlag(MonitoringGuidance.Flag(reference.Source))))
+            throw new InvalidDataException("Checkpoints referenciados pela sessão inválidos.");
+
+        if (incidents.Select(incident => incident?.Id).Distinct().Count() != incidents.Count ||
+            incidents.Any(incident => incident is null || incident.Id == Guid.Empty ||
+                incident.SessionId != session.Id || !Enum.IsDefined(incident.Category) ||
+                !Enum.IsDefined(incident.Precision) || incident.RecordedUtc.Offset != TimeSpan.Zero ||
+                (incident.OccurredUtc is { } occurred && occurred.Offset != TimeSpan.Zero) ||
+                incident.SessionElapsedSeconds < 0 ||
+                incident.Description is { Length: > 280 } ||
+                incident.Evidence is null || incident.Limitations is null ||
+                !incident.Limitations.Contains(MonitoringGuidance.IncidentLimitation, StringComparer.Ordinal)))
+            throw new InvalidDataException("Incidentes da sessão de monitoramento inválidos.");
+
+        var totalObservations = sources.Sum(source => source.ObservationCount);
+        if (session.CoverageStatus == MonitoringCoverageStatus.Complete &&
+            (session.Status != MonitoringExecutionStatus.Completed ||
+             sources.Any(source => source.Status != MonitoringSourceStatus.Completed) ||
+             budget.StorageBudgetReached || budget.TickBudgetExceeded || budget.EventLimitReached ||
+             budget.MissedOpportunities > 0))
+            throw new InvalidDataException("Cobertura completa declarada sem cumprir os requisitos da sessão.");
+        if (session.CoverageStatus == MonitoringCoverageStatus.Unavailable && totalObservations != 0)
+            throw new InvalidDataException("Cobertura indisponível declarada com observações registradas.");
+        if (session.Status == MonitoringExecutionStatus.Failed &&
+            session.CoverageStatus == MonitoringCoverageStatus.Complete)
+            throw new InvalidDataException("Execução com falha não pode declarar cobertura completa.");
+        if (session.Status == MonitoringExecutionStatus.Interrupted && !session.Recovery.Recovered)
+            throw new InvalidDataException("Sessão interrompida sem informação de recuperação.");
+        if (!session.Recovery.Recovered && session.Recovery.LastSegmentUtc is { } last &&
+            last.Offset != TimeSpan.Zero)
+            throw new InvalidDataException("Horário do último checkpoint inválido.");
+
+        if (!session.Limitations.Contains(MonitoringGuidance.CausalityLimitation, StringComparer.Ordinal) ||
+            !session.Limitations.Contains(MonitoringGuidance.ScopeLimitation, StringComparer.Ordinal) ||
+            !session.Recovery.Recovered &&
+            (!session.Limitations.Contains(MonitoringGuidance.AuthorizationLimitation, StringComparer.Ordinal) ||
+             !session.Limitations.Contains(MonitoringGuidance.BudgetLimitation, StringComparer.Ordinal)))
+            throw new InvalidDataException(
+                "Limitações obrigatórias de autorização, escopo, orçamento ou causalidade ausentes.");
+    }
+
+    private void EnsureNoMonitoringRecord(Guid id)
+    {
+        if (File.Exists(MonitoringRecordPath(id)) || Directory.Exists(MonitoringSegmentDirectory(id)))
+            throw new InvalidDataException("ID já existe em uma sessão de monitoramento; histórico preservado.");
+    }
+
+    private void EnsureNoOtherRecord(Guid id)
+    {
+        foreach (var kind in Enum.GetValues<AuditKind>())
+            if (File.Exists(Path.Combine(root, "memory", "audits", kind.ToString().ToLowerInvariant(),
+                    $"{id:D}.md")))
+                throw new InvalidDataException("ID já existe em uma auditoria; histórico preservado.");
+        if (File.Exists(HardwareRecordPath(id)) || File.Exists(EventRecordPath(id)) ||
+            File.Exists(PerformanceRecordPath(id)) || File.Exists(NetworkRecordPath(id)) ||
+            File.Exists(GraphicsRecordPath(id)) || File.Exists(CorrelationRecordPath(id)))
+            throw new InvalidDataException("ID já existe em outro histórico; histórico preservado.");
+    }
+
+    private static string CanonicalJson(MonitoringSession session) =>
+        JsonSerializer.Serialize(session, AuditJson.Options).Replace("\r\n", "\n");
+
+    private static string CanonicalJson(MonitoringSegment segment) =>
+        JsonSerializer.Serialize(segment, AuditJson.Options).Replace("\r\n", "\n");
 
     private static AuditRecord ReadRecord(string path)
     {

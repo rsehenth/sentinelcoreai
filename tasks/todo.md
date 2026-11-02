@@ -224,3 +224,120 @@ coletadas; HDR/VRR limitados ao reportado; correlação avançada permanece na F
 - [x] Regenerar o índice Graphify do código atual em diretório temporário externo, sem sobrescrever o índice anterior.
 - [x] Identificar componentes e dependências relevantes para Graphics Diagnostics.
 - [x] Confirmar ausência de contradições entre VALIDATION, ROADMAP, ARCHITECTURE e SECURITY sobre a Fase 3.3A.
+
+## Fase 3.4 — Evidence Correlation Engine (implementada em 0.3.0-preview.7)
+
+- [x] Confirmar o estado real do repositório: `master` limpo no código, baseline 613/613 em Release, builds `0/0`,
+  SQLite esquema 7, 66 envelopes, 9 investigações gráficas e 143 arquivos no diretório de dados real.
+- [x] Consultar o índice Graphify existente (3.703 nós) para mapear contratos de armazenamento, runners, modelos de
+  evidência, persistência e pontos de integração, sem reescrever o índice nem usar centralidade como justificativa.
+- [x] Definir `CorrelationModels`: fontes, janela, limites por regra, referência de boot, evidência normalizada,
+  origens, precisão, identidade, relação, nota, cobertura, investigação e contrato de armazenamento.
+- [x] Implementar `CorrelationEvidenceReader` reutilizando `IAuditStore`, `IHardwareSnapshotStore`,
+  `IEventInvestigationStore`, `IPerformanceSessionStore`, `INetworkSessionStore` e `IGraphicsInvestigationStore`,
+  sem coletor novo e com leitura sequencial por causa do bloqueio do armazenamento.
+- [x] Implementar `CorrelationEvidenceNormalizer` com UTC, precisão explícita, ausência de timestamp, horários
+  implausíveis, janelas de observação, identidade técnica, deduplicação e proveniência por origem.
+- [x] Implementar `CorrelationEngine` com oito regras versionadas (gráfico×WER, gráfico×aplicativo, desempenho×evento,
+  rede×evento, identidade de processo, identidade de dispositivo, sequência de alteração e insuficiência explícita).
+- [x] Implementar `EvidenceCorrelationRunner` com janela, progresso, cancelamento, status, cobertura, limites e
+  limitações obrigatórias de causalidade/escopo.
+- [x] Persistir em `memory/correlation/<guid>.md` imutável, `CORRELATION.md`, `reports/correlation` e SQLite esquema 8
+  com migração aditiva 7→8, validação estrita, reconstrução do índice e colisão entre históricos.
+- [x] Implementar a aba **Correlação de evidências** com período, seis fontes, linha do tempo, relações, evidências,
+  cobertura, histórico, cancelamento e relatório, sem controles de reparo ou alteração.
+- [x] Integrar o bloqueio de operação, o encerramento com gravação segura, o Ctrl+Tab e os atalhos Ctrl+8/Ctrl+9.
+- [x] Adicionar 72 testes novos: normalização, regras, limites exatos, identidade, deduplicação, cobertura,
+  cancelamento, persistência, integridade, interface e compatibilidade de esquema.
+- [x] Executar suíte completa Debug e Release — **685/685** em cada, 0 falhas; builds Debug e Release `0/0`.
+- [x] Validar em cópia isolada de dados reais: 2.804 referências, 479 ocorrências distintas, 2.325 consolidadas,
+  cobertura completa, hash de envelope igual ao SQLite, esquema 8, `integrity_check=ok` e `foreign_key_check` vazio.
+- [x] Executar a correlação pela interface real (clique em **Correlacionar**) em cópia isolada, confirmar novo registro,
+  histórico com dois itens e reabertura com histórico recuperado; produção permaneceu byte a byte inalterada.
+- [x] Aplicar as duas revisões independentes: corrigir a versão fixa dos testes de contrato, a fan-out de botões entre
+  abas, o cancelamento nas regras, a preservação de evidências no cancelamento, a referência de boot desatualizada, a
+  validação de identidade de processo, a contagem de deduplicação, os limites de inventário e o endurecimento do
+  `--data-root`; adicionar testes para os cenários apontados.
+- [x] Submeter o estado final a duas revisões independentes — ver `docs/validation/2026-11-01-phase-3.4-evidence-correlation.md`.
+- [x] Atualizar README, ARCHITECTURE, SECURITY, ROADMAP, VALIDATION, este arquivo e o relatório da fase.
+
+Limitações da 3.4: correlação é associação limitada, não causa; depende da qualidade/atualidade dos registros;
+mensagens e identidades já autorizadas aparecem no relatório derivado; evidência sem horário confiável não entra na
+linha do tempo; a UIA não percorre o conteúdo do `PageHost`, então a validação visual usou captura e clique real.
+
+## Fechamento do Quality Gate — Fase 3.4 (02/11/2026)
+
+- [x] Revalidar o estado final: Git, versão `0.3.0-preview.7`, builds Debug/Release `0/0`, TRX novos e produção
+  intocada (SQLite esquema 7, 66 envelopes, `integrity_check=ok`, `foreign_key_check` vazio).
+- [x] Regenerar o Graphify em diretório temporário externo sobre `src`+`tests`: 3.748 nós, 11.290 arestas no
+  `graph.json` (11.266 consideradas no agrupamento) e 192 comunidades; dependências dos oito componentes novos e dos
+  armazenamentos históricos confirmadas; índice do repositório não foi alterado.
+- [x] Submeter o delta a duas revisões independentes. Ambas reprovaram inicialmente: bloqueante de cancelamento
+  **pós-leitura** (`Cancelled` sem fonte cancelada, rejeitado pela validação e não salvável) e sobredeclaração de
+  cobertura (registros de origem `Partial` tratados como concluídos).
+- [x] Corrigir o bloqueante no runner/validador, com teste de regressão que falhou antes (`InvalidDataException`) e
+  passou depois; propagar o status/cobertura dos registros de origem; honrar os limites do construtor do runner;
+  recusar `--data-root` sem valor.
+- [x] Revalidar: **688/688** em Debug e Release, 0 falhas/ignorados; 3 testes novos; builds `0/0`.
+- [x] Executar teste de escala isolado com 2.000 evidências: 2.000/2.000 distintas, 2.000 itens de linha do tempo,
+  120 relações no limite, 166,7 ms, +5,0 MiB de heap gerenciado, envelope de 3.561.605 B persistido e relido;
+  caminho esparso de 2.000 evidências concluiu `Complete` em 3,8 ms; cancelamento produziu `Cancelled/Unavailable`
+  sem evidência fabricada; assinatura determinística idêntica e nenhuma relação/par duplicado.
+- [x] Correlacionar uma cópia isolada do armazenamento real: **2/6 fontes concluídas e 4/6 parciais**, cobertura e
+  status `Partial`, 2.617 referências, 448 distintas, 2.169 consolidadas, 448 itens de linha do tempo, 0 relações;
+  66/66 envelopes inalterados; envelope de 1.547.826 B persistido e relido; SQLite esquema 8 na cópia.
+- [x] Validar a interface final por clique real em cópia isolada: inicialização, navegação, histórico de 1 → 2
+  registros, status "Concluída com cobertura parcial", reabertura com histórico recuperado e encerramento gracioso.
+- [x] Submeter o delta corrigido a nova revisão independente e preservar os pareceres anteriores sem reescrever o
+  histórico. Parecer final em `docs/validation/2026-11-02-phase-3.4-final-gate.md`.
+
+**FASE 3.4 — APROVADA COM RESSALVAS.** Nenhum commit, push ou deploy foi executado.
+
+Limitações remanescentes: a janela real validada não teve associação temporal/identidade (regras cobertas por
+fixtures); a maior parte dos registros históricos é parcial, então a cobertura real é parcial; alguns campos de
+validação cruzada permanecem sem checagem (baixa severidade); a busca de pares é quadrática e limitada; a captura
+detalhada de cancelamento em voo não foi registrada, embora o caminho esteja coberto por testes; a UIA não expõe o
+conteúdo do `PageHost`, e o clique real foi por coordenada após verificação de primeiro plano.
+
+## Fase 5 — Persistent Monitoring (implementada em 0.3.0-preview.8)
+
+- [x] Confirmar estado real: `master` com alterações locais preservadas, versão `0.3.0-preview.7`, schema 8, baseline
+  688 testes; não executar reset, clean, commit ou push.
+- [x] Inspecionar `AGENTS.md`, ARCHITECTURE, SECURITY, ROADMAP, VALIDATION e o parecer final da Fase 3.4; preservar o
+  histórico de reprovações e ressalvas.
+- [x] Regenerar o Graphify em diretório externo ao repositório sobre o código atual: **3.845 nós, 11.511 arestas**,
+  com os índices anteriores preservados; confirmar dependências dos runners, coletores, armazenamentos e UI.
+- [x] Definir os contratos de sessão, duração, fontes, orçamento, observações, segmentos, incidentes, recuperação e
+  armazenamento em `MonitoringModels`.
+- [x] Implementar o adaptador nativo de CPU/memória (`monitoring-performance`, sem WMI por ciclo) e o leitor
+  incremental do Log de Eventos por `EventRecordID` (níveis 1–3), reutilizando `EventRecordMapper` e `EventCatalog`.
+- [x] Implementar a fonte de rede por contagens agregadas com os coletores da Fase 3.3A e a fonte gráfica derivada dos
+  eventos, sem leitor paralelo e sem endereços IP persistidos.
+- [x] Implementar `MonitoringSessionRunner`: autorização obrigatória, uma sessão por vez, grade de cadências, orçamento
+  por leitura, oportunidades perdidas sem rajada, limites, cancelamento, incidentes e relógio monotônico.
+- [x] Implementar checkpoints imutáveis por fonte, registro final que apenas os referencia, orçamento de armazenamento
+  e recuperação de sessões interrompidas sem gravar `Completed`.
+- [x] Implementar persistência Markdown/SQLite esquema 9 com migração aditiva 8→9, validação estrita, idempotência,
+  colisão entre históricos, projeções `MONITORING.md` e `reports/monitoring`, reconstrução e testes de corrupção.
+- [x] Integrar ao Evidence Correlation Engine de forma aditiva: fonte `Monitoring` opcional, mesma identidade
+  `evt:{canal}:{RecordId}`, amostras como intervalos, regras existentes reutilizadas e incidente como referência
+  temporal, nunca como evidência nativa.
+- [x] Implementar a aba **Monitoramento** com duração, fontes, autorização, tempo restante, contadores, incidentes,
+  linha do tempo, orçamento, histórico, relatório e correlação direcionada; integrar fechamento, cancelamento, Ctrl+Tab
+  e o bloqueio global de operações.
+- [x] Criar testes de sessão, orçamento, tempo, incidentes, eventos, persistência, recuperação, integração e regressões;
+  atualizar as expectativas de esquema 9 e a guarda de ComboBox sem enfraquecer os testes anteriores.
+- [x] Executar builds Debug/Release `0/0` e suítes completas — **760/760 em Debug e Release**, 0 falhas e 0 ignorados,
+  incluindo a remediação dos deltas das duas revisões independentes.
+- [x] Executar uma sessão real curta e controlada em armazenamento temporário isolado, com as fontes reais, medindo
+  CPU/memória do processo, ciclos, oportunidades perdidas, custo por leitura, volume persistido e integridade.
+- [x] Submeter o estado final a duas revisões independentes (monitoramento/desempenho e persistência/segurança) e
+  corrigir os bloqueantes/high demonstrados; registrar ressalvas remanescentes.
+- [x] Atualizar README, ARCHITECTURE, SECURITY, ROADMAP, VALIDATION, este arquivo e o relatório da fase; preservar os
+  pareceres anteriores e não executar commit, push ou deploy.
+
+Limitações da Fase 5: o monitoramento não permanece ativo fora da sessão; não há serviço, tarefa agendada ou coleta
+em segundo plano; WER não é lido em tempo real; a fonte de eventos observa apenas níveis 1–3 e os quatro canais fixos;
+a fonte de rede não persiste endereços; uma amostra ou um clique de incidente não comprovam causa ou início do
+problema; a recuperação deriva estado e não reconstrói incidentes mantidos apenas em memória; a UIA não expõe o
+conteúdo do `PageHost`.

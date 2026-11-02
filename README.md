@@ -1,17 +1,40 @@
 # SentinelCore AI
 
 Diagnóstico profundo do Windows, baseado em evidências. Aplicativo desktop WPF, C# e .NET 10 LTS.
-As fases 0 a 3.2.1 entregam auditoria básica, inventário de hardware em onze categorias, investigação de eventos e
+As fases 0 a 5 entregam auditoria básica, inventário de hardware em onze categorias, investigação de eventos e
 metadados de relatórios de falha do Windows, sessões de desempenho com métricas de CPU, memória, processos e
-armazenamento, histórico local, memória Markdown e comparação entre snapshots.
+armazenamento, diagnóstico de rede e gráfico, correlação determinística entre as evidências históricas, sessões
+autorizadas de monitoramento com registro manual de incidentes, histórico local, memória Markdown e comparação entre
+snapshots.
 O produto funciona offline após a publicação. Não executa reparos, otimizações, correções ou comandos de IA.
 
 ## Estado
 
 Fase 3.3A (Network Diagnostics) encerrada em 01/11/2026 como **APROVADA COM RESSALVAS**. A Fase 3.3B
 (Graphics Diagnostics) foi implementada em `0.3.0-preview.6` e o quality gate independente final foi
-**APROVADO COM RESSALVAS**. Os históricos anteriores permanecem preservados e nenhum registro foi reescrito.
+**APROVADO COM RESSALVAS**. A Fase 3.4 (Evidence Correlation Engine) foi implementada em `0.3.0-preview.7`; o
+fechamento do quality gate em 02/11/2026 manteve **APROVADA COM RESSALVAS** após corrigir o cancelamento
+pós-leitura e a sobredeclaração de cobertura. A correlação herda a parcialidade dos registros de origem, e a
+execução real resulta em cobertura parcial. O parecer está em [validação](docs/VALIDATION.md). Os históricos
+anteriores permanecem preservados e nenhum registro foi reescrito.
 Personalização & Debloat está apenas [planejado](docs/planning/TWEAKS_DEBLOAT_DISCOVERY.md), sem operações ou UI novas.
+
+A Fase 5 (Persistent Monitoring) foi implementada em `0.3.0-preview.8`: sessões de 5, 15 ou 30 minutos, uma por vez,
+somente após autorização explícita, com eventos incrementais, CPU/memória nativas, rede sem endereços e gráficos
+derivados dos eventos. Cada sessão grava checkpoints imutáveis, registro final, incidentes manuais e orçamento de
+recursos; uma sessão interrompida é reconhecida pelos checkpoints sem ser gravada como concluída. Não há serviço,
+tarefa agendada ou observação após o fechamento. O histórico continua disponível e a correlação passou a oferecer a
+fonte **Monitoramento** de forma opcional, sem duplicar eventos.
+
+Versão 0.3.0-preview.7 — Evidence Correlation Engine. A aba **Correlação de evidências** reutiliza somente
+registros históricos já persistidos (auditorias, hardware, eventos/WER, desempenho, rede e gráficos) e produz
+uma linha do tempo, relações determinísticas por proximidade temporal e por identidade técnica, deduplicação entre
+módulos e cobertura explícita, que herda a parcialidade dos registros de origem. Não há coleta nova, IA, telemetria
+ou alteração do Windows. Cada relação declara
+regra e versão, evidências participantes, janela, justificativa e limitações; a causalidade permanece não avaliada.
+Correlação não é causalidade: proximidade temporal ou identidade compartilhada não demonstram causa, e a ausência
+de relação não prova ausência de problema.
+
 
 Versão 0.3.0-preview.6 — Graphics Diagnostics. A aba **Gráficos & GPU** investiga adaptadores, monitores,
 drivers, eventos gráficos, TDR Display 4101 e metadados WER LiveKernelEvent 117/141/142, além de alterações
@@ -19,7 +42,8 @@ entre investigações. A leitura reutiliza os coletores existentes de GPU/monito
 segunda consulta WMI paralela. Temperatura, potência, frequência, utilização global e VRAM real não são
 inventadas: somente eventos, WER, drivers, estado de exibição e o `AdapterRAM` reportado pelo driver são
 preservados. TDR, LiveKernelEvent, mudança de driver ou falha de aplicativo não são apresentados como causa,
-defeito físico, superaquecimento ou problema de VRAM. A causalidade permanece não avaliada (Fase 3.4).
+defeito físico, superaquecimento ou problema de VRAM. A causalidade permanece não avaliada. A correlação da Fase 3.4
+usa esses registros sem alterar a classificação gráfica.
 Consulte [validação](docs/VALIDATION.md), [arquitetura](docs/ARCHITECTURE.md) e [segurança](docs/SECURITY.md).
 
 Versão 0.3.0-preview.3 — Performance Intelligence com endurecimento. A aba **Desempenho** executa sessões de 30
@@ -76,12 +100,15 @@ como raiz de teste.
 
 ```powershell
 .\scripts\publish.ps1
-.\artifacts\publish\0.3.0-preview.6\win-x64\SentinelCoreAI.exe
+.\artifacts\publish\0.3.0-preview.8\win-x64\SentinelCoreAI.exe
 ```
 
 O destino é versionado a partir de `Directory.Build.props`; o script recusa sobrescrever sem `-Force`.
 Feche a instância publicada antes de gerar novamente o pacote.
-Distribua **toda a pasta** `artifacts/publish/0.3.0-preview.6/win-x64`, incluindo DLLs nativas.
+Distribua **toda a pasta** `artifacts/publish/0.3.0-preview.8/win-x64`, incluindo DLLs nativas.
+
+A versão `0.3.0-preview.8` ainda não foi publicada. O último pacote gerado localmente é `0.3.0-preview.6`;
+executar `publish.ps1` cria o pacote `preview.8` em `artifacts/publish/0.3.0-preview.8/win-x64`.
 Sem MSI, assinatura ou instalação de serviço. Pacotes de versões anteriores não são sobrescritos.
 Para desenvolvimento:
 
@@ -123,10 +150,21 @@ que evita depender dessa extração em computadores com restrições. Não usar 
     A leitura é somente de GPU, monitores, drivers, eventos e metadados WER; não há reparo, atualização de driver,
     alteração de resolução, HDR, frequência ou energia. Consulte **Adaptadores**, **Monitores**, **Drivers**,
     **Eventos**, **WER** e **Evidências**. Selecione uma investigação no histórico e use **Abrir relatório**.
-14. Consulte **Resultados**, **Hardware**, **Estabilidade e Eventos**, **Desempenho**, **Rede**, **Gráficos & GPU**
-    e **Histórico**. Em Resultados, **Abrir localização do relatório** seleciona o Markdown da auditoria no Explorador.
-15. Feche e reabra; a última tentativa, os snapshots, as investigações, as sessões de desempenho/rede, as
-    investigações gráficas e o histórico serão recuperados.
+14. Na aba **Correlação de evidências**, escolha o período e as fontes e clique em **Correlacionar**. A investigação
+    reutiliza somente registros já persistidos, consolida ocorrências repetidas entre módulos e apresenta **Linha do
+    tempo**, **Relações**, **Evidências** e **Cobertura**. Cada relação mostra regra, versão, justificativa e
+    limitações; causalidade não é declarada. **Abrir relatório** localiza o Markdown e o histórico permite reabrir
+    investigações anteriores.
+15. Na aba **Monitoramento**, escolha a duração (5, 15 ou 30 minutos), as fontes e marque a autorização explícita;
+    clique em **Iniciar monitoramento**. Durante a sessão, use **Registrar incidente** para marcar uma ocorrência
+    (categoria, descrição opcional e horário aproximado opcional). **Encerrar** interrompe a observação; **Abrir
+    relatório** localiza o Markdown. A sub-aba **Orçamento e limites** mostra ciclos, oportunidades perdidas e limites.
+    A sessão selecionada pode ser usada em **Correlacionar incidente (janela ±10 min)**, que reutiliza o motor da Fase 3.4.
+16. Consulte **Resultados**, **Hardware**, **Estabilidade e Eventos**, **Desempenho**, **Rede**, **Gráficos & GPU**,
+    **Correlação**, **Histórico** e **Monitoramento**. Em Resultados, **Abrir localização do relatório** seleciona o
+    Markdown da auditoria no Explorador.
+17. Feche e reabra; a última tentativa, os snapshots, as investigações, as sessões de desempenho/rede, as
+    investigações gráficas, as correlações, as sessões de monitoramento e o histórico serão recuperados.
 
 Fechar durante uma coleta solicita cancelamento e aguarda gravação. Se a gravação falhar, o resultado permanece na janela
 e o botão permite tentar salvar o mesmo ID novamente. Não encerre o processo à força enquanto houver dados pendentes.
@@ -157,14 +195,23 @@ não mova ou apague históricos para tentar unificá-los. Consulte VALIDATION.md
 - `memory/graphics/<id>.md`: investigação gráfica imutável, com adaptadores, monitores, drivers, eventos, WER,
   observações, alterações, limitações e SHA-256.
 - `memory/GRAPHICS.md`: resumo derivado das últimas investigações gráficas.
-- `data/sentinelcore.db`: índice SQLite, esquema 7 e projeções de auditorias, snapshots, investigações, sessões e
-  investigações gráficas.
+- `memory/correlation/<id>.md`: investigação de correlação imutável, com fontes, cobertura, linha do tempo,
+  evidências consolidadas com todas as origens, relações, notas e SHA-256.
+- `memory/CORRELATION.md`: resumo derivado das últimas investigações de correlação.
+- `memory/monitoring/<id>.md`: sessão de monitoramento imutável, com fontes, orçamento, incidentes, referências aos
+  checkpoints e SHA-256.
+- `memory/monitoring/<id>/segments/<segmento>.md`: checkpoint imutável de uma fonte, com observações, intervalo e SHA-256.
+- `memory/MONITORING.md`: resumo derivado das últimas sessões de monitoramento.
+- `data/sentinelcore.db`: índice SQLite, esquema 9 e projeções de auditorias, snapshots, investigações, sessões,
+  investigações gráficas, correlações, sessões de monitoramento e checkpoints.
 - `reports/<id>.md`: relatório legível da auditoria, reconstruível do registro histórico.
 - `reports/hardware/<id>.md`: relatório legível do snapshot de hardware, reconstruível do payload.
 - `reports/events/<id>.md`: relatório legível da investigação de eventos, reconstruível do payload.
 - `reports/performance/<id>.md`: relatório legível da sessão de desempenho, reconstruível do payload.
 - `reports/network/<id>.md`: relatório legível da sessão de rede, reconstruível do payload.
 - `reports/graphics/<id>.md`: relatório legível da investigação gráfica, reconstruível do payload.
+- `reports/correlation/<id>.md`: relatório legível da correlação, reconstruível do payload.
+- `reports/monitoring/<id>.md`: relatório legível da sessão de monitoramento, reconstruível do payload.
 - `logs/`: falhas de aplicação e avisos de consistência quando ocorrerem.
 
 Investigação de eventos lê somente canais habilitados, estados de canal e metadados de WER. Mensagens formatadas e
@@ -181,12 +228,23 @@ nominal e registra oportunidades perdidas em vez de disparar uma rajada de recup
 armazenamento; não houve oportunidade perdida. Processos protegidos ficam sem nome, hora de início ou contadores e são
 contabilizados como limitação, não estimados. A coleta roda somente enquanto uma sessão está ativa; não há monitoramento
 permanente, serviço nem elevação.
+O monitoramento da Fase 5 também roda somente durante a sessão autorizada. CPU e memória usam `GetSystemTimes` e
+`GlobalMemoryStatusEx` a cada 15 s; eventos usam leitura incremental nativa por `EventRecordID` nos níveis 1–3 a cada
+15 s; rede usa as tabelas locais da Fase 3.3A a cada 30 s e persiste apenas contagens. Gráficos são uma visão derivada
+dos eventos, sem leitor paralelo. O orçamento padrão admite 2 s por leitura, 240 amostras por fonte, 2.000 eventos e
+3 MiB por sessão; limites e oportunidades perdidas são declarados. Nenhum serviço, tarefa agendada ou processo residente
+é criado, e a observação termina com o fechamento do aplicativo.
 Gráficos reutilizam WMI `Win32_VideoController`/`Win32_PnPSignedDriver`, DisplayConfig/`WmiMonitorID`, Log de Eventos
 e metadados WER. Nenhuma métrica de temperatura, potência, frequência, utilização global ou VRAM real é coletada; o
 `AdapterRAM` é apenas o valor reportado pelo driver. Nenhum driver, resolução, HDR, frequência ou energia é alterado.
 Os arquivos não são criptografados; a proteção depende das permissões do perfil Windows. Compartilhe relatórios conscientemente.
 Histórico real nunca é apagado automaticamente. Para backup, feche o aplicativo e copie a pasta de dados inteira.
 O hash detecta corrupção acidental do payload; não é uma assinatura contra adulteração pelo próprio usuário.
+
+Hosts de validação podem iniciar o aplicativo com um diretório de dados absoluto e isolado:
+`SentinelCoreAI.exe --data-root D:\caminho\isolado`. Sem esse argumento, o aplicativo usa
+`%LOCALAPPDATA%\SentinelCoreAI`. A opção serve para validar a interface e a persistência sem tocar no histórico real;
+ela não eleva privilégios nem altera o Windows.
 
 ## Organização
 

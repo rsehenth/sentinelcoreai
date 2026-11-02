@@ -38,7 +38,9 @@
                     <ListBoxItem Content="Desempenho" Tag="{StaticResource IconPerformance}" ToolTip="Monitoramento de desempenho (Ctrl+5)"/>
                     <ListBoxItem Content="Rede" Tag="{StaticResource IconNetwork}" ToolTip="Diagnóstico de rede somente leitura (Ctrl+6)"/>
                     <ListBoxItem Content="Gráficos &amp; GPU" Tag="{StaticResource IconGraphics}" ToolTip="Diagnóstico gráfico somente leitura (Ctrl+7)"/>
-                    <ListBoxItem Content="Histórico" Tag="{StaticResource IconHistory}" ToolTip="Auditorias salvas neste computador (Ctrl+8)"/>
+                    <ListBoxItem Content="Correlação" Tag="{StaticResource IconCompare}" ToolTip="Correlação de evidências históricas (Ctrl+8)"/>
+                    <ListBoxItem Content="Histórico" Tag="{StaticResource IconHistory}" ToolTip="Auditorias salvas neste computador (Ctrl+9)"/>
+                    <ListBoxItem Content="Monitoramento" Tag="{StaticResource IconPerformance}" ToolTip="Sessões de observação autorizadas e registro de incidentes"/>
                 </ListBox>
 
                 <Border Grid.Row="2" Style="{StaticResource Card}" Padding="14,12">
@@ -172,7 +174,7 @@
                                             <TextBlock Text="Log de Eventos e relatórios de falha do Windows." Style="{StaticResource Caption}" Margin="0,4,0,0"/>
                                         </StackPanel>
                                     </Button>
-                                    <Button Style="{StaticResource TileButton}" Tag="5" Click="OnNavigate" Margin="8,0,0,0" AutomationProperties.Name="Abrir Histórico">
+                                    <Button Style="{StaticResource TileButton}" Tag="8" Click="OnNavigate" Margin="8,0,0,0" AutomationProperties.Name="Abrir Histórico">
                                         <StackPanel>
                                             <Border Width="40" Height="40" CornerRadius="11" Background="{StaticResource TileGradient}" BorderBrush="#2F6482" BorderThickness="1" HorizontalAlignment="Left"><Viewbox Width="20" Height="20"><Canvas Width="24" Height="24"><Path Data="{StaticResource IconHistory}" Stroke="{StaticResource Accent}" StrokeThickness="1.9" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Canvas></Viewbox></Border>
                                             <TextBlock Text="Histórico" FontWeight="SemiBold" Margin="0,14,0,0"/>
@@ -1390,6 +1392,317 @@
                     </ScrollViewer>
                 </TabItem>
 
+                <!-- ───── Correlação de evidências ───── -->
+                <TabItem Header="Correlação de evidências">
+                    <Grid Margin="32,28,32,20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Border Width="48" Height="48" CornerRadius="13" Background="{StaticResource TileGradient}" BorderBrush="#2F6482" BorderThickness="1" Margin="0,0,16,0" VerticalAlignment="Top"><Viewbox Width="23" Height="23"><Canvas Width="24" Height="24"><Path Data="{StaticResource IconCompare}" Stroke="{StaticResource Accent}" StrokeThickness="1.9" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Canvas></Viewbox></Border><StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="Correlação de evidências" Style="{StaticResource PageTitle}"/>
+                                <TextBlock x:Name="CorrelationInvestigationInfo" Text="Nenhuma investigação de correlação realizada." Style="{StaticResource PageSubtitle}"/>
+                            </StackPanel></Grid>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="20,2,0,0">
+                                <Button x:Name="CorrelationRunButton" Content="Correlacionar" Tag="{StaticResource IconPlay}" Style="{StaticResource PrimaryButton}"
+                                        Click="OnCorrelationRun" AutomationProperties.AutomationId="StartCorrelation"/>
+                                <Button x:Name="CorrelationCancelButton" Content="Cancelar" Tag="{StaticResource IconStop}" Click="OnCorrelationCancel" IsEnabled="False" Margin="8,0,0,0"/>
+                                <Button x:Name="CorrelationReportButton" Content="Abrir relatório" Tag="{StaticResource IconFolder}" Style="{StaticResource GhostButton}"
+                                        Click="OnCorrelationReport" IsEnabled="False" Margin="8,0,0,0"
+                                        AutomationProperties.AutomationId="OpenCorrelationReport"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <StackPanel Grid.Row="1" Margin="0,18,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Período" Style="{StaticResource Caption}" FontSize="13" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <ComboBox x:Name="CorrelationPresetCombo" Width="130" SelectionChanged="OnCorrelationPresetChanged"
+                                          DisplayMemberPath="Label" AutomationProperties.AutomationId="CorrelationPeriod"/>
+                                <TextBlock Text="Fontes" Style="{StaticResource Caption}" FontSize="13" VerticalAlignment="Center" Margin="24,0,12,0"/>
+                                <CheckBox x:Name="CorrelationAuditCheck" Content="Auditorias" IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"
+                                          Click="OnCorrelationSourceChanged" ToolTip="Usada somente como referência de inicialização do Windows"/>
+                                <CheckBox x:Name="CorrelationHardwareCheck" Content="Hardware" IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"
+                                          Click="OnCorrelationSourceChanged"/>
+                                <CheckBox x:Name="CorrelationEventCheck" Content="Eventos e WER" IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"
+                                          Click="OnCorrelationSourceChanged"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                <CheckBox x:Name="CorrelationPerformanceCheck" Content="Desempenho" IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"
+                                          Click="OnCorrelationSourceChanged"/>
+                                <CheckBox x:Name="CorrelationNetworkCheck" Content="Rede" IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"
+                                          Click="OnCorrelationSourceChanged"/>
+                                <CheckBox x:Name="CorrelationGraphicsCheck" Content="Gráficos" IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"
+                                          Click="OnCorrelationSourceChanged"/>
+                                <CheckBox x:Name="CorrelationMonitoringCheck" Content="Monitoramento" IsChecked="False" VerticalAlignment="Center" Margin="0,0,12,0"
+                                          Click="OnCorrelationSourceChanged"
+                                          ToolTip="Inclui eventos e amostras das sessões de monitoramento persistidas"/>
+                                <TextBlock Text="Somente registros históricos já persistidos; nenhuma coleta nova é executada."
+                                           Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Margin="0,16,0,0">
+                            <TextBlock x:Name="CorrelationStatusText" Text="Selecione um período e as fontes; a correlação é somente de leitura."
+                                       Foreground="{StaticResource Muted}" AutomationProperties.LiveSetting="Polite" TextWrapping="Wrap"/>
+                            <ProgressBar x:Name="CorrelationProgress" Margin="0,10,0,0" Minimum="0" Maximum="3" Value="0"
+                                         AutomationProperties.AutomationId="CorrelationProgress"/>
+                        </StackPanel>
+
+                        <UniformGrid Grid.Row="3" Columns="4" Margin="0,14,0,0">
+                            <Border Style="{StaticResource Card}" Padding="16" CornerRadius="10">
+                                <StackPanel>
+                                    <TextBlock Text="Fontes" Foreground="{StaticResource Muted}" FontSize="12.5" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="CorrelationSourceValue" FontSize="22" Foreground="#63D8EE"
+                                               FontWeight="SemiBold" Text="—" AutomationProperties.AutomationId="CorrelationSourceValue"/>
+                                    <TextBlock x:Name="CorrelationSourceDetail" Foreground="{StaticResource Muted}" FontSize="12"
+                                               TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Padding="16" CornerRadius="10">
+                                <StackPanel>
+                                    <TextBlock Text="Evidências" Foreground="{StaticResource Muted}" FontSize="12.5" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="CorrelationEvidenceValue" FontSize="22" Foreground="#63D8EE"
+                                               FontWeight="SemiBold" Text="—" AutomationProperties.AutomationId="CorrelationEvidenceValue"/>
+                                    <TextBlock x:Name="CorrelationEvidenceCardDetail" Foreground="{StaticResource Muted}" FontSize="12"
+                                               TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Padding="16" CornerRadius="10">
+                                <StackPanel>
+                                    <TextBlock Text="Deduplicadas" Foreground="{StaticResource Muted}" FontSize="12.5" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="CorrelationMergedValue" FontSize="22" Foreground="#63D8EE"
+                                               FontWeight="SemiBold" Text="—" AutomationProperties.AutomationId="CorrelationMergedValue"/>
+                                    <TextBlock x:Name="CorrelationMergedDetail" Foreground="{StaticResource Muted}" FontSize="12"
+                                               TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Padding="16" CornerRadius="10">
+                                <StackPanel>
+                                    <TextBlock Text="Relações" Foreground="{StaticResource Muted}" FontSize="12.5" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="CorrelationRelationValue" FontSize="22" Foreground="#63D8EE"
+                                               FontWeight="SemiBold" Text="—" AutomationProperties.AutomationId="CorrelationRelationValue"/>
+                                    <TextBlock x:Name="CorrelationRelationCardDetail" Foreground="{StaticResource Muted}" FontSize="12"
+                                               TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <Grid Grid.Row="4" Margin="0,14,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="1.2*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TabControl x:Name="CorrelationTabs" Grid.Column="0">
+                                <TabItem Header="Linha do tempo">
+                                    <Border Style="{StaticResource Card}">
+                                        <Grid>
+                                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                            <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,7">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition Width="130"/><ColumnDefinition Width="110"/><ColumnDefinition Width="160"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Horário local" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="1" Text="Precisão" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="2" Text="Fonte" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="3" Text="Tipo" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="4" Text="Evidência" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                </Grid>
+                                            </Border>
+                                            <ListView x:Name="CorrelationTimelineList" Grid.Row="1"
+                                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                      AutomationProperties.AutomationId="CorrelationTimeline"
+                                                      VirtualizingPanel.IsVirtualizing="True"
+                                                      VirtualizingPanel.VirtualizationMode="Recycling">
+                                                <ListView.ItemTemplate><DataTemplate>
+                                                    <DataTemplate.Resources>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                            <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        </Style>
+                                                    </DataTemplate.Resources>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition Width="130"/><ColumnDefinition Width="110"/><ColumnDefinition Width="160"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Time}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Precision}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}"/>
+                                                        <TextBlock Grid.Column="2" Text="{Binding Source}" VerticalAlignment="Center" Foreground="{StaticResource Accent}"/>
+                                                        <TextBlock Grid.Column="3" Text="{Binding Kind}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                        <TextBlock Grid.Column="4" Text="{Binding Title}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"/>
+                                                    </Grid>
+                                                </DataTemplate></ListView.ItemTemplate>
+                                            </ListView>
+                                        </Grid>
+                                    </Border>
+                                </TabItem>
+                                <TabItem Header="Relações">
+                                    <Grid>
+                                        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                        <Border Style="{StaticResource Card}" Grid.Row="0">
+                                            <Grid>
+                                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Relação" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="1" Text="Classificação" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    </Grid>
+                                                </Border>
+                                                <ListView x:Name="CorrelationRelationList" Grid.Row="1"
+                                                          SelectionChanged="OnCorrelationRelationSelected"
+                                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                          AutomationProperties.AutomationId="CorrelationRelations">
+                                                    <ListView.ItemTemplate><DataTemplate>
+                                                        <DataTemplate.Resources>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                            </Style>
+                                                        </DataTemplate.Resources>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Subtitle}" VerticalAlignment="Center"
+                                                                       Foreground="{StaticResource Subtle}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Subtitle}"/>
+                                                        </Grid>
+                                                    </DataTemplate></ListView.ItemTemplate>
+                                                </ListView>
+                                            </Grid>
+                                        </Border>
+                                        <TextBox x:Name="CorrelationRelationDetail" Grid.Row="1" Margin="0,8,0,0"
+                                                 FontSize="13" TextWrapping="Wrap" MaxHeight="150" IsReadOnly="True"
+                                                 AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                                 AutomationProperties.AutomationId="CorrelationRelationDetail"
+                                                 Background="{StaticResource SurfaceGradient}"
+                                                 BorderBrush="{StaticResource LineStrong}" BorderThickness="1"
+                                                 Padding="14"/>
+                                    </Grid>
+                                </TabItem>
+                                <TabItem Header="Evidências">
+                                    <Grid>
+                                        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                        <Border Style="{StaticResource Card}" Grid.Row="0">
+                                            <Grid>
+                                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="320"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Evidência" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="1" Text="Origem e identidade" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    </Grid>
+                                                </Border>
+                                                <ListView x:Name="CorrelationEvidenceList" Grid.Row="1"
+                                                          SelectionChanged="OnCorrelationEvidenceSelected"
+                                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                          AutomationProperties.AutomationId="CorrelationEvidence"
+                                                          VirtualizingPanel.IsVirtualizing="True"
+                                                          VirtualizingPanel.VirtualizationMode="Recycling">
+                                                    <ListView.ItemTemplate><DataTemplate>
+                                                        <DataTemplate.Resources>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                            </Style>
+                                                        </DataTemplate.Resources>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="320"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Title}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip="{Binding Title}"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Subtitle}" VerticalAlignment="Center"
+                                                                       Foreground="{StaticResource Subtle}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Subtitle}"/>
+                                                        </Grid>
+                                                    </DataTemplate></ListView.ItemTemplate>
+                                                </ListView>
+                                            </Grid>
+                                        </Border>
+                                        <TextBox x:Name="CorrelationEvidenceDetail" Grid.Row="1" Margin="0,8,0,0"
+                                                 FontSize="13" TextWrapping="Wrap" MaxHeight="150" IsReadOnly="True"
+                                                 AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                                 AutomationProperties.AutomationId="CorrelationEvidenceDetail"
+                                                 Background="{StaticResource SurfaceGradient}"
+                                                 BorderBrush="{StaticResource LineStrong}" BorderThickness="1"
+                                                 Padding="14"/>
+                                    </Grid>
+                                </TabItem>
+                                <TabItem Header="Cobertura">
+                                    <Grid>
+                                        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                        <Border Style="{StaticResource Card}" Grid.Row="0">
+                                            <Grid>
+                                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="120"/><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Fonte" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="1" Text="Situação" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="2" Text="Registros" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="3" Text="Limitações" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    </Grid>
+                                                </Border>
+                                                <ListView x:Name="CorrelationSourceList" Grid.Row="1"
+                                                          SelectionChanged="OnCorrelationSourceSelected"
+                                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                          AutomationProperties.AutomationId="CorrelationSources">
+                                                    <ListView.ItemTemplate><DataTemplate>
+                                                        <DataTemplate.Resources>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                            </Style>
+                                                        </DataTemplate.Resources>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="120"/><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding SourceName}" VerticalAlignment="Center"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Status}" VerticalAlignment="Center" Foreground="{StaticResource Accent}"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Records}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}"/>
+                                                            <TextBlock Grid.Column="3" Text="{Binding Limitations}" VerticalAlignment="Center" Foreground="{StaticResource Subtle}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Limitations}"/>
+                                                        </Grid>
+                                                    </DataTemplate></ListView.ItemTemplate>
+                                                </ListView>
+                                            </Grid>
+                                        </Border>
+                                        <TextBox x:Name="CorrelationCoverageDetail" Grid.Row="1" Margin="0,8,0,0"
+                                                 FontSize="13" TextWrapping="Wrap" MaxHeight="150" IsReadOnly="True"
+                                                 AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                                 AutomationProperties.AutomationId="CorrelationCoverageDetail"
+                                                 Background="{StaticResource SurfaceGradient}"
+                                                 BorderBrush="{StaticResource LineStrong}" BorderThickness="1"
+                                                 Padding="14"/>
+                                    </Grid>
+                                </TabItem>
+                            </TabControl>
+
+                            <Grid Grid.Column="1" Margin="14,0,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Histórico de correlações" Foreground="{StaticResource Muted}" FontSize="14"/>
+                                <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,6,0,0">
+                                    <ListBox x:Name="CorrelationHistoryList"
+                                             SelectionChanged="OnCorrelationHistorySelected"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                             AutomationProperties.AutomationId="CorrelationHistory">
+                                        <ListBox.ItemTemplate><DataTemplate>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding DateText}" FontSize="13" FontWeight="SemiBold" TextWrapping="NoWrap"/>
+                                                <TextBlock Text="{Binding SummaryText}" Style="{StaticResource Caption}" FontSize="12" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </DataTemplate></ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Border>
+                            </Grid>
+                        </Grid>
+
+                        <TextBlock Grid.Row="5" Style="{StaticResource FootNote}" Margin="0,12,0,0"
+                                   Text="Leitura somente sobre registros históricos. Correlação não é causalidade: proximidade temporal ou identidade compartilhada não demonstram causa. Nenhuma configuração do Windows é alterada."/>
+                    </Grid>
+                </TabItem>
+
                 <!-- ───── Histórico ───── -->
                 <TabItem Header="Histórico">
                     <Grid Margin="32,28,32,24">
@@ -1406,6 +1719,255 @@
                             </Border>
                             <TextBox x:Name="HistoryDetails" Grid.Column="2" Text="Nenhuma auditoria anterior." AutomationProperties.Name="Detalhes da auditoria histórica"/>
                         </Grid>
+                    </Grid>
+                </TabItem>
+
+                <!-- ───── Monitoramento ───── -->
+                <TabItem Header="Monitoramento">
+                    <Grid Margin="32,28,32,20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Border Width="48" Height="48" CornerRadius="13" Background="{StaticResource TileGradient}" BorderBrush="#2F6482" BorderThickness="1" Margin="0,0,16,0" VerticalAlignment="Top"><Viewbox Width="23" Height="23"><Canvas Width="24" Height="24"><Path Data="{StaticResource IconPerformance}" Stroke="{StaticResource Accent}" StrokeThickness="1.9" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Canvas></Viewbox></Border><StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="Monitoramento" Style="{StaticResource PageTitle}"/>
+                                <TextBlock x:Name="MonitoringSessionInfo" Text="Nenhuma sessão de monitoramento realizada." Style="{StaticResource PageSubtitle}"/>
+                            </StackPanel></Grid>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="20,2,0,0">
+                                <Button x:Name="MonitoringStartButton" Content="Iniciar monitoramento" Tag="{StaticResource IconPlay}" Style="{StaticResource PrimaryButton}"
+                                        Click="OnMonitoringStart" AutomationProperties.AutomationId="StartMonitoring"/>
+                                <Button x:Name="MonitoringStopButton" Content="Encerrar" Tag="{StaticResource IconStop}" Click="OnMonitoringStop" IsEnabled="False" Margin="8,0,0,0"/>
+                                <Button x:Name="MonitoringReportButton" Content="Abrir relatório" Tag="{StaticResource IconFolder}" Style="{StaticResource GhostButton}"
+                                        Click="OnMonitoringReport" IsEnabled="False" Margin="8,0,0,0"
+                                        AutomationProperties.AutomationId="OpenMonitoringReport"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <StackPanel Grid.Row="1" Margin="0,18,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Duração" Style="{StaticResource Caption}" FontSize="13" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <ComboBox x:Name="MonitoringPresetCombo" Width="140" SelectionChanged="OnMonitoringPresetChanged"
+                                          DisplayMemberPath="Label" AutomationProperties.AutomationId="MonitoringDuration"/>
+                                <TextBlock Text="Fontes" Style="{StaticResource Caption}" FontSize="13" VerticalAlignment="Center" Margin="24,0,12,0"/>
+                                <CheckBox x:Name="MonitoringEventsCheck" Content="Eventos do Windows" IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"
+                                          Click="OnMonitoringSourceChanged"/>
+                                <CheckBox x:Name="MonitoringPerformanceCheck" Content="Desempenho" IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"
+                                          Click="OnMonitoringSourceChanged"/>
+                                <CheckBox x:Name="MonitoringNetworkCheck" Content="Rede (sem endereços)" IsChecked="False" VerticalAlignment="Center" Margin="0,0,12,0"
+                                          Click="OnMonitoringSourceChanged"/>
+                                <CheckBox x:Name="MonitoringGraphicsCheck" Content="Gráficos" IsChecked="True" VerticalAlignment="Center" Margin="0,0,12,0"
+                                          Click="OnMonitoringSourceChanged"/>
+                            </StackPanel>
+                            <StackPanel Margin="0,10,0,0">
+                                <CheckBox x:Name="MonitoringAuthorizationCheck" Content="Autorizo esta sessão de observação local, limitada e sem alterações no Windows"
+                                          VerticalAlignment="Center" Click="OnMonitoringAuthorizationChanged"
+                                          AutomationProperties.AutomationId="MonitoringAuthorization"/>
+                                <TextBlock Text="Padrão: monitoramento desativado. Nenhum serviço, tarefa agendada ou processo residente é criado."
+                                           Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2" Margin="0,16,0,0">
+                            <TextBlock x:Name="MonitoringStatusText" Text="Monitoramento desativado."
+                                       Foreground="{StaticResource Muted}" AutomationProperties.LiveSetting="Polite" TextWrapping="Wrap"/>
+                            <ProgressBar x:Name="MonitoringProgress" Margin="0,10,0,0" Minimum="0" Maximum="1" Value="0"
+                                         AutomationProperties.AutomationId="MonitoringProgress"/>
+                        </StackPanel>
+
+                        <UniformGrid Grid.Row="3" Columns="6" Margin="0,14,0,0">
+                            <Border Style="{StaticResource Card}" Padding="14" CornerRadius="10" Margin="0,0,6,0">
+                                <StackPanel>
+                                    <TextBlock Text="Transcorrido" Foreground="{StaticResource Muted}" FontSize="12.5" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="MonitoringElapsedText" FontSize="20" Foreground="#63D8EE" FontWeight="SemiBold" Text="—"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Padding="14" CornerRadius="10" Margin="6,0">
+                                <StackPanel>
+                                    <TextBlock Text="Restante" Foreground="{StaticResource Muted}" FontSize="12.5" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="MonitoringRemainingText" FontSize="20" Foreground="#63D8EE" FontWeight="SemiBold" Text="—"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Padding="14" CornerRadius="10" Margin="6,0">
+                                <StackPanel>
+                                    <TextBlock Text="Amostras" Foreground="{StaticResource Muted}" FontSize="12.5" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="MonitoringSamplesValue" FontSize="20" Foreground="#63D8EE" FontWeight="SemiBold" Text="—"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Padding="14" CornerRadius="10" Margin="6,0">
+                                <StackPanel>
+                                    <TextBlock Text="Eventos" Foreground="{StaticResource Muted}" FontSize="12.5" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="MonitoringEventsValue" FontSize="20" Foreground="#63D8EE" FontWeight="SemiBold" Text="—"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Padding="14" CornerRadius="10" Margin="6,0">
+                                <StackPanel>
+                                    <TextBlock Text="Incidentes" Foreground="{StaticResource Muted}" FontSize="12.5" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="MonitoringIncidentsValue" FontSize="20" Foreground="#63D8EE" FontWeight="SemiBold" Text="—"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Card}" Padding="14" CornerRadius="10" Margin="6,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Perdidas" Foreground="{StaticResource Muted}" FontSize="12.5" Margin="0,0,0,6"/>
+                                    <TextBlock x:Name="MonitoringBudgetValue" FontSize="20" Foreground="#63D8EE" FontWeight="SemiBold" Text="—"/>
+                                </StackPanel>
+                            </Border>
+                        </UniformGrid>
+
+                        <Border Grid.Row="4" Style="{StaticResource Card}" Padding="14" Margin="0,14,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="Registrar incidente" Style="{StaticResource Caption}" FontSize="13" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                <ComboBox x:Name="MonitoringIncidentCategoryCombo" Width="140" DisplayMemberPath="Label"
+                                          AutomationProperties.AutomationId="MonitoringIncidentCategory"/>
+                                <ComboBox x:Name="MonitoringIncidentOccurredCombo" Width="150" Margin="8,0,0,0"
+                                          AutomationProperties.AutomationId="MonitoringIncidentOccurred"/>
+                                <TextBox x:Name="MonitoringIncidentDescription" Width="280" Margin="8,0,0,0"
+                                         Style="{StaticResource SearchBox}" MaxLength="280"
+                                         AutomationProperties.Name="Descrição opcional do incidente"/>
+                                <Button x:Name="MonitoringIncidentButton" Content="Registrar incidente" Tag="{StaticResource IconWarning}"
+                                        Click="OnMonitoringIncident" IsEnabled="False" Margin="8,0,0,0"
+                                        AutomationProperties.AutomationId="RegisterIncident"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid Grid.Row="5" Margin="0,14,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*"/>
+                                <ColumnDefinition Width="1.2*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TabControl x:Name="MonitoringTabs" Grid.Column="0">
+                                <TabItem Header="Incidentes">
+                                    <Grid>
+                                        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                        <Border Style="{StaticResource Card}" MinHeight="110">
+                                            <Grid>
+                                                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                                <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,7">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition Width="130"/><ColumnDefinition Width="170"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="Registro local" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="1" Text="Categoria" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="2" Text="Ocorrência" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                        <TextBlock Grid.Column="3" Text="Descrição" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    </Grid>
+                                                </Border>
+                                                <ListView x:Name="MonitoringIncidentList" Grid.Row="1"
+                                                          SelectionChanged="OnMonitoringIncidentSelected"
+                                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                          AutomationProperties.AutomationId="MonitoringIncidents"
+                                                          VirtualizingPanel.IsVirtualizing="True"
+                                                          VirtualizingPanel.VirtualizationMode="Recycling">
+                                                    <ListView.ItemTemplate><DataTemplate>
+                                                        <DataTemplate.Resources>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                                <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                                <Setter Property="VerticalAlignment" Value="Center"/>
+                                                            </Style>
+                                                        </DataTemplate.Resources>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition Width="130"/><ColumnDefinition Width="170"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding Time}"/>
+                                                            <TextBlock Grid.Column="1" Text="{Binding Category}" Foreground="{StaticResource Accent}"/>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Detail}" Foreground="{StaticResource Subtle}"/>
+                                                            <TextBlock Grid.Column="3" Text="{Binding Description}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Description}"/>
+                                                        </Grid>
+                                                    </DataTemplate></ListView.ItemTemplate>
+                                                </ListView>
+                                            </Grid>
+                                        </Border>
+                                        <Grid Grid.Row="1" Margin="0,8,0,0">
+                                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                                            <TextBox x:Name="MonitoringIncidentDetail" FontSize="13" TextWrapping="Wrap" MaxHeight="120" IsReadOnly="True"
+                                                     AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                                     AutomationProperties.AutomationId="MonitoringIncidentDetail"
+                                                     Background="{StaticResource SurfaceGradient}" BorderBrush="{StaticResource LineStrong}"
+                                                     BorderThickness="1" Padding="14"
+                                                     Text="Nenhum incidente selecionado."/>
+                                            <Button x:Name="MonitoringCorrelateButton" Grid.Row="1" Content="Correlacionar incidente (janela ±10 min)"
+                                                    Tag="{StaticResource IconCompare}" Style="{StaticResource CompactButton}"
+                                                    Click="OnMonitoringCorrelate" Margin="0,8,0,0" HorizontalAlignment="Left"
+                                                    AutomationProperties.AutomationId="CorrelateIncident"/>
+                                        </Grid>
+                                    </Grid>
+                                </TabItem>
+                                <TabItem Header="Linha do tempo">
+                                    <Border Style="{StaticResource Card}">
+                                        <Grid>
+                                            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                            <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="16,7">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="80"/><ColumnDefinition Width="220"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                    <TextBlock Text="Fonte" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="1" Text="Ordem" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="2" Text="Intervalo local" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                    <TextBlock Grid.Column="3" Text="Observações" Foreground="{StaticResource Muted}" FontSize="12.5" FontWeight="SemiBold"/>
+                                                </Grid>
+                                            </Border>
+                                            <ListView x:Name="MonitoringTimelineList" Grid.Row="1"
+                                                      ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                      AutomationProperties.AutomationId="MonitoringTimeline"
+                                                      VirtualizingPanel.IsVirtualizing="True"
+                                                      VirtualizingPanel.VirtualizationMode="Recycling">
+                                                <ListView.ItemTemplate><DataTemplate>
+                                                    <DataTemplate.Resources>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                                            <Setter Property="TextWrapping" Value="NoWrap"/>
+                                                            <Setter Property="VerticalAlignment" Value="Center"/>
+                                                        </Style>
+                                                    </DataTemplate.Resources>
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions><ColumnDefinition Width="140"/><ColumnDefinition Width="80"/><ColumnDefinition Width="220"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                                        <TextBlock Text="{Binding Source}" Foreground="{StaticResource Accent}"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Sequence}" Foreground="{StaticResource Subtle}"/>
+                                                        <TextBlock Grid.Column="2" Text="{Binding Range}" Foreground="{StaticResource Subtle}"/>
+                                                        <TextBlock Grid.Column="3" Text="{Binding Observations}"/>
+                                                    </Grid>
+                                                </DataTemplate></ListView.ItemTemplate>
+                                            </ListView>
+                                        </Grid>
+                                    </Border>
+                                </TabItem>
+                                <TabItem Header="Orçamento e limites">
+                                    <TextBox x:Name="MonitoringBudgetDetail" FontSize="13" TextWrapping="Wrap" IsReadOnly="True"
+                                             AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                             AutomationProperties.AutomationId="MonitoringBudgetDetail"
+                                             Background="{StaticResource SurfaceGradient}" BorderBrush="{StaticResource LineStrong}"
+                                             BorderThickness="1" Padding="14" Text="Nenhuma sessão selecionada."/>
+                                </TabItem>
+                            </TabControl>
+
+                            <Grid Grid.Column="1" Margin="14,0,0,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Histórico de sessões" Foreground="{StaticResource Muted}" FontSize="14"/>
+                                <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,6,0,0">
+                                    <ListBox x:Name="MonitoringHistoryList"
+                                             SelectionChanged="OnMonitoringHistorySelected"
+                                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                             AutomationProperties.AutomationId="MonitoringHistory">
+                                        <ListBox.ItemTemplate><DataTemplate>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding DateText}" FontSize="13" FontWeight="SemiBold" TextWrapping="NoWrap"/>
+                                                <TextBlock Text="{Binding SummaryText}" Style="{StaticResource Caption}" FontSize="12" Margin="0,4,0,0"/>
+                                            </StackPanel>
+                                        </DataTemplate></ListBox.ItemTemplate>
+                                    </ListBox>
+                                </Border>
+                            </Grid>
+                        </Grid>
+
+                        <TextBlock Grid.Row="6" Style="{StaticResource FootNote}" Margin="0,12,0,0"
+                                   Text="Sessões autorizadas e limitadas; nenhum serviço, tarefa agendada ou coleta em segundo plano. Incidentes são relatos do usuário, não eventos do Windows. O monitoramento não declara causa e não altera configurações do Windows."/>
                     </Grid>
                 </TabItem>
             </TabControl>

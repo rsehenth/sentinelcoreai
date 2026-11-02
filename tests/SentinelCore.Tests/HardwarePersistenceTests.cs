@@ -26,7 +26,7 @@ public sealed class HardwarePersistenceTests : IDisposable
     {
         var loaded = await NewStore().LoadSnapshotsAsync();
         Assert.Empty(loaded.Snapshots); Assert.Empty(loaded.Warnings);
-        Assert.Equal(7, ReadUserVersion());
+        Assert.Equal(9, ReadUserVersion());
     }
 
     [Fact] public async Task SavesReopensAndIndexesSnapshot()
@@ -111,7 +111,7 @@ public sealed class HardwarePersistenceTests : IDisposable
         var loaded = await NewStore().LoadSnapshotsAsync();
         Assert.Empty(loaded.Snapshots);
         Assert.Single((await NewStore().LoadAsync()).Audits);
-        Assert.Equal(7, ReadUserVersion());
+        Assert.Equal(9, ReadUserVersion());
     }
 
     [Fact] public async Task FutureSchemaIsRejectedForSnapshots()
@@ -119,7 +119,7 @@ public sealed class HardwarePersistenceTests : IDisposable
         await NewStore().LoadAsync();
         using (var db = Open())
         {
-            using var command = db.CreateCommand(); command.CommandText = "PRAGMA user_version=99"; command.ExecuteNonQuery();
+            using var command = db.CreateCommand(); command.CommandText = "PRAGMA user_version=109"; command.ExecuteNonQuery();
         }
         await Assert.ThrowsAsync<InvalidDataException>(() => NewStore().LoadSnapshotsAsync());
     }

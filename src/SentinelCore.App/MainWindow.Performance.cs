@@ -243,7 +243,8 @@ public partial class MainWindow
 
     private async void OnPerformanceRun(object sender, RoutedEventArgs e)
     {
-        if (busy || hardwareBusy || eventBusy || performanceBusy || networkBusy || graphicsBusy) return;
+        if (busy || hardwareBusy || eventBusy || performanceBusy || networkBusy || graphicsBusy || correlationBusy || monitoringBusy)
+            return;
 
         if (unsavedPerformance is not null)
         {
@@ -427,7 +428,8 @@ public partial class MainWindow
 
     private void UpdatePerformanceButtons()
     {
-        var idle = !performanceBusy && !busy && !hardwareBusy && !eventBusy && !networkBusy && !graphicsBusy;
+        var idle = !performanceBusy && !busy && !hardwareBusy && !eventBusy && !networkBusy && !graphicsBusy &&
+            !correlationBusy && !monitoringBusy;
         PerformanceRunButton.IsEnabled = idle;
         PerformanceCancelButton.IsEnabled = performanceBusy && !performanceSaving &&
             performanceCancellation is { IsCancellationRequested: false };

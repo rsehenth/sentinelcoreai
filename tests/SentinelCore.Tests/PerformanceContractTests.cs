@@ -8,10 +8,11 @@ public sealed class PerformanceContractTests
     [Fact]
     public void VersionAndSchemaAreAdvanced()
     {
-        Assert.Equal("0.3.0-preview.6", SoftwareInfo.Version);
+        Assert.Equal(TestRepository.ProductVersion(), SoftwareInfo.Version);
         Assert.Equal("2", SoftwareInfo.PerformanceSchemaVersion);
         Assert.Equal("1", SoftwareInfo.NetworkSchemaVersion);
         Assert.Equal("1", SoftwareInfo.GraphicsSchemaVersion);
+        Assert.Equal("1", SoftwareInfo.CorrelationSchemaVersion);
     }
 
     [Fact]

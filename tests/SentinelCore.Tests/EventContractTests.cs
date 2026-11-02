@@ -23,7 +23,7 @@ public sealed class EventContractTests
     [Fact]
     public void VersionIdentifiesPreviewAndEventSchema()
     {
-        Assert.Equal("0.3.0-preview.6", SoftwareInfo.Version);
+        Assert.Equal(TestRepository.ProductVersion(), SoftwareInfo.Version);
         Assert.Equal("1", SoftwareInfo.EventSchemaVersion);
         Assert.Equal("1", SoftwareInfo.SnapshotsSchemaVersion);
     }

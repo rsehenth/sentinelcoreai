@@ -12,4 +12,9 @@ internal static class TestRepository
     }
 
     public static string Combine(params string[] parts) => Path.Combine([Root(), .. parts]);
+
+    /// <summary>Versão do produto declarada em <c>Directory.Build.props</c>, fonte única do versionamento.</summary>
+    public static string ProductVersion() =>
+        System.Xml.Linq.XDocument.Load(Combine("Directory.Build.props"))
+            .Descendants("Version").Single().Value.Trim();
 }

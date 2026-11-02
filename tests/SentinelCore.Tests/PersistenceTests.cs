@@ -80,7 +80,7 @@ public sealed class PersistenceTests : IDisposable
         await NewStore().LoadAsync();
         using (var db = new SqliteConnection($"Data Source={Path.Combine(root, "data", "sentinelcore.db")};Pooling=False"))
         {
-            db.Open(); using var command = db.CreateCommand(); command.CommandText = "PRAGMA user_version=99"; command.ExecuteNonQuery();
+            db.Open(); using var command = db.CreateCommand(); command.CommandText = "PRAGMA user_version=109"; command.ExecuteNonQuery();
         }
         await Assert.ThrowsAsync<InvalidDataException>(() => NewStore().LoadAsync());
         Assert.Empty(Directory.GetFiles(Path.Combine(root, "data"), "*.corrupt-*"));
