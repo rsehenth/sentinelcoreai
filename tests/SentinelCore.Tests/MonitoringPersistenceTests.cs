@@ -72,7 +72,7 @@ public sealed class MonitoringPersistenceTests : IDisposable
         Assert.Equal(segment.ObservationCount, copy.Segments.Single().ObservationCount);
         Assert.Equal(incident.Id, copy.Incidents.Single().Id);
         Assert.Equal(EventCategory.Graphics, loaded.Segments.Single().Events.Single().Category);
-        Assert.Equal(9, ReadUserVersion());
+        Assert.Equal(10, ReadUserVersion());
     }
 
     [Fact]
@@ -248,17 +248,17 @@ public sealed class MonitoringPersistenceTests : IDisposable
         var loaded = await NewStore().LoadMonitoringSessionsAsync();
         Assert.Single(loaded.Sessions);
         Assert.Single((await NewStore().LoadAsync()).Audits);
-        Assert.Equal(9, ReadUserVersion());
+        Assert.Equal(10, ReadUserVersion());
     }
 
     [Fact]
-    public async Task FutureSchemaTenIsRejectedWithoutCorruptingDatabase()
+    public async Task FutureSchemaElevenIsRejectedWithoutCorruptingDatabase()
     {
         await NewStore().LoadMonitoringSessionsAsync();
         using (var db = Open())
         {
             using var command = db.CreateCommand();
-            command.CommandText = "PRAGMA user_version=10";
+            command.CommandText = "PRAGMA user_version=11";
             command.ExecuteNonQuery();
         }
 

@@ -18,6 +18,7 @@ public static class SoftwareInfo
     public const string GraphicsSchemaVersion = "1";
     public const string CorrelationSchemaVersion = "1";
     public const string MonitoringSchemaVersion = "1";
+    public const string TransactionSchemaVersion = "1";
 
     private static string ReadProductVersion()
     {

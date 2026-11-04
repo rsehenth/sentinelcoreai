@@ -12,8 +12,11 @@
 ## Segurança obrigatória
 
 **Agentes futuros não podem modificar o sistema operacional sem autorização específica do usuário.**
-Nesta fase, diagnóstico é somente de leitura. São proibidos: alterar Registro, serviços, processos do usuário,
-drivers, BIOS, firmware, energia, proteções, arquivos de sistema, reparos ou reinícios.
+O diagnóstico é somente de leitura. A única exceção implementada é a T2A, que escreve quatro valores HKCU
+(`HideFileExt`, `TaskbarAl`, `AppsUseLightTheme`, `SystemUsesLightTheme`) pelo Safety Engine, com catálogo
+fechado, backup, autorização digitada, journal e verificação; essa escrita está desabilitada na distribuição
+(`RealDisabled`) até validação em VM. São proibidos: alterar Registro fora da T2A, HKLM/HKCR/HKU, serviços,
+processos do usuário, drivers, BIOS, firmware, energia, proteções, arquivos de sistema, reparos ou reinícios.
 Não solicitar elevação para iniciar. Informação inacessível deve gerar limitação, não tentativa de contornar permissões.
 Não instalar ferramentas globais ou alterar variáveis permanentes. O SDK local só foi autorizado nesta sessão.
 Sem IA, APIs externas, telemetria ou execução de comandos derivados dos dados. Consultas WMI fixas e locais.
@@ -41,13 +44,24 @@ Escritas apenas neste repositório, build/testes, temporários necessários e di
 - Documentar resultados exatos e limitações; não confundir compilação com validação funcional.
 - Não criar remoto, commit, push ou deploy automaticamente.
 
-## Personalização & Debloat — somente planejamento
+## Personalização & Debloat — T1/T2A implementadas; ampliação exige autorização
 
-- O módulo é futuro, opcional e exclusivo para Windows 11. Consultar
-  `docs/planning/TWEAKS_DEBLOAT_DISCOVERY.md` e `docs/ROADMAP.md` antes de propor sua implementação.
-- Esta atualização documental não autoriza alterações do Windows, novos executores, abas ou implementações vazias.
-- Priorizar diagnóstico e correlação. T0 pode ser antecipada apenas como pesquisa documental e somente leitura.
-- Preservar separação entre Diagnostic Engine (leitura) e futuro Controlled Modification Engine (operações
+- O módulo é opcional e exclusivo para Windows 11. Consultar
+  `docs/planning/TWEAKS_DEBLOAT_DISCOVERY.md`, `docs/planning/TWEAKS_DEBLOAT_T2A_ARCHITECTURE.md` e
+  `docs/ROADMAP.md` antes de propor qualquer ampliação.
+- A T1 (Safety & Recovery Core) e a T2A (três operações reais em HKCU) estão implementadas. A T2A escreve
+  somente `HideFileExt`, `TaskbarAl`, `AppsUseLightTheme` e `SystemUsesLightTheme`, todos HKCU e `REG_DWORD 0`,
+  com catálogo fechado, backup, autorização digitada, journal e verificação. Não há HKLM/HKCR/HKU, criação de
+  chave, script, PowerShell, `reg.exe`, `.reg`, Appx, serviço, tarefa, DISM ou elevação.
+- **A execução real permanece desabilitada na distribuição (`RealDisabled`).** A separação é feita em tempo de
+  compilação: o build de distribuição (padrão) não compila a escrita real e `--enable-real-tweaks` não tem efeito,
+  mesmo por chamada interna. Somente builds experimentais de validação (`-p:SentinelCoreRealTweaks=true`) compilam
+  o executor HKCU e aceitam o opt-in; esses builds são exclusivos para VM de validação e nunca devem ser distribuídos.
+  Não executar escrita real no computador de desenvolvimento, não instalar virtualização sem autorização e não
+  declarar a T2A pronta para distribuição sem validação real em VM com snapshot.
+- A T2B, o Debloat e o Recovery Center completo não estão autorizados. Não adicionar operações, abas vazias,
+  botões decorativos ou um segundo Safety Engine/backup/journal.
+- Preservar separação entre Diagnostic Engine (leitura) e Controlled Modification Engine da T2A (operações
   tipadas, autorizadas e auditáveis); diagnóstico e IA não recebem acesso implícito ao executor.
 - Risco alto e classificação não validada são bloqueados no backend, inclusive em chamadas internas.
   Baixo/médio exigem análise individual, proteção suficiente, simulação e autorização explícita.

@@ -6,7 +6,9 @@ metadados de relatórios de falha do Windows, sessões de desempenho com métric
 armazenamento, diagnóstico de rede e gráfico, correlação determinística entre as evidências históricas, sessões
 autorizadas de monitoramento com registro manual de incidentes, histórico local, memória Markdown e comparação entre
 snapshots.
-O produto funciona offline após a publicação. Não executa reparos, otimizações, correções ou comandos de IA.
+O produto funciona offline após a publicação. Não executa reparos, otimizações, correções ou comandos de IA. A única
+escrita no Windows é a T2A: três ajustes visuais em HKCU, com catálogo fechado, backup, autorização e recuperação;
+na distribuição padrão essa escrita permanece desabilitada até validação em VM Windows 11.
 
 ## Estado
 
@@ -17,7 +19,11 @@ fechamento do quality gate em 02/11/2026 manteve **APROVADA COM RESSALVAS** apó
 pós-leitura e a sobredeclaração de cobertura. A correlação herda a parcialidade dos registros de origem, e a
 execução real resulta em cobertura parcial. O parecer está em [validação](docs/VALIDATION.md). Os históricos
 anteriores permanecem preservados e nenhum registro foi reescrito.
-Personalização & Debloat está apenas [planejado](docs/planning/TWEAKS_DEBLOAT_DISCOVERY.md), sem operações ou UI novas.
+Personalização & Debloat tem a T0 concluída como auditoria documental, a **T1 — Safety & Recovery Core**
+implementada como infraestrutura de segurança, autorização, journal, backup e recuperação, e a **T2A — First
+Controlled Windows Tweaks** implementada com três operações reais em HKCU e a aba **Personalização**. A execução
+real está desabilitada na distribuição até validação em VM Windows 11 com snapshot; a T2B, T3 (Debloat) e T4
+permanecem futuras.
 
 A Fase 5 (Persistent Monitoring) foi implementada em `0.3.0-preview.8`: sessões de 5, 15 ou 30 minutos, uma por vez,
 somente após autorização explícita, com eventos incrementais, CPU/memória nativas, rede sem endereços e gráficos
@@ -25,6 +31,25 @@ derivados dos eventos. Cada sessão grava checkpoints imutáveis, registro final
 recursos; uma sessão interrompida é reconhecida pelos checkpoints sem ser gravada como concluída. Não há serviço,
 tarefa agendada ou observação após o fechamento. O histórico continua disponível e a correlação passou a oferecer a
 fonte **Monitoramento** de forma opcional, sem duplicar eventos.
+
+A **T1 — Safety & Recovery Core** foi implementada na sequência, ainda em `0.3.0-preview.8`: catálogo fechado com
+operações sintéticas, preflight, simulação sem efeitos, backup do estado observado, autorização vinculada e de uso
+único, journal imutável, execução sintética, verificação e recuperação com conflito. O schema SQLite passou a 10
+com migração aditiva 9→10 e continua reconstruível dos Markdowns.
+
+A **T2A — First Controlled Windows Tweaks** foi implementada sobre esse motor com três operações reais, quatro
+valores `REG_DWORD` em HKCU do usuário atual e sem elevação: mostrar extensões (`HideFileExt=0`), alinhar a barra
+de tarefas à esquerda (`TaskbarAl=0`) e ativar o modo escuro (`AppsUseLightTheme=0` e
+`SystemUsesLightTheme=0`). O catálogo é fechado e validado em duas camadas; o adaptador nativo não aceita caminho,
+valor ou operação fora da lista, não cria/remove chaves, não usa HKLM/HKCR/HKU, PowerShell, `reg.exe`, `.reg`,
+DISM, Appx, serviço, tarefa ou comando arbitrário. O modo escuro tem dois alvos e é explicitamente não atômico;
+a recuperação restaura o estado observado, preserva ausência original e não sobrescreve conflito. A aba
+**Personalização** mostra os três cartões, o plano, a confirmação digitada, o histórico e um Recovery Center
+inicial. A escrita real permanece desabilitada na distribuição (`RealDisabled`) e **não é compilada** no build de
+distribuição: `--enable-real-tweaks` só tem efeito em um build experimental de validação
+(`scripts/publish-validation.ps1`, nunca distribuído), usado exclusivamente em VM Windows 11 com snapshot. Nenhuma
+escrita real foi executada no computador de desenvolvimento.
+T2B, T3 (Debloat) e T4 (validação em VM) não foram iniciadas.
 
 Versão 0.3.0-preview.7 — Evidence Correlation Engine. A aba **Correlação de evidências** reutiliza somente
 registros históricos já persistidos (auditorias, hardware, eventos/WER, desempenho, rede e gráficos) e produz
@@ -93,8 +118,9 @@ Execute no PowerShell, a partir da raiz:
 ```
 
 Os testes de persistência usam diretórios temporários isolados e dados fictícios. A suíte inclui um smoke test de
-coletores reais do Windows, somente leitura; não modifica configurações do Windows nem usa o histórico de produção
-como raiz de teste.
+coletores reais do Windows, somente leitura; os testes da T2A usam uma implementação em memória de
+`IHkcuRegistryAccess` e não tocam o Registro real. Nenhum teste modifica configurações do Windows ou usa o
+histórico de produção como raiz de teste. Suíte atual: **980/980 em Debug e Release**.
 
 ## Gerar e executar o pacote
 
@@ -106,6 +132,17 @@ como raiz de teste.
 O destino é versionado a partir de `Directory.Build.props`; o script recusa sobrescrever sem `-Force`.
 Feche a instância publicada antes de gerar novamente o pacote.
 Distribua **toda a pasta** `artifacts/publish/0.3.0-preview.8/win-x64`, incluindo DLLs nativas.
+`publish.ps1` fixa `-p:SentinelCoreRealTweaks=false`: o pacote de distribuição não compila a escrita real da T2A.
+
+Build experimental de validação (T2A), **nunca distribuído**, apenas para VM Windows 11 com snapshot:
+
+```powershell
+.\scripts\publish-validation.ps1
+.\artifacts\publish-validation\0.3.0-preview.8\win-x64\SentinelCoreAI.exe --enable-real-tweaks
+```
+
+Somente esse build define `SENTINELCORE_REAL_TWEAKS` e aceita `--enable-real-tweaks`; a pasta recebe um marcador
+`VALIDATION-BUILD.txt`. A escrita real continua exigindo plano, backup, autorização digitada e verificação.
 
 A versão `0.3.0-preview.8` ainda não foi publicada. O último pacote gerado localmente é `0.3.0-preview.6`;
 executar `publish.ps1` cria o pacote `preview.8` em `artifacts/publish/0.3.0-preview.8/win-x64`.
@@ -202,8 +239,15 @@ não mova ou apague históricos para tentar unificá-los. Consulte VALIDATION.md
   checkpoints e SHA-256.
 - `memory/monitoring/<id>/segments/<segmento>.md`: checkpoint imutável de uma fonte, com observações, intervalo e SHA-256.
 - `memory/MONITORING.md`: resumo derivado das últimas sessões de monitoramento.
-- `data/sentinelcore.db`: índice SQLite, esquema 9 e projeções de auditorias, snapshots, investigações, sessões,
-  investigações gráficas, correlações, sessões de monitoramento e checkpoints.
+- `memory/transactions/<id>/journal/<sequência>-<estado>.md`: evento imutável do journal de uma transação sintética,
+  com plano, autorização, backup, resultados, verificação, recuperação e SHA-256.
+- `memory/transactions/<id>/backup-01.md`: backup imutável do estado observado, com existência de alvo/valor, tipo,
+  conteúdo, checksum e SHA-256.
+- `reports/transactions/<id>.md`: relatório legível da transação, reconstruível do journal.
+- `memory/RECOVERY.md`: índice derivado de transações e recuperações.
+- `data/sentinelcore.db`: índice SQLite, esquema 10 e projeções de auditorias, snapshots, investigações, sessões,
+  investigações gráficas, correlações, sessões de monitoramento, checkpoints, transações, eventos, backups e
+  recuperações.
 - `reports/<id>.md`: relatório legível da auditoria, reconstruível do registro histórico.
 - `reports/hardware/<id>.md`: relatório legível do snapshot de hardware, reconstruível do payload.
 - `reports/events/<id>.md`: relatório legível da investigação de eventos, reconstruível do payload.

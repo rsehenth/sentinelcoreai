@@ -17,12 +17,15 @@ internal static class RecordEnvelope
         var start = text.IndexOf(PayloadMarker, StringComparison.Ordinal);
         if (start < 0) throw new InvalidDataException("Payload estruturado ausente.");
         start += PayloadMarker.Length;
-        var end = text.IndexOf(ChecksumMarker, start, StringComparison.Ordinal);
-        if (end < 0) throw new InvalidDataException("Checksum ausente.");
+        var end = text.LastIndexOf(ChecksumMarker, StringComparison.Ordinal);
+        if (end < start) throw new InvalidDataException("Checksum ausente.");
         var json = text[start..end];
         var hashStart = end + ChecksumMarker.Length;
-        if (text.Length < hashStart + 64 || text.Substring(hashStart, 64) != Hash(json))
+        if (text.Length < hashStart + 64) throw new InvalidDataException("Checksum truncado.");
+        if (text.Substring(hashStart, 64) != Hash(json))
             throw new InvalidDataException("Checksum não confere.");
+        if (!text[(hashStart + 64)..].StartsWith(" -->", StringComparison.Ordinal))
+            throw new InvalidDataException("Envelope malformado.");
         return json;
     }
 

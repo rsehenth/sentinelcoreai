@@ -57,7 +57,7 @@ public sealed class CorrelationPersistenceTests : IDisposable
         Assert.True(bytes > 0);
         Assert.True(File.Exists(store.GetCorrelationReportPath(investigation.Id)));
         Assert.True(File.Exists(Path.Combine(root, "memory", "CORRELATION.md")));
-        Assert.Equal(9, ReadUserVersion());
+        Assert.Equal(10, ReadUserVersion());
     }
 
     [Fact]
@@ -175,7 +175,7 @@ public sealed class CorrelationPersistenceTests : IDisposable
         var rebuilt = Assert.Single(loaded.Investigations);
         Assert.Equal(investigation.Id, rebuilt.Id);
         Assert.Equal(investigation.Relations.Count, rebuilt.Relations.Count);
-        Assert.Equal(9, ReadUserVersion());
+        Assert.Equal(10, ReadUserVersion());
 
         using var db = Open();
         using var command = db.CreateCommand();
@@ -222,17 +222,17 @@ public sealed class CorrelationPersistenceTests : IDisposable
         Assert.Single((await NewStore().LoadAsync()).Audits);
         Assert.Single((await NewStore().LoadInvestigationsAsync()).Investigations);
         Assert.Single((await NewStore().LoadSessionsAsync()).Sessions);
-        Assert.Equal(9, ReadUserVersion());
+        Assert.Equal(10, ReadUserVersion());
     }
 
     [Fact]
-    public async Task FutureSchemaTenIsRejectedWithoutCorruptingDatabase()
+    public async Task FutureSchemaElevenIsRejectedWithoutCorruptingDatabase()
     {
         await NewStore().LoadCorrelationInvestigationsAsync();
         using (var db = Open())
         {
             using var command = db.CreateCommand();
-            command.CommandText = "PRAGMA user_version=10";
+            command.CommandText = "PRAGMA user_version=11";
             command.ExecuteNonQuery();
         }
 

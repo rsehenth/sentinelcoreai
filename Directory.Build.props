@@ -9,4 +9,11 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <NuGetLockFilePath Condition="'$(PublishSingleFile)' == 'true'">$(MSBuildProjectDirectory)/packages.single-file.lock.json</NuGetLockFilePath>
   </PropertyGroup>
+  <PropertyGroup>
+    <!-- Distribuição: a execução real da T2A não é compilada. Só o build experimental de validação a habilita. -->
+    <SentinelCoreRealTweaks Condition="'$(SentinelCoreRealTweaks)' == ''">false</SentinelCoreRealTweaks>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(SentinelCoreRealTweaks)' == 'true'">
+    <DefineConstants>$(DefineConstants);SENTINELCORE_REAL_TWEAKS</DefineConstants>
+  </PropertyGroup>
 </Project>

@@ -55,16 +55,22 @@
       "sentinelcore.application": {
         "type": "Project",
         "dependencies": {
-          "SentinelCore.Domain": "[0.1.0, )"
+          "SentinelCore.Domain": "[0.3.0-preview.8, )"
         }
       },
       "sentinelcore.domain": {
         "type": "Project"
       },
+      "sentinelcore.infrastructure.modifications": {
+        "type": "Project",
+        "dependencies": {
+          "SentinelCore.Domain": "[0.3.0-preview.8, )"
+        }
+      },
       "sentinelcore.infrastructure.windows": {
         "type": "Project",
         "dependencies": {
-          "SentinelCore.Domain": "[0.1.0, )",
+          "SentinelCore.Domain": "[0.3.0-preview.8, )",
           "System.Management": "[10.0.14, )"
         }
       },
@@ -72,7 +78,7 @@
         "type": "Project",
         "dependencies": {
           "Microsoft.Data.Sqlite": "[10.0.14, )",
-          "SentinelCore.Domain": "[0.1.0, )"
+          "SentinelCore.Domain": "[0.3.0-preview.8, )"
         }
       }
     },

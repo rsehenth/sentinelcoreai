@@ -53,7 +53,7 @@ public partial class MainWindow : Window
     public MainWindow(AuditRunner runner, HardwareRunner hardwareRunner, EventInvestigationRunner eventRunner,
         PerformanceSessionRunner performanceRunner, NetworkSessionRunner networkRunner,
         GraphicsInvestigationRunner graphicsRunner, EvidenceCorrelationRunner correlationRunner,
-        MonitoringSessionRunner monitoringRunner,
+        MonitoringSessionRunner monitoringRunner, TweakManager tweaks,
         IAuditStore store, IHardwareSnapshotStore hardwareStore,
         IEventInvestigationStore eventStore, IPerformanceSessionStore performanceStore,
         INetworkSessionStore networkStore, IGraphicsInvestigationStore graphicsStore,
@@ -68,6 +68,7 @@ public partial class MainWindow : Window
         this.graphicsRunner = graphicsRunner;
         this.correlationRunner = correlationRunner;
         this.monitoringRunner = monitoringRunner;
+        this.tweaks = tweaks;
         this.store = store;
         this.hardwareStore = hardwareStore;
         this.eventStore = eventStore;
@@ -83,6 +84,7 @@ public partial class MainWindow : Window
         InitializeGraphics();
         InitializeCorrelation();
         InitializeMonitoring();
+        InitializeTweaks();
         SetHardwareCategories(null);
         UpdateHardwareButtons();
         freshnessTimer.Tick += (_, _) => UpdateSummary();
@@ -340,6 +342,13 @@ public partial class MainWindow : Window
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        if (tweaksBusy)
+        {
+            e.Cancel = true;
+            TweakStatusText.Text = "Encerrando: aguarde a operação de tweak ou recuperação e o journal durável.";
+            return;
+        }
+
         if (busy || hardwareBusy || eventBusy || performanceBusy || networkBusy || graphicsBusy || correlationBusy || monitoringBusy)
         {
             e.Cancel = true;

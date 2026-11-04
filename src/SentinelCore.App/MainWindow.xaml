@@ -41,6 +41,7 @@
                     <ListBoxItem Content="Correlação" Tag="{StaticResource IconCompare}" ToolTip="Correlação de evidências históricas (Ctrl+8)"/>
                     <ListBoxItem Content="Histórico" Tag="{StaticResource IconHistory}" ToolTip="Auditorias salvas neste computador (Ctrl+9)"/>
                     <ListBoxItem Content="Monitoramento" Tag="{StaticResource IconPerformance}" ToolTip="Sessões de observação autorizadas e registro de incidentes"/>
+                    <ListBoxItem Content="Personalização" Tag="{StaticResource IconShieldCheck}" ToolTip="Tweaks controlados em HKCU, com backup e recuperação"/>
                 </ListBox>
 
                 <Border Grid.Row="2" Style="{StaticResource Card}" Padding="14,12">
@@ -49,9 +50,9 @@
                             <Viewbox Width="15" Height="15" Margin="0,0,8,0">
                                 <Canvas Width="24" Height="24"><Path Data="{StaticResource IconLock}" Stroke="{StaticResource Success}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Canvas>
                             </Viewbox>
-                            <TextBlock Text="Somente leitura" FontWeight="SemiBold" FontSize="13"/>
+                            <TextBlock Text="Diagnóstico e tweaks controlados" FontWeight="SemiBold" FontSize="13"/>
                         </StackPanel>
-                        <TextBlock Text="Nada é enviado nem alterado no Windows." Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                        <TextBlock Text="Diagnóstico somente leitura. Tweaks exigem plano, autorização, backup e verificação; nada é enviado." Style="{StaticResource Caption}" Margin="0,6,0,0"/>
                         <TextBlock x:Name="VersionText" Text="v0.3.0  •  Local e offline" Foreground="{StaticResource Subtle}" FontSize="12" Margin="0,8,0,0"/>
                     </StackPanel>
                 </Border>
@@ -1969,6 +1970,168 @@
                         <TextBlock Grid.Row="6" Style="{StaticResource FootNote}" Margin="0,12,0,0"
                                    Text="Sessões autorizadas e limitadas; nenhum serviço, tarefa agendada ou coleta em segundo plano. Incidentes são relatos do usuário, não eventos do Windows. O monitoramento não declara causa e não altera configurações do Windows."/>
                     </Grid>
+                </TabItem>
+
+                <!-- ───── Personalização & Debloat (T2A) ───── -->
+                <TabItem x:Name="TweaksTab" Header="Personalização">
+                    <ScrollViewer x:Name="TweaksScroll" VerticalScrollBarVisibility="Auto" Focusable="False">
+                        <Grid Margin="32,28,32,24">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <Border Width="48" Height="48" CornerRadius="13" Background="{StaticResource TileGradient}" BorderBrush="#2F6482" BorderThickness="1" Margin="0,0,16,0" VerticalAlignment="Top">
+                                        <Viewbox Width="23" Height="23"><Canvas Width="24" Height="24"><Path Data="{StaticResource IconShieldCheck}" Stroke="{StaticResource Accent}" StrokeThickness="1.9" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Canvas></Viewbox>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Personalização &amp; Debloat" Style="{StaticResource PageTitle}"/>
+                                        <TextBlock x:Name="TweaksSubtitle" Text="Tweaks controlados no perfil atual, com plano, backup e recuperação." Style="{StaticResource PageSubtitle}"/>
+                                    </StackPanel>
+                                </Grid>
+                                <Button x:Name="TweaksRefreshButton" Grid.Column="1" Content="Atualizar estado" Tag="{StaticResource IconRefresh}"
+                                        Style="{StaticResource GhostButton}" Click="OnTweaksRefresh" VerticalAlignment="Top" Margin="20,2,0,0"
+                                        AutomationProperties.AutomationId="RefreshTweaks"/>
+                            </Grid>
+
+                            <Border Grid.Row="1" Style="{StaticResource Card}" Padding="16" Margin="0,16,0,0">
+                                <StackPanel>
+                                    <TextBlock x:Name="TweaksModeText" FontWeight="SemiBold" FontSize="14"/>
+                                    <TextBlock x:Name="TweaksModeDetail" Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <ItemsControl x:Name="TweaksCardsHost" Grid.Row="2" Margin="0,14,0,0"
+                                          AutomationProperties.AutomationId="TweaksCards">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,10,0">
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding DisplayName}" FontSize="15" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{Binding Category}" Style="{StaticResource Caption}" Margin="0,4,0,0"/>
+                                                <TextBlock Text="{Binding Description}" Style="{StaticResource Caption}" Margin="0,10,0,0" MaxHeight="54" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding CurrentSummary}" Margin="0,10,0,0" FontSize="12.5" Foreground="{StaticResource Accent}"/>
+                                                <TextBlock Text="{Binding DesiredSummary}" FontSize="12.5" Foreground="{StaticResource Accent}"/>
+                                                <TextBlock Text="{Binding RiskSummary}" Style="{StaticResource Caption}" Margin="0,8,0,0"/>
+                                                <TextBlock Text="{Binding Compatibility}" Style="{StaticResource Caption}"/>
+                                                <TextBlock Text="{Binding ProtectionsSummary}" Style="{StaticResource Caption}"/>
+                                                <TextBlock Text="{Binding Availability}" Style="{StaticResource Caption}" Margin="0,8,0,0" Foreground="{StaticResource Warn}"/>
+                                                <Button Content="Detalhes" Tag="{Binding OperationId}" Click="OnTweakDetails"
+                                                        Style="{StaticResource CompactButton}" HorizontalAlignment="Left" Margin="0,12,0,0"
+                                                        AutomationProperties.Name="Detalhes do tweak"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Grid Grid.Row="3" Margin="0,14,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*"/>
+                                    <ColumnDefinition Width="1.1*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border Style="{StaticResource Card}" Padding="18">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock x:Name="TweakDetailsTitle" Text="Plano e confirmação" FontSize="15" FontWeight="SemiBold"/>
+                                        <TextBlock x:Name="TweakDetailsMeta" Grid.Row="1" Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                                        <TextBox x:Name="TweakDetailsText" Grid.Row="2" Margin="0,10,0,0" MinHeight="230" Height="250"
+                                                 FontSize="13" TextWrapping="Wrap" IsReadOnly="True" AcceptsReturn="True"
+                                                 VerticalScrollBarVisibility="Auto"
+                                                 Background="{StaticResource SurfaceGradient}" BorderBrush="{StaticResource LineStrong}"
+                                                 BorderThickness="1" Padding="14" Text="Selecione um tweak para ler o estado atual e o plano simulado."/>
+                                        <StackPanel Grid.Row="3" Margin="0,12,0,0">
+                                            <TextBlock x:Name="TweakConfirmationHint" Style="{StaticResource Caption}"
+                                                       Text="A autorização deve ser digitada exatamente como exibida; um clique genérico não é aceito."/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                <TextBox x:Name="TweakConfirmationText" Width="360" Style="{StaticResource SearchBox}"
+                                                         TextChanged="OnTweakConfirmationChanged"
+                                                         AutomationProperties.AutomationId="TweakConfirmation"
+                                                         AutomationProperties.Name="Confirmação específica do plano"/>
+                                                <Button x:Name="TweakAuthorizeButton" Content="Autorizar e aplicar" Tag="{StaticResource IconShieldCheck}"
+                                                        Style="{StaticResource PrimaryButton}" Click="OnTweakAuthorize" IsEnabled="False" Margin="10,0,0,0"
+                                                        AutomationProperties.AutomationId="AuthorizeTweak"/>
+                                            </StackPanel>
+                                            <TextBlock x:Name="TweakStatusText" Margin="0,8,0,0" TextWrapping="Wrap"
+                                                       Foreground="{StaticResource Muted}" AutomationProperties.LiveSetting="Polite"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Column="1" Style="{StaticResource Card}" Padding="18" Margin="14,0,0,0">
+                                    <Grid>
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                                        <TextBlock Text="Histórico de transações" FontSize="15" FontWeight="SemiBold"/>
+                                        <ListBox x:Name="TweakHistoryList" Grid.Row="1" Margin="0,8,0,0" MinHeight="230"
+                                                 SelectionChanged="OnTweakHistorySelected"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                 AutomationProperties.AutomationId="TweakHistory">
+                                            <ListBox.ItemTemplate><DataTemplate>
+                                                <StackPanel Margin="0,2">
+                                                    <TextBlock Text="{Binding OperationName}" FontSize="13" FontWeight="SemiBold" TextWrapping="NoWrap"/>
+                                                    <TextBlock Text="{Binding DateText}" Style="{StaticResource Caption}" TextWrapping="NoWrap"/>
+                                                    <TextBlock Text="{Binding StateText}" Style="{StaticResource Caption}" TextWrapping="NoWrap"/>
+                                                </StackPanel>
+                                            </DataTemplate></ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <Border Grid.Row="4" Style="{StaticResource Card}" Padding="18" Margin="0,14,0,0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="Recovery Center inicial" FontSize="15" FontWeight="SemiBold"/>
+                                    <TextBox x:Name="TweakRecoveryText" Grid.Row="1" Margin="0,10,0,0" MinHeight="130" Height="150"
+                                             FontSize="13" TextWrapping="Wrap" IsReadOnly="True" AcceptsReturn="True"
+                                             VerticalScrollBarVisibility="Auto"
+                                             Background="{StaticResource SurfaceGradient}" BorderBrush="{StaticResource LineStrong}"
+                                             BorderThickness="1" Padding="14"
+                                             Text="Selecione uma transação no histórico e analise a recuperação. Conflitos não são sobrescritos."/>
+                                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,10,0,0">
+                                        <Button x:Name="TweakPreviewRecoveryButton" Content="Analisar recuperação" Tag="{StaticResource IconCompare}"
+                                                Style="{StaticResource CompactButton}" Click="OnTweakPreviewRecovery" IsEnabled="False"
+                                                AutomationProperties.AutomationId="PreviewTweakRecovery"/>
+                                        <TextBlock x:Name="TweakRecoveryHint" Style="{StaticResource Caption}" VerticalAlignment="Center"
+                                                   Margin="16,0,8,0" Text="Digite a confirmação de recuperação exibida na análise."/>
+                                        <TextBox x:Name="TweakRecoveryConfirmationText" Width="330" Style="{StaticResource SearchBox}"
+                                                 TextChanged="OnTweakRecoveryConfirmationChanged"
+                                                 AutomationProperties.AutomationId="TweakRecoveryConfirmation"/>
+                                        <Button x:Name="TweakRollbackButton" Content="Solicitar rollback" Tag="{StaticResource IconRefresh}"
+                                                Style="{StaticResource CompactButton}" Click="OnTweakRollback" IsEnabled="False" Margin="10,0,0,0"
+                                                AutomationProperties.AutomationId="RollbackTweak"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="TweakRecoveryStatusText" Grid.Row="3" Margin="0,8,0,0" TextWrapping="Wrap"
+                                               Foreground="{StaticResource Muted}" AutomationProperties.LiveSetting="Polite"/>
+                                </Grid>
+                            </Border>
+
+                            <TextBlock Grid.Row="5" Style="{StaticResource FootNote}" Margin="0,12,0,0"
+                                       Text="T2A: somente três operações HKCU do usuário atual, sem elevação. O modo real controlado permanece desabilitado por padrão nesta distribuição até a validação em VM Windows 11. Escrita no Registro não é declarada sucesso visual sem verificação; o Explorer não é reiniciado pelo aplicativo."/>
+                        </Grid>
+                    </ScrollViewer>
                 </TabItem>
             </TabControl>
         </Grid>

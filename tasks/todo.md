@@ -341,3 +341,137 @@ em segundo plano; WER não é lido em tempo real; a fonte de eventos observa ape
 a fonte de rede não persiste endereços; uma amostra ou um clique de incidente não comprovam causa ou início do
 problema; a recuperação deriva estado e não reconstrói incidentes mantidos apenas em memória; a UIA não expõe o
 conteúdo do `PageHost`.
+
+## T0 — Win11Debloat Discovery & Risk Audit (concluída em 02/11/2026; somente leitura)
+
+- [x] Confirmar estado real do repositório: `master` limpo, `HEAD` `7630220`, versão `0.3.0-preview.8`, schema 9.
+- [x] Ler AGENTS, ARCHITECTURE, SECURITY, ROADMAP, VALIDATION, TWEAKS_DEBLOAT_DISCOVERY, todo e README.
+- [x] Verificar o commit upstream `5d88bfe9ef2be5a8a643166a6400eb78a30c46ec` por `git ls-remote` e clone isolado;
+      confirmar que era o topo de `master` e que não havia commits posteriores.
+- [x] Ler licença MIT, README, estrutura de scripts, XAML, testes, CI e política de segurança do upstream.
+- [x] Inventariar 104 features (90 de registro, 14 ações), 10 `UiGroups`, 162 aplicativos e 2 presets.
+- [x] Extrair 463 operações de registro (246 de aplicação, 217 de undo) com hive, chave, valor, tipo e linha.
+- [x] Analisar backup, restauração, ponto de restauração, detecção de estado e privilégios do upstream.
+- [x] Consultar problemas públicos relevantes (#830, #822, #794/#837, #862, #875, #806, #805/#868, #847).
+- [x] Classificar 273 operações de forma independente: 138 baixo, 102 médio, 32 alto, 1 não validado.
+- [x] Bloquear 38 operações (29 de sistema + 9 aplicativos), incluindo Edge, Store, BingSearch, dependências Xbox,
+      Widgets, WebExperience, `store.db`, serviço, tarefas agendadas, DISM, lotes e `start2.bin` multi-usuário.
+- [x] Produzir relatório T0, catálogo auditável, matriz de riscos e arquitetura T1.
+- [x] Definir shortlist T2 de 15 operações HKCU, sem elevação, e onda 2.
+- [x] Fundamentar o escopo inicial do Debloat Manager e as condições que impedem remoção.
+- [x] Definir critérios de aceite para iniciar a T1 e os 15 cenários de falha com proteções exigidas.
+- [x] Atualizar ROADMAP, DISCOVERY, ARCHITECTURE, SECURITY e este arquivo; IA registrada como última capacidade.
+- [x] Validar JSON, unicidade de IDs, campos obrigatórios, contagens e referências de linha.
+- [x] Submeter o inventário e a classificação a revisão independente e registrar achados.
+- [x] Confirmar que nenhuma configuração do Windows foi alterada e que nenhum script do upstream foi executado.
+
+Limitações da T0: análise estática, sem teste funcional em VM; semântica de `UserPreferencesMask` e
+`StickyKeys\Flags` não documentada; aplicativos classificados por família; efeitos de políticas de navegador
+variam por versão; ajustes multi-monitor dependem de hardware; suíte de testes do produto não executada por
+não haver alteração de código.
+
+## T1 — Safety & Recovery Core (implementada em 0.3.0-preview.8)
+
+- [x] Confirmar estado real: `master` com alterações locais preservadas, versão `0.3.0-preview.8`, schema 9,
+  baseline **760/760**; não executar reset, clean, commit ou push.
+- [x] Ler AGENTS, ARCHITECTURE, SECURITY, ROADMAP, VALIDATION, T0, arquitetura T1, revisão T0, catálogo
+  `docs/planning/tweaks-debloat/` e `tasks/todo.md`; confirmar que os arquivos existem.
+- [x] Consultar o índice Graphify existente (3.703 nós, commit `e579b3b3`, anterior ao HEAD `7630220`) para
+  mapear Domain, Application, Infrastructure.Windows, Persistence, MemoryStore, RecordEnvelope e SQLite.
+- [x] Definir contratos versionados de operação, alvo, estado observado, risco, compatibilidade, plano, simulação,
+  autorização, backup, execução, verificação, transação, recuperação, conflito e limitação.
+- [x] Implementar catálogo fechado validado e `T1SyntheticCatalog` com 14 operações de teste.
+- [x] Implementar `SafetyEngine`, preflight, simulação sem efeitos, autorização vinculada/uso único, backup,
+  revalidação, execução sintética, verificação e recuperação independente.
+- [x] Implementar `SentinelCore.Infrastructure.Modifications` isolado, apenas com adaptadores `Synthetic*`, e
+  testes de arquitetura provando a fronteira.
+- [x] Implementar journal imutável event-sourced, backup imutável, relatórios, `RECOVERY.md`, SQLite esquema 10
+  com migração aditiva 9→10 e reconstrução a partir dos Markdowns.
+- [x] Implementar locks por alvo, lock de store existente, bloqueio de estado indeterminado, conflito de
+  recuperação e ausência de sobrescrita forçada.
+- [x] Adicionar 142 testes: catálogo, preflight, autorização, backup, execução, recuperação, persistência,
+  concorrência, arquitetura, apresentação e fluxo sintético completo. Baseline anterior preservado.
+- [x] Executar builds Debug e Release `0/0` e suítes completas **902/902** em ambas as configurações.
+- [x] Submeter a duas revisões independentes (segurança e persistência/recuperação); ambas **APROVADA COM
+  RESSALVAS**; remediar plano↔catálogo, reconferência de rollback, revalidação de backup no uso, truncagem/
+  transições do journal, autorização persistida, hash v2 e raiz do adaptador sintético.
+- [x] Executar revisão delta focada; corrigir D-01 (escape de texto livre no journal/envelope) e D-02
+  (indeterminação não limpa após recuperação integral); adicionar regressões de confirmação injetada, sanitização,
+  truncagem de cauda `ExecutionCompleted`, retomada parcial e reconferência de pós-estado no laço.
+- [x] Atualizar ARCHITECTURE, SECURITY, ROADMAP, VALIDATION, README e o parecer da T1; preservar T0/T1 planning
+  e não alterar o catálogo documental para fazê-lo passar em testes.
+- [x] Confirmar que nenhuma configuração do Windows foi alterada e que nenhum executor real foi registrado.
+- [x] Não executar commit, push ou deploy; não iniciar T2.
+
+Limitações da T1: validação exclusivamente sintética; sem leitor/executor real de Registro ou VM; hash não
+autentica contra o dono do perfil; locks cooperativos; confirmação de recuperação ainda é string vinculada ao
+fluxo; journal sem marcador externo de fechamento; reconciliação completa do índice por evento; sem interface de
+Tweaks/Debloat/Recovery Center. T2–T4 não iniciadas.
+
+## T2A — First Controlled Windows Tweaks (implementada em 0.3.0-preview.8; VALIDAÇÃO REAL PENDENTE)
+
+- [x] Confirmar o estado real: `master` com alterações locais preservadas, versão `0.3.0-preview.8`, schema 10,
+  baseline **902/902** em Debug e Release; não executar reset, clean, commit ou push.
+- [x] Ler AGENTS, ARCHITECTURE, SECURITY, ROADMAP, VALIDATION, T0, arquitetura T1, parecer T1, catálogo
+  `docs/planning/tweaks-debloat/` e `tasks/todo.md`.
+- [x] Mapear Diagnostic Engine, Safety Engine, catálogo, preflight, backup, autorização, recuperação, journal,
+  `Infrastructure.Modifications`, `App` e `MainWindow`; preservar a separação de capacidades.
+- [x] Estender o domínio com raízes permitidas (`Synthetic`, `HKCU`), validação estrutural HKCU, tipos de valor e
+  limitações do perfil; nenhuma permissão de escrita foi entregue ao diagnóstico.
+- [x] Implementar `T2aCatalog` fechado (`t2a-hkcu-1`) com as três operações e os quatro valores autorizados.
+- [x] Implementar `T2aTargetGuard` no Safety Engine e `HkcuTargetPolicy` independente no adaptador nativo;
+  teste garante que as listas coincidem e que alvo HKCU fora delas é bloqueado.
+- [x] Implementar `HkcuRegistryAccess`, reader, executor, sonda de política, perfil Windows 11 e proteção HKCU.
+  Somente `Registry.CurrentUser`; sem HKLM/HKCR/HKU, `CreateSubKey`, `DeleteSubKey`, `RegistryHive`, script,
+  PowerShell, `reg.exe`, `.reg`, DISM, Appx, serviço, tarefa ou elevação.
+- [x] Implementar `TweakManager`, modos `Validation`/`RealControlled`/`RealDisabled`, confirmação de execução
+  digitada e confirmação de recuperação vinculada à transação.
+- [x] Integrar ao fluxo T1: preflight, estado real, plano/hash, simulação, autorização, revalidação, backup,
+  journal, execução, verificação e recuperação. O modo escuro tem dois alvos e não é atômico.
+- [x] Reutilizar o Recovery Core: valor existente, ausência original, recuperação parcial de múltiplos valores,
+  conflito sem sobrescrita, backup adulterado/duplicado, reabertura, relocação da raiz e rollback repetido.
+- [x] Implementar a aba **Personalização** com três cartões, plano, confirmação, histórico e Recovery Center
+  inicial; carregamento da aba só lê/simula, não executa alteração.
+- [x] Adicionar **68 testes** (970 no total) para catálogo, allowlist, leitura, execução, autorização,
+  backup/journal/verificação, falha parcial, recuperação, conflito, persistência, relocação, política,
+  composição desabilitada e arquitetura.
+- [x] Executar builds Debug/Release `0/0` e suítes completas **970/970 em Debug e Release**.
+- [x] Submeter a duas revisões independentes (segurança e persistência/recuperação); ambas **APROVADO COM
+  RESSALVAS**, sem bloqueante. Corrigir os achados Médios/Altos e cobrir com testes:
+  revalidação de recuperação contra o catálogo, texto/`Changed` do journal real, autorização de plano fora do
+  catálogo, política fail-closed, recuperação parcial de múltiplos valores, transação sem efeito lida, resultado
+  derivado dos passos, duplicidade de backup, confirmação vinculada, transição antes da gravação e instante de
+  observação por entrada. Ver `docs/validation/2026-11-02-tweaks-debloat-t2a-quality-gate.md`.
+- [x] Validar a interface real em diretório isolado: aba Personalização, três cartões com estado do HKCU, plano
+  simulado por clique real em **Detalhes**; nenhuma transação foi registrada e `memory/transactions` permaneceu
+  vazio.
+- [x] Confirmar que **nenhuma escrita real foi executada** no computador de desenvolvimento e que a capacidade
+  real permanece indisponível na distribuição (`RealDisabled`; `--enable-real-tweaks` é opt-in de validação).
+- [x] Atualizar ARCHITECTURE, SECURITY, ROADMAP, VALIDATION, README, AGENTS, este arquivo, a arquitetura T2A e o
+  parecer do quality gate; preservar T0/T1 e não alterar documentos históricos.
+- [x] Não executar commit, push ou deploy; não iniciar T2B, T3 ou T4.
+
+**Veredito:** **T2A IMPLEMENTADA — VALIDAÇÃO REAL PENDENTE.** A etapa não é declarada pronta para distribuição
+até a execução real e a recuperação serem validadas em VM Windows 11 isolada, com snapshot e autorização
+específica. Riscos residuais: janela TOCTOU no Registro; efeito visual pode exigir reabrir/atualizar o Explorer;
+hash sem chave não autentica contra o dono do perfil; caminho absoluto antigo do backup permanece no payload
+(a leitura remapeia a raiz); UIA não percorre o conteúdo do `PageHost`, então a validação visual usou captura e
+clique real.
+
+### Fechamento técnico — separação de builds (02/11/2026)
+
+- [x] Verificar o parâmetro `--enable-real-tweaks` e confirmar que o executável de distribuição conseguia compor
+  a escrita real apenas pela linha de comando.
+- [x] Estabelecer barreira de compilação: `SentinelCoreRealTweaks=false` por padrão; somente
+  `-p:SentinelCoreRealTweaks=true` define `SENTINELCORE_REAL_TWEAKS`. No build de distribuição
+  `RealTweakBuildGate.AllowsRealExecution` retorna `false` sem interpretar argumentos.
+- [x] Manter a infraestrutura de execução/recuperação para a validação em VM; criar `publish-validation.ps1`
+  (build experimental, diretório separado, marcador `VALIDATION-BUILD.txt`) e fixar `false` em `publish.ps1`.
+- [x] Corrigir o repasse de argumentos do wrapper `scripts/dotnet.ps1` para que `-p:` chegue ao MSBuild.
+- [x] Adicionar 10 testes direcionados de bloqueio de distribuição; suíte **980/980** em Debug e Release,
+  builds `0/0`.
+- [x] Verificar `DefineConstants` com e sem a propriedade e validar os dois scripts de publicação.
+- [x] Nenhuma escrita real no Registro e nenhum tweak executado; publicação apenas compilada, não iniciada.
+- [x] Não executar commit, push ou deploy; não iniciar T2B, T3 ou T4.
+- [x] Registrar formalmente que a T2A continua **aguardando validação real em VM Windows 11 com snapshot**
+  ([relatório](docs/validation/2026-11-02-tweaks-debloat-t2a-build-separation.md)).

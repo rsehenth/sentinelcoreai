@@ -6,9 +6,9 @@ using SentinelCore.Domain;
 
 namespace SentinelCore.Persistence;
 
-public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInvestigationStore,
+public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInvestigationStore,
     IPerformanceSessionStore, INetworkSessionStore, IGraphicsInvestigationStore, ICorrelationInvestigationStore,
-    IMonitoringSessionStore
+    IMonitoringSessionStore, ITransactionJournalStore
 {
     private readonly string root;
     private string Database => Path.Combine(root, "data", "sentinelcore.db");
@@ -62,7 +62,8 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
         if (File.Exists(RecordPath(audit with { Kind = otherKind })) ||
             File.Exists(HardwareRecordPath(audit.Id)) || File.Exists(EventRecordPath(audit.Id)) ||
             File.Exists(PerformanceRecordPath(audit.Id)) || File.Exists(NetworkRecordPath(audit.Id)) ||
-            File.Exists(GraphicsRecordPath(audit.Id)) || File.Exists(CorrelationRecordPath(audit.Id)))
+            File.Exists(GraphicsRecordPath(audit.Id)) || File.Exists(CorrelationRecordPath(audit.Id)) ||
+            Directory.Exists(TransactionDirectory(audit.Id)))
             throw new InvalidDataException("ID já existe em outro histórico; histórico preservado.");
         var json = CanonicalJson(audit);
         var path = RecordPath(audit);
@@ -92,7 +93,7 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
 
     private void EnsureDirectories()
     {
-        foreach (var relative in new[] { "memory", "memory/inventory", "memory/events", "memory/performance", "memory/network", "memory/graphics", "memory/correlation", "memory/monitoring", "data", "reports", "reports/hardware", "reports/events", "reports/performance", "reports/network", "reports/graphics", "reports/correlation", "reports/monitoring", "logs", Path.Combine("memory", "audits", "basic") })
+        foreach (var relative in new[] { "memory", "memory/inventory", "memory/events", "memory/performance", "memory/network", "memory/graphics", "memory/correlation", "memory/monitoring", "memory/transactions", "data", "reports", "reports/hardware", "reports/events", "reports/performance", "reports/network", "reports/graphics", "reports/correlation", "reports/monitoring", "reports/transactions", "logs", Path.Combine("memory", "audits", "basic") })
             Directory.CreateDirectory(Path.Combine(root, relative));
     }
 
@@ -129,9 +130,9 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
     {
         using var version = database.CreateCommand(); version.CommandText = "PRAGMA user_version";
         var schema = Convert.ToInt32(version.ExecuteScalar());
-        if (schema > 9)
+        if (schema > 10)
             throw new InvalidDataException("Banco de uma versão mais recente. Abra com uma versão compatível do aplicativo.");
-        if (schema == 9) return;
+        if (schema == 10) return;
         using var transaction = database.BeginTransaction();
         using var command = database.CreateCommand(); command.Transaction = transaction;
         if (schema < 1)
@@ -396,7 +397,41 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
                 """;
             command.ExecuteNonQuery();
         }
-        command.CommandText = "PRAGMA user_version = 9";
+        if (schema < 10)
+        {
+            command.CommandText = """
+                CREATE TABLE IF NOT EXISTS Transactions (
+                    Id TEXT PRIMARY KEY, PlanId TEXT NOT NULL, OperationId TEXT NOT NULL,
+                    OperationVersion INTEGER NOT NULL, CatalogVersion TEXT NOT NULL,
+                    PlanHash TEXT NOT NULL, State TEXT NOT NULL, CreatedUtc TEXT NOT NULL,
+                    UpdatedUtc TEXT NOT NULL, EventCount INTEGER NOT NULL, BackupCount INTEGER NOT NULL,
+                    Indeterminate INTEGER NOT NULL, Succeeded INTEGER NOT NULL);
+                CREATE TABLE IF NOT EXISTS TransactionEvents (
+                    TransactionId TEXT NOT NULL REFERENCES Transactions(Id) ON DELETE CASCADE,
+                    Sequence INTEGER NOT NULL, State TEXT NOT NULL, AtUtc TEXT NOT NULL,
+                    OperationId TEXT NOT NULL, OperationVersion INTEGER NOT NULL,
+                    CatalogVersion TEXT NOT NULL, PlanHash TEXT NOT NULL,
+                    Detail TEXT NULL, Error TEXT NULL, MarkdownPath TEXT NOT NULL UNIQUE,
+                    PayloadHash TEXT NOT NULL, PRIMARY KEY (TransactionId, Sequence));
+                CREATE TABLE IF NOT EXISTS TransactionBackups (
+                    TransactionId TEXT NOT NULL REFERENCES Transactions(Id) ON DELETE CASCADE,
+                    BackupId TEXT PRIMARY KEY, Sequence INTEGER NOT NULL, PlanHash TEXT NOT NULL,
+                    ContentHash TEXT NOT NULL, EntryCount INTEGER NOT NULL, Complete INTEGER NOT NULL,
+                    MarkdownPath TEXT NOT NULL UNIQUE, PayloadHash TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS Recoveries (
+                    RecoveryId TEXT PRIMARY KEY,
+                    TransactionId TEXT NOT NULL REFERENCES Transactions(Id) ON DELETE CASCADE,
+                    Outcome TEXT NOT NULL, FullyRecovered INTEGER NOT NULL,
+                    EffectMayHaveOccurred INTEGER NOT NULL, ConflictCount INTEGER NOT NULL,
+                    StartedUtc TEXT NOT NULL, CompletedUtc TEXT NOT NULL, PayloadHash TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS IX_Transactions_Updated ON Transactions(UpdatedUtc DESC);
+                CREATE INDEX IF NOT EXISTS IX_TransactionEvents_Transaction ON TransactionEvents(TransactionId, Sequence);
+                CREATE INDEX IF NOT EXISTS IX_TransactionBackups_Transaction ON TransactionBackups(TransactionId, Sequence);
+                CREATE INDEX IF NOT EXISTS IX_Recoveries_Transaction ON Recoveries(TransactionId, CompletedUtc DESC);
+                """;
+            command.ExecuteNonQuery();
+        }
+        command.CommandText = "PRAGMA user_version = 10";
         command.ExecuteNonQuery();
         transaction.Commit();
     }
@@ -3463,10 +3498,24 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
                 "Limitações obrigatórias de autorização, escopo, orçamento ou causalidade ausentes.");
     }
 
+    private void EnsureNoForeignRecord(Guid id)
+    {
+        foreach (var kind in Enum.GetValues<AuditKind>())
+            if (File.Exists(Path.Combine(root, "memory", "audits", kind.ToString().ToLowerInvariant(),
+                    $"{id:D}.md")))
+                throw new InvalidDataException("ID já existe em uma auditoria; histórico preservado.");
+        if (File.Exists(HardwareRecordPath(id)) || File.Exists(EventRecordPath(id)) ||
+            File.Exists(PerformanceRecordPath(id)) || File.Exists(NetworkRecordPath(id)) ||
+            File.Exists(GraphicsRecordPath(id)) || File.Exists(CorrelationRecordPath(id)) ||
+            File.Exists(MonitoringRecordPath(id)) || Directory.Exists(MonitoringSegmentDirectory(id)))
+            throw new InvalidDataException("ID já existe em outro histórico; histórico preservado.");
+    }
+
     private void EnsureNoMonitoringRecord(Guid id)
     {
-        if (File.Exists(MonitoringRecordPath(id)) || Directory.Exists(MonitoringSegmentDirectory(id)))
-            throw new InvalidDataException("ID já existe em uma sessão de monitoramento; histórico preservado.");
+        if (File.Exists(MonitoringRecordPath(id)) || Directory.Exists(MonitoringSegmentDirectory(id)) ||
+            Directory.Exists(TransactionDirectory(id)))
+            throw new InvalidDataException("ID já existe em uma sessão de monitoramento ou transação; histórico preservado.");
     }
 
     private void EnsureNoOtherRecord(Guid id)
@@ -3477,7 +3526,8 @@ public sealed class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInv
                 throw new InvalidDataException("ID já existe em uma auditoria; histórico preservado.");
         if (File.Exists(HardwareRecordPath(id)) || File.Exists(EventRecordPath(id)) ||
             File.Exists(PerformanceRecordPath(id)) || File.Exists(NetworkRecordPath(id)) ||
-            File.Exists(GraphicsRecordPath(id)) || File.Exists(CorrelationRecordPath(id)))
+            File.Exists(GraphicsRecordPath(id)) || File.Exists(CorrelationRecordPath(id)) ||
+            Directory.Exists(TransactionDirectory(id)))
             throw new InvalidDataException("ID já existe em outro histórico; histórico preservado.");
     }
 
