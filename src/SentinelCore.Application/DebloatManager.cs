@@ -165,15 +165,7 @@ public sealed class DebloatManager
             if (record.OperationId.StartsWith("DBLT-RMV-", StringComparison.Ordinal)) continue;
             try
             {
-                if (!record.OperationId.StartsWith("DBLT-", StringComparison.Ordinal) || record.Plan is null)
-                    throw new InvalidDataException("Registro sem plano Debloat.");
-                var state = JsonSerializer.Deserialize<DebloatTargetSnapshot>(record.Plan.Changes.Single().Before.Data ?? "");
-                if (state?.Package is null || state.CatalogEntry is null || state.Package.Dependencies is null ||
-                    state.Package.Limitations is null || !state.Package.Synthetic || !Enum.IsDefined(state.Package.State) ||
-                    !Enum.IsDefined(state.Scenario) || !DebloatPolicy.ValidIdentity(state.Package) ||
-                    state.Package.CatalogId != state.CatalogEntry.Id || state.Package.TechnicalName != state.CatalogEntry.TechnicalName ||
-                    record.OperationId != "DBLT-" + state.CatalogEntry.Id)
-                    throw new InvalidDataException("Metadados históricos incompatíveis ou incompletos.");
+                var state = DebloatHistoryValidation.ReadDebloat(record);
                 result.Add(new DebloatHistoryItem(record.TransactionId, state.Package.FriendlyName,
                     state.Package.PackageFullName, state.Package.Publisher, state.Package.Version,
                     state.Package.UserId, "SINTÉTICO — " + record.State,

@@ -1,9 +1,29 @@
 # SentinelCore AI — instruções do projeto
 
+## T4A — Central de Recuperação (04/11/2026)
+
+- Escopo T4A autorizado: agregação somente leitura e recuperação funcional exclusivamente sintética.
+  [Relatório](docs/validation/2026-11-04-recovery-center-t4a.md); [plano](docs/planning/RECOVERY_CENTER_T4A.md).
+- `MemoryStore.ReadRecoveryHistoryAsync` lê as quatro fontes sem reconstruir SQLite, regravar projeções,
+  criar diretórios ou modificar registros. Markdown segue autoritativo; SQLite esquema 12, nenhum novo banco.
+- `RecoveryCenter` classifica/deduplica; fontes incompletas/inacessíveis não viram zero, sucesso ou autorização.
+  Não aceitar versões/enums/recuperações contraditórias; preservar originais e avisos da mesma carga.
+- App compõe `new RecoveryCenter(store)` sem serviço de recuperação. Host sintético pode injetar
+  `RecoveryService(..., syntheticOnly: true)`, que recusa alvos não Synthetic e DBLT antes de ler/executar alvos.
+  Reutilizar esse serviço T1; não criar outro rollback. Confirmação exata, prévia e revalidação permanecem obrigatórias.
+- Debloat/T3C e R1 não possuem rollback equivalente. Sem reinstalação, dados pessoais, repetição de reparos,
+  desbloqueio de alvo T3C, consulta de pacotes, Registro real, VM, elevação ou execução real nesta etapa.
+- Preservar os cinco gates e a T0 (153 NÃO VALIDADOS/9 ALTO). Origem histórica desconhecida deve continuar desconhecida.
+- T3C: implementação concluída; execução real bloqueada e validação prática pendente. T4B não iniciada/autorizada.
+- Testes T4A e host WPF usam somente fixtures/raízes temporárias. Quatro testes legados com consultas Windows reais
+  são excluídos da regressão desta etapa; nomes e comandos exatos constam no relatório. Sem commit/push.
+- Verificação: 110 casos novos; **1.510/1.510 sintéticos Debug e Release**, builds **0/0**, host WPF **35 PASS**.
+  Baseline 1.404 inclui quatro casos reais não executados; não apresentar esta rodada como execução integral de 1.514.
+
 ## T3C — remoção controlada compilável (04/11/2026)
 
 - **T3C — MOTOR NATIVO DE REMOÇÃO IMPLEMENTADO, EXECUÇÃO REAL BLOQUEADA E NÃO VALIDADA.**
-  [Relatório](docs/validation/2026-11-04-controlled-app-removal-t3c.md). T4 não iniciada.
+  [Relatório](docs/validation/2026-11-04-controlled-app-removal-t3c.md). T4A sucede esta entrega; T4B não iniciada.
 - O pedido T3C autorizou somente contratos, preflight, fluxo/testes sintéticos, apresentação e compilação do novo
   `SentinelCore.Infrastructure.Debloat.Removal.Native`. Não executar `RemovePackageAsync` nem consultas reais.
 - Novo assembly Domain-only, sem referência App/testes e ausente do publish. Inventário T3B não recebe remoção.
@@ -22,7 +42,8 @@
 > **Estado vigente de 04/11/2026:** T3 sintética, T3B e T3C compiláveis implementadas, conforme seções próprias.
 > O pedido T3C autorizou contratos, fluxo sintético e adaptador nativo separado, sem executá-lo.
 > Execução real, consultas funcionais a pacotes e composição dos adaptadores nativos continuam proibidas.
-> T4 não foi autorizada. Restrições anteriores sobre implementar T3C são históricas, não autorização para executá-la.
+> O pedido posterior autoriza T4A somente nos limites acima. T4B/validação real não autorizadas.
+> Restrições anteriores sobre implementar T3C são históricas, não autorização para executá-la.
 
 ## Escopo e arquitetura
 
@@ -154,8 +175,8 @@ Escritas apenas neste repositório, build/testes, temporários necessários e di
   **Catálogo de aplicativos** de **Inventário de aplicativos**.
 - Verificação registrada da T3: 1247/1247 Debug e Release, builds 0/0 e 19 verificações WPF em host exclusivamente
   sintético. Validação real permanece pendente e não é necessária para prosseguir no desenvolvimento sintético.
-  A **T3B** foi implementada na sequência (ver seção própria); a **T3C** (remoção controlada) permanece bloqueada e
-  não foi iniciada.
+  A **T3B** foi implementada na sequência (ver seção própria); a **T3C** também foi implementada posteriormente,
+  com execução real bloqueada e validação prática pendente. A T4A segue a seção vigente acima.
 
 ## T3B — Inventário nativo Appx/MSIX — implementado; execução e validação reais pendentes
 

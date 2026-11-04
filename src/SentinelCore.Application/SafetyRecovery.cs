@@ -11,10 +11,12 @@ public sealed class RecoveryService
     private readonly TimeProvider time;
     private readonly IOperationCatalog? catalog;
     private readonly IRecoveryConfirmationPolicy? confirmationPolicy;
+    public bool SyntheticOnly { get; }
 
     public RecoveryService(ITransactionJournalStore store, ITargetStateReader reader,
         IOperationExecutor executor, IExclusiveLockFactory locks, TimeProvider? time = null,
-        IOperationCatalog? catalog = null, IRecoveryConfirmationPolicy? confirmationPolicy = null)
+        IOperationCatalog? catalog = null, IRecoveryConfirmationPolicy? confirmationPolicy = null,
+        bool syntheticOnly = false)
     {
         this.store = store;
         this.reader = reader;
@@ -23,6 +25,7 @@ public sealed class RecoveryService
         this.time = time ?? TimeProvider.System;
         this.catalog = catalog;
         this.confirmationPolicy = confirmationPolicy;
+        SyntheticOnly = syntheticOnly;
     }
 
     public async Task<RecoveryPreview> PreviewAsync(Guid transactionId,
@@ -454,6 +457,14 @@ public sealed class RecoveryService
 
     private bool MatchesCatalog(OperationPlan plan, out string reason)
     {
+        // A T4A validation host cannot turn historical metadata into a real read or write capability.
+        if (SyntheticOnly && (plan.Changes.Count == 0 ||
+            plan.Changes.Any(change => change.Target.Root != OperationTargetRoots.Synthetic) ||
+            plan.OperationId.StartsWith("DBLT-", StringComparison.Ordinal)))
+        {
+            reason = "Recuperação T4A restrita a alvos sintéticos de Tweaks.";
+            return false;
+        }
         if (catalog is null)
         {
             reason = string.Empty;

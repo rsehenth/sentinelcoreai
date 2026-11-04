@@ -44,6 +44,7 @@
                     <ListBoxItem Content="Monitoramento" Tag="{StaticResource IconPerformance}" ToolTip="Sessões de observação autorizadas e registro de incidentes"/>
                     <ListBoxItem Content="Personalização &amp; Debloat" Tag="{StaticResource IconShieldCheck}" ToolTip="Tweaks HKCU e Debloat em simulação, com histórico separado"/>
                     <ListBoxItem Content="Reparos do Windows" Tag="{StaticResource IconShieldCheck}" ToolTip="Ferramentas oficiais de reparo do Windows em modo de simulação"/>
+                    <ListBoxItem Content="Central de Recuperação" Tag="{StaticResource IconHistory}" ToolTip="Histórico unificado, consequências, conflitos e recuperação suportada"/>
                 </ListBox>
 
                 <Border Grid.Row="2" Style="{StaticResource Card}" Padding="14,12">
@@ -2408,6 +2409,9 @@
                                        Text="R1 — Windows Repair Center: catálogo fechado, argumentos fixos, executáveis oficiais em System32 e nenhuma execução real nesta distribuição. SFC, DISM e CHKDSK não possuem rollback equivalente aos Tweaks. A validação real permanece pendente."/>
                         </Grid>
                     </ScrollViewer>
+                </TabItem>
+                <TabItem x:Name="RecoveryTab" Header="Central de Recuperação">
+                    <local:RecoveryCenterView x:Name="RecoverySection"/>
                 </TabItem>
             </TabControl>
         </Grid>

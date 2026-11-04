@@ -1,5 +1,17 @@
 # SentinelCore AI
 
+**T4A — Central de Recuperação, 04/11/2026.** Navegação própria com histórico unificado de Tweaks T2A/T2B,
+Debloat T3, remoção controlada T3C e reparos R1; painel, pesquisa/filtros, detalhes, eventos, conflitos,
+intervenção e integridade. A central da distribuição é somente leitura. Recuperação de Tweaks é exercitada
+somente em host sintético pelo RecoveryService existente; aplicativos e reparos não recebem rollback equivalente.
+Fontes incompletas não viram zero; origem histórica desconhecida não é presumida.
+
+SQLite continua no esquema **12**, sem migração. T3C: **implementação concluída; execução real bloqueada e validação
+prática pendente**. T4B e validação real não iniciadas. [Relatório T4A](docs/validation/2026-11-04-recovery-center-t4a.md).
+Verificação T4A: **1.510/1.510 testes sintéticos em Debug e Release**, 110 casos novos, builds **0 avisos/0 erros**
+e **35 verificações WPF**. Quatro testes legados com consultas reais foram excluídos por filtro, sem execução.
+As contagens abaixo descrevem entregas anteriores; os resultados vigentes T4A estão no relatório.
+
 **Atualização de 04/11/2026 — T3 implementada em modo sintético.** A página **Personalização & Debloat**
 inclui catálogo documental e inventário sintético apresentados separadamente, busca/filtros, seleção individual,
 plano, confirmação, simulação, histórico e informações de reinstalação. Nenhum aplicativo real é consultado,
@@ -8,10 +20,10 @@ Bloco de Notas com revisão média. Entradas do catálogo sem observação apare
 **“Não verificado — inventário real indisponível”**, nunca como ausentes. Execução real permanece indisponível
 por gate independente e incondicional. Reinstalação não é rollback.
 
-SQLite atual: **12** (migração aditiva 11→12). Suíte atual: **1247/1247 em Debug e Release**, builds 0/0.
+SQLite atual: **12** (migração aditiva 11→12). Suíte registrada na T3: **1247/1247 em Debug e Release**, builds 0/0.
 Histórico Debloat separado em `memory/debloat` e `reports/debloat`, no mesmo banco. Relatório completo:
 [T3 — validação e limites](docs/validation/2026-11-04-debloat-manager-t3.md). As contagens anteriores em
-seções datadas descrevem suas respectivas etapas. T4 e validação real não foram iniciadas.
+seções datadas descrevem suas respectivas etapas. A T4A sucede esta entrega; validação real não iniciada.
 
 A [T0 revisada](docs/planning/TWEAKS_DEBLOAT_T0_REVALIDATION_2026-11-04.md) preserva o histórico e registra
 273 fichas com riscos 49 BAIXO, 37 MÉDIO, 33 ALTO e 154 NÃO VALIDADO, além de shortlist de 13 escolhas.
@@ -42,8 +54,8 @@ Personalização & Debloat tem a T0 concluída como auditoria documental, a **T1
 implementada como infraestrutura de segurança, autorização, journal, backup e recuperação, a **T2A — First
 Controlled Windows Tweaks** implementada com três operações reais em HKCU e a **T2B — Windows Tweaks Expansion**
 com seis operações adicionais no mesmo catálogo fechado. A aba **Personalização** mostra os nove cartões. A execução
-real está desabilitada na distribuição; a validação real foi adiada por decisão de projeto. A T3 (Debloat) e a T4
-permanecem futuras.
+real está desabilitada na distribuição; a validação real foi adiada por decisão de projeto. A T3 sintética e a
+T4A estão implementadas; T4B/validação real permanecem futuras.
 
 A Fase 5 (Persistent Monitoring) foi implementada em `0.3.0-preview.8`: sessões de 5, 15 ou 30 minutos, uma por vez,
 somente após autorização explícita, com eventos incrementais, CPU/memória nativas, rede sem endereços e gráficos
@@ -67,7 +79,7 @@ cartões são agrupados em Explorador de Arquivos, Barra de tarefas e Aparência
 desabilitada na distribuição (`RealDisabled`) e **não é compilada** no build de distribuição: `--enable-real-tweaks`
 só tem efeito em um build experimental de validação (`scripts/publish-validation.ps1`, nunca distribuído),
 reservado à futura validação real. Nenhuma escrita real foi executada no computador de desenvolvimento.
-T3 foi implementada em modo sintético em 04/11/2026. T4 não foi iniciada.
+T3 foi implementada em modo sintético em 04/11/2026. A T4A acrescenta a central unificada; T4B não iniciada.
 
 A **R1 — Windows Repair Center** foi implementada na sequência, ainda em `0.3.0-preview.8`, como módulo independente
 do Tweaks Manager: catálogo fechado para SFC (`/verifyonly`, `/scannow`), DISM (`CheckHealth`, `ScanHealth`,
@@ -149,7 +161,9 @@ Os testes de persistência usam diretórios temporários isolados e dados fictí
 coletores reais do Windows, somente leitura; os testes da T2A/T2B usam uma implementação em memória de
 `IHkcuRegistryAccess` e não tocam o Registro real. Os testes da R1 usam `SyntheticRepairExecutor` e não iniciam
 `sfc.exe`, `dism.exe`, `chkdsk.exe` ou `reagentc.exe`. Nenhum teste modifica configurações do Windows ou usa o
-histórico de produção como raiz de teste. Suíte atual: **1243/1243 em Debug e Release**.
+histórico de produção como raiz de teste. A contagem **1243/1243** pertence à entrega T3 inicial.
+Na T4A, quatro testes legados que dependem de leitura real do Windows são excluídos por filtro; a regressão restante
+e todos os testes novos são sintéticos. Comandos, contagens e exclusões estão no relatório T4A.
 
 ## Gerar e executar o pacote
 

@@ -1,5 +1,27 @@
 # Execução
 
+## T4A — Recovery Center Consolidation (04/11/2026)
+
+- [x] Ler pedido, instruções, arquitetura/segurança/validação e relatórios T1/T2/R1/T3/T3B/T3C; consultar Graphify.
+- [x] Corrigir estado atual contraditório T3C no ROADMAP preservando registros históricos datados.
+- [x] Criar modelo efêmero de fontes/completude, origem, capacidades, resultado, eventos, filtros e contadores.
+- [x] Reutilizar leitores/validadores de MemoryStore em carga somente leitura; sem escrita/rebuild/migração.
+- [x] Agregar/deduplicar e ordenar quatro fontes, pesquisar/filtrar, classificar conflitos, indeterminadas e intervenção.
+- [x] Reutilizar RecoveryService T1 apenas com fronteira Synthetic, prévia e confirmação específica; sem segundo rollback.
+- [x] Integrar Central de Recuperação à navegação WPF, tema/software render existentes; detalhes/eventos/avisos.
+- [x] Preservar gates, receipts, bloqueios T3C após reabertura/rebuild, ausência de rollback Debloat/R1 e risco T0.
+- [x] Adicionar 110 casos novos; regressão **1.510/1.510 sintéticos Debug e Release**, sem falhas/ignorados.
+- [x] Excluir por filtro quatro testes legados de consulta Windows real; nenhum deles executado nesta etapa.
+- [x] Restore locked, builds Debug/Release **0/0**, publish self-contained isolado e verificação estática dos gates.
+- [x] Host WPF isolado com sete fixtures/quatro módulos: **35/35 PASS**, duas capturas, Markdown/SQLite/reabertura.
+- [x] Revisões independentes A segurança/recuperação e B persistência/apresentação; corrigir quatro P2 com regressões.
+- [x] Atualizar documentação e [relatório T4A](../docs/validation/2026-11-04-recovery-center-t4a.md).
+- [x] Nenhuma consulta Appx real, Registro/rollback real, remoção/reinstalação, reparo, VM, elevação, IA, commit ou push.
+- [ ] Validação real futura com escopo/autorização específicos. T4B não iniciada.
+
+**Veredito: T4A implementada e validada exclusivamente por testes sintéticos.** Não pronta para execução real.
+Os checklists datados seguintes preservam estados e proibições de entregas anteriores.
+
 ## T3C — Controlled App Removal Engine (04/11/2026; implementada, real bloqueado)
 
 - [x] Preservar T3B local e funcionalidades anteriores; consultar Graphify, contratos/docs e API oficial WinRT.

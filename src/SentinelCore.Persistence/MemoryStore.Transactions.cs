@@ -175,7 +175,7 @@ public sealed partial class MemoryStore
         _ = backup;
     }
 
-    private List<TransactionRecord> ReconcileTransactions(SqliteConnection database,
+    private List<TransactionRecord> ReconcileTransactions(SqliteConnection? database,
         List<string> warnings, CancellationToken cancellationToken)
     {
         var records = new List<TransactionRecord>();
@@ -196,7 +196,12 @@ public sealed partial class MemoryStore
                 }
 
                 var journalDirectory = Path.Combine(directory, "journal");
-                if (!Directory.Exists(journalDirectory)) continue;
+                if (!Directory.Exists(journalDirectory))
+                {
+                    if (database is null)
+                        warnings.Add($"Transação {transactionId:D} sem diretório de journal; estado indisponível, original preservado.");
+                    continue;
+                }
                 try { EnsureNoForeignRecord(transactionId); }
                 catch (InvalidDataException error)
                 {
@@ -212,6 +217,7 @@ public sealed partial class MemoryStore
                     try
                     {
                         var (stored, hash) = ReadTransactionEvent(path);
+                        if (database is null) ValidateRecoveryHistoryEvent(stored);
                         if (stored.TransactionId != transactionId)
                             throw new InvalidDataException("Evento fora da pasta da transação informada.");
                         var name = Path.GetFileNameWithoutExtension(path);
@@ -277,6 +283,8 @@ public sealed partial class MemoryStore
                 try
                 {
                     ValidateRemovalAssociation(ordered.Select(item => item.Event).ToArray());
+                    if (database is null)
+                        ValidateRecoveryHistoryTransaction(ordered.Select(item => item.Event).ToArray());
                     var record = TransactionProjection.Build(ordered.Select(item => item.Event).ToList());
                     records.Add(record);
                     eventRows.AddRange(ordered.Select(item => (transactionId, item.Event, item.Path, item.Hash)));
@@ -289,7 +297,10 @@ public sealed partial class MemoryStore
         }
 
         var backupFiles = Directory.Exists(rootDirectory)
-            ? Directory.EnumerateFiles(rootDirectory, "backup-*.md", SearchOption.AllDirectories)
+            ? (database is null
+                ? Directory.EnumerateDirectories(rootDirectory).SelectMany(directory =>
+                    Directory.EnumerateFiles(directory, "backup-*.md", SearchOption.TopDirectoryOnly))
+                : Directory.EnumerateFiles(rootDirectory, "backup-*.md", SearchOption.AllDirectories))
                 .OrderBy(item => item, StringComparer.OrdinalIgnoreCase).ToList()
             : new List<string>();
         foreach (var path in backupFiles)
@@ -318,7 +329,7 @@ public sealed partial class MemoryStore
             }
         }
 
-        IndexTransactions(database, records, eventRows, backupRows);
+        if (database is not null) IndexTransactions(database, records, eventRows, backupRows);
         return records;
     }
 

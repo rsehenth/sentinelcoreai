@@ -112,7 +112,7 @@ public sealed partial class MemoryStore
             throw new InvalidDataException("ID já existe em outro histórico; histórico preservado.");
     }
 
-    private RepairHistory ReconcileRepairs(SqliteConnection database, List<string> warnings,
+    private RepairHistory ReconcileRepairs(SqliteConnection? database, List<string> warnings,
         CancellationToken cancellationToken)
     {
         var records = new List<RepairRecord>();
@@ -169,8 +169,9 @@ public sealed partial class MemoryStore
             }
         }
 
-        using (var transaction = database.BeginTransaction())
+        if (database is not null)
         {
+            using var transaction = database.BeginTransaction();
             using var clear = database.CreateCommand();
             clear.Transaction = transaction;
             clear.CommandText = "DELETE FROM RepairSteps; DELETE FROM Repairs;";
@@ -178,8 +179,9 @@ public sealed partial class MemoryStore
             transaction.Commit();
         }
 
-        foreach (var record in records)
-            IndexRepair(database, record, hashes.GetValueOrDefault(record.Id));
+        if (database is not null)
+            foreach (var record in records)
+                IndexRepair(database, record, hashes.GetValueOrDefault(record.Id));
 
         return new RepairHistory(
             records.OrderByDescending(item => item.CompletedUtc).ThenBy(item => item.Id).ToList(),
@@ -414,7 +416,11 @@ public sealed partial class MemoryStore
         RecordEnvelope.AtomicWrite(GetRepairReportPath(record.Id), RepairReport.Render(record),
             overwrite: true);
 
-    private void WriteRepairProjection(RepairHistory history)
+    private void WriteRepairProjection(RepairHistory history) =>
+        RecordEnvelope.AtomicWrite(Path.Combine(root, "memory", "REPAIRS.md"), RenderRepairProjection(history),
+            overwrite: true);
+
+    private static string RenderRepairProjection(RepairHistory history)
     {
         var text = new StringBuilder();
         text.AppendLine("# SentinelCore AI — Central de reparos do Windows");
@@ -438,8 +444,7 @@ public sealed partial class MemoryStore
             foreach (var intent in history.UnfinishedIntents)
                 text.AppendLine($"- [{intent.Id:D}](repairs/{intent.Id:D}/intent.md) — {intent.CreatedAtUtc:O} — " +
                     $"{intent.DisplayName} — intenção sem conclusão; tratada como interrompida.");
-        RecordEnvelope.AtomicWrite(Path.Combine(root, "memory", "REPAIRS.md"), text.ToString(),
-            overwrite: true);
+        return text.ToString();
     }
 
     private static string CanonicalJson(RepairIntent intent) =>

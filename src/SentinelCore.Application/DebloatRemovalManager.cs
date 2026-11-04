@@ -114,13 +114,7 @@ public sealed class DebloatRemovalManager
         {
             try
             {
-                var snapshot = JsonSerializer.Deserialize<DebloatRemovalSnapshot>(record.Plan!.Changes.Single().Before.Data!);
-                if (snapshot is null || snapshot.SchemaVersion != 1 || snapshot.Removed ||
-                    !Enum.IsDefined(snapshot.Scenario) || !snapshot.Observation.Synthetic ||
-                    !DebloatRemovalPreflightEngine.Evaluate(catalog, snapshot.Observation, snapshot.MediumReviewConfirmed).CanSimulate ||
-                    snapshot.CatalogEntry != catalog.Find(snapshot.Observation.CatalogId) ||
-                    record.OperationId != "DBLT-RMV-" + snapshot.CatalogEntry.Id)
-                    throw new InvalidDataException("Snapshot T3C incompatível.");
+                var snapshot = DebloatHistoryValidation.ReadRemoval(record, catalog);
                 items.Add(new(record.TransactionId, snapshot, record,
                     record.Events.LastOrDefault(e => e.RemovalReceipt is not null)?.RemovalReceipt,
                     journal.GetTransactionReportPath(record.TransactionId)));

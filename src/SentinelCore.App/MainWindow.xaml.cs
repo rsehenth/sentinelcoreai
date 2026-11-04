@@ -61,7 +61,7 @@ public partial class MainWindow : Window
         IEventInvestigationStore eventStore, IPerformanceSessionStore performanceStore,
         INetworkSessionStore networkStore, IGraphicsInvestigationStore graphicsStore,
         ICorrelationInvestigationStore correlationStore, IMonitoringSessionStore monitoringStore,
-        DebloatManager? debloat = null)
+        DebloatManager? debloat = null, RecoveryCenter? recovery = null)
     {
         InitializeComponent();
         this.runner = runner;
@@ -91,6 +91,7 @@ public partial class MainWindow : Window
         InitializeMonitoring();
         InitializeTweaks();
         InitializeRepairs();
+        if (recovery is not null) RecoverySection.Initialize(recovery);
         if (debloat is not null) DebloatSection.Initialize(debloat);
         DebloatSection.BecameIdle += (_, _) =>
         {

@@ -108,7 +108,7 @@ public partial class App : System.Windows.Application
                 new EventInvestigationRunner(WindowsEventEvidenceCollectors.Create()),
                 performanceRunner, networkRunner, graphicsRunner, correlationRunner, monitoringRunner,
                 tweakManager, repairManager, store, store, store, store, store, store, store, store,
-                debloat: debloatManager);
+                debloat: debloatManager, recovery: new RecoveryCenter(store));
             MainWindow.Show();
         }
         catch (Exception error)
