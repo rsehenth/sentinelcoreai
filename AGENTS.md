@@ -1,5 +1,9 @@
 # SentinelCore AI — instruções do projeto
 
+> **Estado vigente de 04/11/2026:** T3 sintética implementada, conforme seção T3 ao final. Referências anteriores
+> a “T3 não autorizada” descrevem o limite anterior ao pedido específico desta sessão. Execução/inventário funcional
+> real continuam proibidos; nenhuma autorização de T4 foi concedida.
+
 ## Escopo e arquitetura
 
 - C#, .NET 10 LTS, WPF nativo e Windows x64. Não converter para web, Electron, Tauri ou Python.
@@ -65,7 +69,7 @@ Escritas apenas neste repositório, build/testes, temporários necessários e di
   fakes, adaptadores em memória e armazenamento temporário isolado. A validação real será concentrada em uma etapa
   futura única, após a conclusão dos módulos. Isso não autoriza declarar operações não validadas como seguras nem
   habilitar a execução real na distribuição.
-- A T3 (Debloat) e o Recovery Center completo continuam não autorizados. Não adicionar operações, abas vazias,
+- A execução real da T3 e o Recovery Center completo continuam não autorizados. Não adicionar operações, abas vazias,
   botões decorativos ou um segundo Safety Engine/backup/journal.
 - Preservar separação entre Diagnostic Engine (leitura) e Controlled Modification Engine da T2B (operações
   tipadas, autorizadas e auditáveis); diagnóstico e IA não recebem acesso implícito ao executor.
@@ -93,10 +97,41 @@ Escritas apenas neste repositório, build/testes, temporários necessários e di
 - Executáveis oficiais são resolvidos somente em `System32`, sem `PATH`; o volume de `chkdsk` vem de lista validada.
   Toda execução exige confirmação `AUTORIZAR REPARO <id> <hash12>` e autorização de uso único.
 - Persistência: intenção antes do efeito, `memory/repairs/<id>/intent.md` e `record.md` imutáveis,
-  `reports/repairs/<id>.md`, `memory/REPAIRS.md` e SQLite esquema 11 (migração aditiva 10→11). Intenção órfã é
+  `reports/repairs/<id>.md`, `memory/REPAIRS.md` e SQLite (migração R1 10→11; esquema atual 12). Intenção órfã é
   interrompida, nunca concluída; o Markdown é autoritativo.
 - Reparações não possuem rollback equivalente aos Tweaks. Não prometer reversão de SFC/DISM/CHKDSK, recuperação por
   ponto de restauração ou correção de todas as falhas. Não executar reparação automática após auditoria, correlação,
   monitoramento ou IA; não alterar Windows Update, Defender, firewall ou políticas.
 - A validação real das quatro ferramentas permanece pendente e exige etapa isolada com autorização específica,
   proteção e fronteira privilegiada própria. Não declarar a R1 pronta para uso real sem essa validação.
+
+## T3 — Debloat Manager — implementado exclusivamente em modo sintético
+
+- O pedido de 04/11/2026 autorizou a implementação T3 sintética. Essa autorização não permite inventário
+  funcional de pacotes reais, remoção, reinstalação, downloads de apps, provisionamento, outros usuários, WinGet,
+  PowerShell de aplicativos, VM, snapshot, elevação ou executores experimentais. Não iniciar T4 automaticamente.
+- Consultar `docs/validation/2026-11-04-debloat-manager-t3.md`, os pareceres A/B e
+  `docs/planning/TWEAKS_DEBLOAT_T0_REVALIDATION_2026-11-04.md`. A T0 schema 1 permanece histórica; o schema 2
+  bloqueia 153 apps NÃO VALIDADOS e nove ALTO para remoção real. Os riscos preliminares 86/67/9 não autorizam nada.
+- Catálogo embarcado `t3-debloat-synthetic-1`: 162 entradas (159 Appx/3 WinGet); somente cinco definições de
+  fixture compõem o subconjunto operacional sintético. Bloco de Notas exige revisão média adicional. Não aceitar
+  wildcard, correspondência parcial, identidade incompleta, dependência desconhecida ou pacote protegido/framework/recurso.
+- `SentinelCore.Infrastructure.Debloat` referencia apenas Domain e contém somente adaptadores sintéticos.
+  Não criar executor nativo/remover apps nesta fase. `RealDebloatBuildGate` recusa execução real incondicionalmente;
+  `SentinelCoreRealDebloat=false` é independente de Tweaks e Repairs e não possui opt-in operacional.
+- Reutilizar o Safety Engine existente com snapshot tipado da identidade/catálogo/cenário, token expirável de uso
+  único e confirmação específica. Não criar segundo motor de segurança, banco ou recuperação automática.
+- Persistência SQLite esquema **12**, migração aditiva 11→12; partição fixa `CreateDebloatJournal()` em
+  `memory/debloat/<id>/journal`, snapshot de metadados, `reports/debloat` e `memory/DEBLOAT.md`. Prefixo DBLT e
+  raiz Synthetic obrigatórios. Preservar journal, histórico Tweaks/R1/diagnóstico e arquivos corrompidos.
+- Snapshot de metadados não é backup de dados de app. Não expor RecoveryService/rollback/reinstalação como
+  recuperação completa. UI mostra origem sintética, risco preliminar/efetivo/real e avisos da mesma carga histórica.
+- Presença e elegibilidade são eixos explícitos: `DebloatPresence` (`NotVerified`, `PresentInSyntheticInventory`,
+  `AbsentInConsultedInventory`, `IdentityDivergent`, `Indeterminate`) e `DebloatEligibility`
+  (`SimulationAvailable`, `UnavailableForSimulation`, `ProtectedOrBlocked`). Entrada do catálogo sem observação
+  aparece como **“Não verificado — inventário real indisponível”** e nunca como ausente ou não instalada. A UI separa
+  **Catálogo de aplicativos** de **Inventário de aplicativos**.
+- Verificação registrada: 1247/1247 Debug e Release, builds 0/0 e 19 verificações WPF em host exclusivamente
+  sintético. Validação real permanece pendente e não é necessária para prosseguir no desenvolvimento sintético.
+  A **T3B** (inventário nativo somente leitura, sem consultas reais nos testes) e a **T3C** (remoção controlada,
+  mantida bloqueada) exigem nova autorização e não foram iniciadas.

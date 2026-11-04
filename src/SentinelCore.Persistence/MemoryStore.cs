@@ -55,9 +55,9 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
     public Task SaveAsync(AuditRecord audit, CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         Validate(audit);
-        EnsureNoMonitoringRecord(audit.Id);
         EnsureDirectories();
         using var storeLock = Lock();
+        EnsureNoMonitoringRecord(audit.Id);
         var otherKind = audit.Kind == AuditKind.Basic ? AuditKind.Full : AuditKind.Basic;
         if (File.Exists(RecordPath(audit with { Kind = otherKind })) ||
             File.Exists(HardwareRecordPath(audit.Id)) || File.Exists(EventRecordPath(audit.Id)) ||
@@ -130,9 +130,9 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
     {
         using var version = database.CreateCommand(); version.CommandText = "PRAGMA user_version";
         var schema = Convert.ToInt32(version.ExecuteScalar());
-        if (schema > 11)
+        if (schema > 12)
             throw new InvalidDataException("Banco de uma versão mais recente. Abra com uma versão compatível do aplicativo.");
-        if (schema == 11) return;
+        if (schema == 12) return;
         using var transaction = database.BeginTransaction();
         using var command = database.CreateCommand(); command.Transaction = transaction;
         if (schema < 1)
@@ -459,7 +459,42 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
                 """;
             command.ExecuteNonQuery();
         }
-        command.CommandText = "PRAGMA user_version = 11";
+        if (schema < 12)
+        {
+            command.CommandText = """
+                CREATE TABLE IF NOT EXISTS DebloatTransactions (
+                    Id TEXT PRIMARY KEY, PlanId TEXT NOT NULL, OperationId TEXT NOT NULL,
+                    OperationVersion INTEGER NOT NULL, CatalogVersion TEXT NOT NULL,
+                    PlanHash TEXT NOT NULL, State TEXT NOT NULL, CreatedUtc TEXT NOT NULL,
+                    UpdatedUtc TEXT NOT NULL, EventCount INTEGER NOT NULL, BackupCount INTEGER NOT NULL,
+                    Indeterminate INTEGER NOT NULL, Succeeded INTEGER NOT NULL);
+                CREATE TABLE IF NOT EXISTS DebloatTransactionEvents (
+                    TransactionId TEXT NOT NULL REFERENCES DebloatTransactions(Id) ON DELETE CASCADE,
+                    Sequence INTEGER NOT NULL, State TEXT NOT NULL, AtUtc TEXT NOT NULL,
+                    OperationId TEXT NOT NULL, OperationVersion INTEGER NOT NULL,
+                    CatalogVersion TEXT NOT NULL, PlanHash TEXT NOT NULL,
+                    Detail TEXT NULL, Error TEXT NULL, MarkdownPath TEXT NOT NULL UNIQUE,
+                    PayloadHash TEXT NOT NULL, PRIMARY KEY (TransactionId, Sequence));
+                CREATE TABLE IF NOT EXISTS DebloatTransactionBackups (
+                    TransactionId TEXT NOT NULL REFERENCES DebloatTransactions(Id) ON DELETE CASCADE,
+                    BackupId TEXT PRIMARY KEY, Sequence INTEGER NOT NULL, PlanHash TEXT NOT NULL,
+                    ContentHash TEXT NOT NULL, EntryCount INTEGER NOT NULL, Complete INTEGER NOT NULL,
+                    MarkdownPath TEXT NOT NULL UNIQUE, PayloadHash TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS DebloatRecoveries (
+                    RecoveryId TEXT PRIMARY KEY,
+                    TransactionId TEXT NOT NULL REFERENCES DebloatTransactions(Id) ON DELETE CASCADE,
+                    Outcome TEXT NOT NULL, FullyRecovered INTEGER NOT NULL,
+                    EffectMayHaveOccurred INTEGER NOT NULL, ConflictCount INTEGER NOT NULL,
+                    StartedUtc TEXT NOT NULL, CompletedUtc TEXT NOT NULL, PayloadHash TEXT NOT NULL);
+                CREATE INDEX IF NOT EXISTS IX_DebloatTransactions_Updated ON DebloatTransactions(UpdatedUtc DESC);
+                CREATE INDEX IF NOT EXISTS IX_DebloatTransactionEvents_Transaction
+                    ON DebloatTransactionEvents(TransactionId, Sequence);
+                CREATE INDEX IF NOT EXISTS IX_DebloatTransactionBackups_Transaction
+                    ON DebloatTransactionBackups(TransactionId, Sequence);
+                """;
+            command.ExecuteNonQuery();
+        }
+        command.CommandText = "PRAGMA user_version = 12";
         command.ExecuteNonQuery();
         transaction.Commit();
     }
@@ -589,9 +624,9 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
     public Task SaveSnapshotAsync(HardwareSnapshot snapshot, CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         ValidateHardware(snapshot);
-        EnsureNoMonitoringRecord(snapshot.Id);
         EnsureDirectories();
         using var storeLock = Lock();
+        EnsureNoMonitoringRecord(snapshot.Id);
         foreach (var kind in Enum.GetValues<AuditKind>())
             if (File.Exists(Path.Combine(root, "memory", "audits", kind.ToString().ToLowerInvariant(), $"{snapshot.Id:D}.md")))
                 throw new InvalidDataException("ID já existe em uma auditoria; histórico preservado.");
@@ -652,9 +687,9 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
         CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         ValidateInvestigation(investigation);
-        EnsureNoMonitoringRecord(investigation.Id);
         EnsureDirectories();
         using var storeLock = Lock();
+        EnsureNoMonitoringRecord(investigation.Id);
         foreach (var kind in Enum.GetValues<AuditKind>())
             if (File.Exists(Path.Combine(root, "memory", "audits", kind.ToString().ToLowerInvariant(), $"{investigation.Id:D}.md")))
                 throw new InvalidDataException("ID já existe em uma auditoria; histórico preservado.");
@@ -718,9 +753,9 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
         CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         ValidateSession(session);
-        EnsureNoMonitoringRecord(session.Id);
         EnsureDirectories();
         using var storeLock = Lock();
+        EnsureNoMonitoringRecord(session.Id);
         foreach (var kind in Enum.GetValues<AuditKind>())
             if (File.Exists(Path.Combine(root, "memory", "audits", kind.ToString().ToLowerInvariant(), $"{session.Id:D}.md")))
                 throw new InvalidDataException("ID já existe em uma auditoria; histórico preservado.");
@@ -1106,9 +1141,9 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
         CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         ValidateNetworkSession(session);
-        EnsureNoMonitoringRecord(session.Id);
         EnsureDirectories();
         using var storeLock = Lock();
+        EnsureNoMonitoringRecord(session.Id);
         foreach (var kind in Enum.GetValues<AuditKind>())
             if (File.Exists(Path.Combine(root, "memory", "audits", kind.ToString().ToLowerInvariant(), $"{session.Id:D}.md")))
                 throw new InvalidDataException("ID já existe em uma auditoria; histórico preservado.");
@@ -1513,9 +1548,9 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
         CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         ValidateGraphicsInvestigation(investigation);
-        EnsureNoMonitoringRecord(investigation.Id);
         EnsureDirectories();
         using var storeLock = Lock();
+        EnsureNoMonitoringRecord(investigation.Id);
         foreach (var kind in Enum.GetValues<AuditKind>())
             if (File.Exists(Path.Combine(root, "memory", "audits", kind.ToString().ToLowerInvariant(),
                     $"{investigation.Id:D}.md")))
@@ -2410,9 +2445,9 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
         CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         ValidateCorrelationInvestigation(investigation);
-        EnsureNoMonitoringRecord(investigation.Id);
         EnsureDirectories();
         using var storeLock = Lock();
+        EnsureNoMonitoringRecord(investigation.Id);
         foreach (var kind in Enum.GetValues<AuditKind>())
             if (File.Exists(Path.Combine(root, "memory", "audits", kind.ToString().ToLowerInvariant(),
                     $"{investigation.Id:D}.md")))
@@ -3528,6 +3563,10 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
 
     private void EnsureNoForeignRecord(Guid id)
     {
+        var otherPartition = debloatJournal ? "transactions" : "debloat";
+        if (Directory.Exists(Path.Combine(root, "memory", otherPartition, $"{id:D}")) ||
+            Directory.Exists(RepairDirectory(id)))
+            throw new InvalidDataException("ID já existe em outra partição ou reparo; histórico preservado.");
         foreach (var kind in Enum.GetValues<AuditKind>())
             if (File.Exists(Path.Combine(root, "memory", "audits", kind.ToString().ToLowerInvariant(),
                     $"{id:D}.md")))
@@ -3542,7 +3581,7 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
     private void EnsureNoMonitoringRecord(Guid id)
     {
         if (File.Exists(MonitoringRecordPath(id)) || Directory.Exists(MonitoringSegmentDirectory(id)) ||
-            Directory.Exists(TransactionDirectory(id)))
+            HasModificationHistory(id))
             throw new InvalidDataException("ID já existe em uma sessão de monitoramento ou transação; histórico preservado.");
     }
 
@@ -3555,9 +3594,14 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
         if (File.Exists(HardwareRecordPath(id)) || File.Exists(EventRecordPath(id)) ||
             File.Exists(PerformanceRecordPath(id)) || File.Exists(NetworkRecordPath(id)) ||
             File.Exists(GraphicsRecordPath(id)) || File.Exists(CorrelationRecordPath(id)) ||
-            Directory.Exists(TransactionDirectory(id)))
+            HasModificationHistory(id))
             throw new InvalidDataException("ID já existe em outro histórico; histórico preservado.");
     }
+
+    private bool HasModificationHistory(Guid id) =>
+        Directory.Exists(Path.Combine(root, "memory", "transactions", $"{id:D}")) ||
+        Directory.Exists(Path.Combine(root, "memory", "debloat", $"{id:D}")) ||
+        Directory.Exists(RepairDirectory(id));
 
     private static string CanonicalJson(MonitoringSession session) =>
         JsonSerializer.Serialize(session, AuditJson.Options).Replace("\r\n", "\n");

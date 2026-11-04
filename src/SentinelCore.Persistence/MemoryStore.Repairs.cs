@@ -106,7 +106,9 @@ public sealed partial class MemoryStore
             File.Exists(HardwareRecordPath(id)) || File.Exists(EventRecordPath(id)) ||
             File.Exists(PerformanceRecordPath(id)) || File.Exists(NetworkRecordPath(id)) ||
             File.Exists(GraphicsRecordPath(id)) || File.Exists(CorrelationRecordPath(id)) ||
-            File.Exists(MonitoringRecordPath(id)) || Directory.Exists(TransactionDirectory(id)))
+            File.Exists(MonitoringRecordPath(id)) || Directory.Exists(MonitoringSegmentDirectory(id)) ||
+            Directory.Exists(Path.Combine(root, "memory", "transactions", $"{id:D}")) ||
+            Directory.Exists(Path.Combine(root, "memory", "debloat", $"{id:D}")))
             throw new InvalidDataException("ID já existe em outro histórico; histórico preservado.");
     }
 
@@ -133,6 +135,7 @@ public sealed partial class MemoryStore
                 var intentPath = Path.Combine(directory, "intent.md");
                 try
                 {
+                    EnsureNoOtherHistoryForRepair(id);
                     if (File.Exists(recordPath))
                     {
                         if (!File.Exists(intentPath))

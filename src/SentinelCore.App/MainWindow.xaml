@@ -1,6 +1,7 @@
 <Window x:Class="SentinelCore.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:SentinelCore.App"
         Title="SentinelCore AI" Width="1320" Height="860" MinWidth="1120" MinHeight="720"
         Icon="Assets/app.ico"
         Background="{StaticResource Bg}" Foreground="{StaticResource Text}"
@@ -41,7 +42,7 @@
                     <ListBoxItem Content="Correlação" Tag="{StaticResource IconCompare}" ToolTip="Correlação de evidências históricas (Ctrl+8)"/>
                     <ListBoxItem Content="Histórico" Tag="{StaticResource IconHistory}" ToolTip="Auditorias salvas neste computador (Ctrl+9)"/>
                     <ListBoxItem Content="Monitoramento" Tag="{StaticResource IconPerformance}" ToolTip="Sessões de observação autorizadas e registro de incidentes"/>
-                    <ListBoxItem Content="Personalização" Tag="{StaticResource IconShieldCheck}" ToolTip="Tweaks controlados em HKCU, com backup e recuperação"/>
+                    <ListBoxItem Content="Personalização &amp; Debloat" Tag="{StaticResource IconShieldCheck}" ToolTip="Tweaks HKCU e Debloat em simulação, com histórico separado"/>
                     <ListBoxItem Content="Reparos do Windows" Tag="{StaticResource IconShieldCheck}" ToolTip="Ferramentas oficiais de reparo do Windows em modo de simulação"/>
                 </ListBox>
 
@@ -1974,7 +1975,7 @@
                 </TabItem>
 
                 <!-- ───── Personalização & Debloat (T2A) ───── -->
-                <TabItem x:Name="TweaksTab" Header="Personalização">
+                <TabItem x:Name="TweaksTab" Header="Personalização &amp; Debloat">
                     <ScrollViewer x:Name="TweaksScroll" VerticalScrollBarVisibility="Auto" Focusable="False">
                         <Grid Margin="32,28,32,24">
                             <Grid.RowDefinitions>
@@ -1997,6 +1998,9 @@
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                         <TextBlock Text="Personalização &amp; Debloat" Style="{StaticResource PageTitle}"/>
                                         <TextBlock x:Name="TweaksSubtitle" Text="Tweaks controlados no perfil atual, com plano, backup e recuperação." Style="{StaticResource PageSubtitle}"/>
+                                        <Button Content="Abrir Debloat simulado" HorizontalAlignment="Left" Margin="0,8,0,0"
+                                                Style="{StaticResource GhostButton}" Click="OnOpenDebloat"
+                                                AutomationProperties.AutomationId="OpenDebloatSection"/>
                                     </StackPanel>
                                 </Grid>
                                 <Button x:Name="TweaksRefreshButton" Grid.Column="1" Content="Atualizar estado" Tag="{StaticResource IconRefresh}"
@@ -2164,8 +2168,11 @@
                                 </Grid>
                             </Border>
 
-                            <TextBlock Grid.Row="6" Style="{StaticResource FootNote}" Margin="0,12,0,0"
-                                       Text="T2B: operações HKCU do usuário atual, sem elevação e sem reiniciar o Explorer. O modo real controlado permanece desabilitado na distribuição; a validação real é pendente e não é executada no desenvolvimento. Escrita no Registro não é declarada sucesso visual sem verificação."/>
+                            <StackPanel Grid.Row="6">
+                                <TextBlock Style="{StaticResource FootNote}" Margin="0,12,0,0"
+                                           Text="T2B: operações HKCU do usuário atual, sem elevação e sem reiniciar o Explorer. O modo real controlado permanece desabilitado na distribuição; a validação real é pendente e não é executada no desenvolvimento. Escrita no Registro não é declarada sucesso visual sem verificação."/>
+                                <local:DebloatView x:Name="DebloatSection" Margin="0,28,0,0"/>
+                            </StackPanel>
                         </Grid>
                     </ScrollViewer>
                 </TabItem>

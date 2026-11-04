@@ -40,6 +40,9 @@ public partial class MainWindow : Window
     private AuditRecord? unsaved;
     private bool busy;
     private bool closingAfterSave;
+    private bool debloatClosingAfterSave;
+
+    private void OnOpenDebloat(object sender, RoutedEventArgs e) => DebloatSection.BringIntoView();
     private IReadOnlyList<HardwareSnapshot> hardwareSnapshots = [];
     private HardwareSnapshot? selectedHardware;
     private HardwareSnapshot? unsavedHardware;
@@ -57,7 +60,8 @@ public partial class MainWindow : Window
         IAuditStore store, IHardwareSnapshotStore hardwareStore,
         IEventInvestigationStore eventStore, IPerformanceSessionStore performanceStore,
         INetworkSessionStore networkStore, IGraphicsInvestigationStore graphicsStore,
-        ICorrelationInvestigationStore correlationStore, IMonitoringSessionStore monitoringStore)
+        ICorrelationInvestigationStore correlationStore, IMonitoringSessionStore monitoringStore,
+        DebloatManager? debloat = null)
     {
         InitializeComponent();
         this.runner = runner;
@@ -87,6 +91,13 @@ public partial class MainWindow : Window
         InitializeMonitoring();
         InitializeTweaks();
         InitializeRepairs();
+        if (debloat is not null) DebloatSection.Initialize(debloat);
+        DebloatSection.BecameIdle += (_, _) =>
+        {
+            if (!debloatClosingAfterSave) return;
+            debloatClosingAfterSave = false;
+            Dispatcher.BeginInvoke(new Action(Close));
+        };
         SetHardwareCategories(null);
         UpdateHardwareButtons();
         freshnessTimer.Tick += (_, _) => UpdateSummary();
@@ -347,6 +358,13 @@ public partial class MainWindow : Window
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        if (DebloatSection.IsBusy)
+        {
+            e.Cancel = true;
+            debloatClosingAfterSave = true;
+            DebloatSection.Cancel();
+            return;
+        }
         if (tweaksBusy)
         {
             e.Cancel = true;

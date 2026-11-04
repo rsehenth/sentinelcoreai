@@ -21,7 +21,7 @@ public sealed class RepairPersistenceTests
         Assert.True(File.Exists(Path.Combine(directory, "record.md")));
         Assert.True(File.Exists(scope.Store.GetRepairReportPath(record.Id)));
         Assert.True(File.Exists(Path.Combine(scope.Root, "memory", "REPAIRS.md")));
-        Assert.Equal(11, ReadUserVersion(scope.Root));
+        Assert.Equal(12, ReadUserVersion(scope.Root));
         Assert.Equal(1, Scalar(scope.Root, "SELECT COUNT(*) FROM Repairs"));
         Assert.Equal(5, Scalar(scope.Root, "SELECT COUNT(*) FROM RepairSteps"));
 
@@ -112,7 +112,7 @@ public sealed class RepairPersistenceTests
         Assert.Empty(history.Records);
         Assert.Contains(history.Warnings, warning => warning.Contains("inválido", StringComparison.OrdinalIgnoreCase));
         Assert.Equal("registro corrompido", await File.ReadAllTextAsync(recordPath));
-        Assert.Equal(11, ReadUserVersion(scope.Root));
+        Assert.Equal(12, ReadUserVersion(scope.Root));
     }
 
     [Fact]
@@ -134,7 +134,7 @@ public sealed class RepairPersistenceTests
         var copy = Assert.Single(history.Records);
         Assert.Equal(record.Id, copy.Id);
         Assert.Equal(RepairResultClassification.NoCorruptionDetected, copy.Result);
-        Assert.Equal(11, ReadUserVersion(scope.Root));
+        Assert.Equal(12, ReadUserVersion(scope.Root));
         Assert.Equal(1, Scalar(scope.Root, "SELECT COUNT(*) FROM Repairs"));
     }
 
@@ -160,7 +160,7 @@ public sealed class RepairPersistenceTests
 
             Assert.Single(audits.Audits);
             Assert.Empty(repairs.Records);
-            Assert.Equal(11, ReadUserVersion(root));
+            Assert.Equal(12, ReadUserVersion(root));
             Assert.Equal(1, Scalar(root, "SELECT COUNT(*) FROM Audits"));
             Assert.Equal(0, Scalar(root, "SELECT COUNT(*) FROM Repairs"));
         }

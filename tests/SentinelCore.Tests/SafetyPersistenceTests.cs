@@ -212,7 +212,7 @@ public sealed class SafetyPersistenceTests
 
         Assert.Single(snapshot.Audits);
         Assert.Empty(journal.Transactions);
-        Assert.Equal(11, ReadUserVersion(scope.Root));
+        Assert.Equal(12, ReadUserVersion(scope.Root));
         using var check = new SqliteConnection(
             $"Data Source={Path.Combine(scope.Root, "data", "sentinelcore.db")};Pooling=False");
         check.Open();

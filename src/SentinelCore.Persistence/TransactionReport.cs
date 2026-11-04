@@ -5,10 +5,11 @@ namespace SentinelCore.Persistence;
 
 public static class TransactionReport
 {
-    public static string RenderEvent(TransactionEventRecord entry)
+    public static string RenderEvent(TransactionEventRecord entry, bool syntheticDebloat = false)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("# Evento de transação");
+        builder.AppendLine(syntheticDebloat ? "# Evento Debloat — SYNTHETIC" : "# Evento de transação");
+        if (syntheticDebloat) AppendDebloatNotice(builder);
         builder.AppendLine();
         builder.AppendLine($"- Transação: `{entry.TransactionId:D}`");
         builder.AppendLine($"- Sequência: {entry.Sequence}");
@@ -35,10 +36,11 @@ public static class TransactionReport
         return builder.ToString();
     }
 
-    public static string RenderBackup(BackupRecord backup)
+    public static string RenderBackup(BackupRecord backup, bool syntheticDebloat = false)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("# Backup do estado observado");
+        builder.AppendLine(syntheticDebloat ? "# Snapshot de metadados Debloat — SYNTHETIC" : "# Backup do estado observado");
+        if (syntheticDebloat) AppendDebloatNotice(builder);
         builder.AppendLine();
         builder.AppendLine($"- Backup: `{backup.BackupId:D}`");
         builder.AppendLine($"- Transação: `{backup.TransactionId:D}`");
@@ -47,20 +49,23 @@ public static class TransactionReport
         builder.AppendLine($"- Sequência: {backup.Sequence}");
         builder.AppendLine($"- Horário UTC: {backup.CreatedAtUtc:O}");
         builder.AppendLine($"- Hash do conteúdo: `{backup.ContentHash}`");
-        builder.AppendLine($"- Completo para reversão: {(backup.IsComplete ? "sim" : "não")}");
+        builder.AppendLine(syntheticDebloat
+            ? $"- Metadados completos: {(backup.IsComplete ? "sim" : "não")}"
+            : $"- Completo para reversão: {(backup.IsComplete ? "sim" : "não")}");
         AppendBackup(builder, backup);
         if (backup.Limitations.Count > 0) AppendLimitations(builder, backup.Limitations);
         return builder.ToString();
     }
 
-    public static string Render(TransactionRecord transaction)
+    public static string Render(TransactionRecord transaction, bool syntheticDebloat = false)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("# Transação de modificação controlada");
+        builder.AppendLine(syntheticDebloat ? "# Debloat — SYNTHETIC" : "# Transação de modificação controlada");
         builder.AppendLine();
         var targetsCurrentUser = transaction.Plan?.Changes.Any(change =>
             string.Equals(change.Target.Root, OperationTargetRoots.CurrentUser, StringComparison.Ordinal)) == true;
-        builder.AppendLine(targetsCurrentUser
+        if (syntheticDebloat) AppendDebloatNotice(builder);
+        else builder.AppendLine(targetsCurrentUser
             ? "Operação controlada em HKCU do usuário atual. Estado observado, backup, autorização, " +
               "execução e verificação permanecem registrados abaixo."
             : "Nenhuma alteração real do Windows foi executada. Este registro descreve uma operação sintética da T1.");
@@ -91,21 +96,34 @@ public static class TransactionReport
         return builder.ToString();
     }
 
-    public static string RenderIndex(IReadOnlyList<TransactionRecord> transactions)
+    public static string RenderIndex(IReadOnlyList<TransactionRecord> transactions, bool syntheticDebloat = false)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("# RECOVERY — transações e recuperações");
+        builder.AppendLine(syntheticDebloat ? "# DEBLOAT — SYNTHETIC" : "# RECOVERY — transações e recuperações");
         builder.AppendLine();
-        builder.AppendLine("Índice reconstruível a partir dos registros imutáveis em `memory/transactions`.");
+        builder.AppendLine(syntheticDebloat
+            ? "Índice reconstruível a partir dos registros imutáveis em `memory/debloat`."
+            : "Índice reconstruível a partir dos registros imutáveis em `memory/transactions`.");
+        if (syntheticDebloat) AppendDebloatNotice(builder);
         builder.AppendLine();
-        builder.AppendLine("| Transação | Operação | Estado | Sucesso | Indeterminado | Atualizado UTC | Recuperação |");
-        builder.AppendLine("|---|---|---|---|---|---|---|");
+        builder.AppendLine(syntheticDebloat
+            ? "| Transação | Operação | Estado | Sucesso sintético | Indeterminado | Atualizado UTC |"
+            : "| Transação | Operação | Estado | Sucesso | Indeterminado | Atualizado UTC | Recuperação |");
+        builder.AppendLine(syntheticDebloat ? "|---|---|---|---|---|---|" : "|---|---|---|---|---|---|---|");
         foreach (var transaction in transactions.OrderByDescending(item => item.UpdatedAtUtc))
             builder.AppendLine($"| `{transaction.TransactionId:D}` | {Cell(transaction.OperationId)} | " +
                 $"{transaction.State} | {(transaction.Succeeded ? "sim" : "não")} | " +
-                $"{(transaction.IsIndeterminate ? "sim" : "não")} | {transaction.UpdatedAtUtc:O} | " +
-                $"{(transaction.Recovery is null ? "não tentada" : transaction.Recovery.Outcome.ToString())} |");
+                $"{(transaction.IsIndeterminate ? "sim" : "não")} | {transaction.UpdatedAtUtc:O} |" +
+                (syntheticDebloat ? "" : $" {(transaction.Recovery is null ? "não tentada" : transaction.Recovery.Outcome.ToString())} |"));
         return builder.ToString();
+    }
+
+    private static void AppendDebloatNotice(StringBuilder builder)
+    {
+        builder.AppendLine();
+        builder.AppendLine("SYNTHETIC: fixtures locais; nenhum pacote real foi consultado, removido ou reinstalado.");
+        builder.AppendLine("Snapshot de metadados não é backup dos dados do aplicativo. Não oferece rollback, " +
+            "reinstalação nem recuperação de dados. Validação real pendente.");
     }
 
     private static void AppendPlan(StringBuilder builder, OperationPlan plan)

@@ -7,8 +7,21 @@ namespace SentinelCore.Persistence;
 
 public sealed partial class MemoryStore
 {
+    private readonly bool debloatJournal;
+    private string TransactionPartition => debloatJournal ? "debloat" : "transactions";
+    // These identifiers are closed constants, never supplied by payloads or callers.
+    private string TransactionsTable => debloatJournal ? "DebloatTransactions" : "Transactions";
+    private string TransactionEventsTable => debloatJournal ? "DebloatTransactionEvents" : "TransactionEvents";
+    private string TransactionBackupsTable => debloatJournal ? "DebloatTransactionBackups" : "TransactionBackups";
+    private string RecoveriesTable => debloatJournal ? "DebloatRecoveries" : "Recoveries";
+
+    private MemoryStore(string dataRoot, bool debloatJournal) : this(dataRoot) =>
+        this.debloatJournal = debloatJournal;
+
+    public ITransactionJournalStore CreateDebloatJournal() => new MemoryStore(root, debloatJournal: true);
+
     private string TransactionDirectory(Guid id) =>
-        Path.Combine(root, "memory", "transactions", $"{id:D}");
+        Path.Combine(root, "memory", TransactionPartition, $"{id:D}");
     private string TransactionJournalDirectory(Guid id) =>
         Path.Combine(TransactionDirectory(id), "journal");
     private string TransactionEventPath(Guid id, int sequence, TransactionState state) =>
@@ -16,7 +29,7 @@ public sealed partial class MemoryStore
     private string TransactionBackupPath(Guid id, int sequence) =>
         Path.Combine(TransactionDirectory(id), $"backup-{sequence:D2}.md");
     public string GetTransactionReportPath(Guid transactionId) =>
-        Path.Combine(root, "reports", "transactions", $"{transactionId:D}.md");
+        Path.Combine(root, "reports", TransactionPartition, $"{transactionId:D}.md");
 
     public Task<TransactionEventRecord> AppendEventAsync(TransactionEventRecord entry,
         CancellationToken cancellationToken = default) => Task.Run(() =>
@@ -70,7 +83,7 @@ public sealed partial class MemoryStore
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        var document = RecordEnvelope.Wrap(TransactionReport.RenderEvent(entry), json);
+        var document = RecordEnvelope.Wrap(TransactionReport.RenderEvent(entry, debloatJournal), json);
         if (Encoding.UTF8.GetByteCount(document) > RecordEnvelope.MaximumRecordBytes)
             throw new InvalidDataException("Evento de transação excede 4 MiB.");
         RecordEnvelope.AtomicWrite(TransactionEventPath(entry.TransactionId, entry.Sequence, entry.State),
@@ -99,7 +112,7 @@ public sealed partial class MemoryStore
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        var document = RecordEnvelope.Wrap(TransactionReport.RenderBackup(backup), json);
+        var document = RecordEnvelope.Wrap(TransactionReport.RenderBackup(backup, debloatJournal), json);
         if (Encoding.UTF8.GetByteCount(document) > RecordEnvelope.MaximumRecordBytes)
             throw new InvalidDataException("Backup de transação excede 4 MiB.");
         RecordEnvelope.AtomicWrite(path, document, overwrite: false);
@@ -128,7 +141,7 @@ public sealed partial class MemoryStore
         var byId = records.ToDictionary(item => item.TransactionId);
         var ordered = new List<TransactionRecord>();
         using var query = database.CreateCommand();
-        query.CommandText = "SELECT Id FROM Transactions ORDER BY UpdatedUtc DESC, Id";
+        query.CommandText = $"SELECT Id FROM {TransactionsTable} ORDER BY UpdatedUtc DESC, Id";
         using var reader = query.ExecuteReader();
         while (reader.Read())
             if (byId.TryGetValue(Guid.Parse(reader.GetString(0)), out var record)) ordered.Add(record);
@@ -167,7 +180,7 @@ public sealed partial class MemoryStore
         var records = new List<TransactionRecord>();
         var eventRows = new List<(Guid TransactionId, TransactionEventRecord Event, string Path, string Hash)>();
         var backupRows = new List<(Guid TransactionId, BackupRecord Backup, string Path, string Hash)>();
-        var rootDirectory = Path.Combine(this.root, "memory", "transactions");
+        var rootDirectory = Path.Combine(this.root, "memory", TransactionPartition);
 
         if (Directory.Exists(rootDirectory))
         {
@@ -183,6 +196,12 @@ public sealed partial class MemoryStore
 
                 var journalDirectory = Path.Combine(directory, "journal");
                 if (!Directory.Exists(journalDirectory)) continue;
+                try { EnsureNoForeignRecord(transactionId); }
+                catch (InvalidDataException error)
+                {
+                    warnings.Add($"Transação {transactionId:D} com ID em outro histórico: {error.Message}");
+                    continue;
+                }
                 var events = new List<(TransactionEventRecord Event, string Path, string Hash)>();
                 var invalid = false;
                 foreach (var path in Directory.EnumerateFiles(journalDirectory, "*.md",
@@ -308,13 +327,13 @@ public sealed partial class MemoryStore
         using var transaction = database.BeginTransaction();
         using var clear = database.CreateCommand();
         clear.Transaction = transaction;
-        clear.CommandText = "DELETE FROM Transactions";
+        clear.CommandText = $"DELETE FROM {TransactionsTable}";
         clear.ExecuteNonQuery();
 
         using var insert = database.CreateCommand();
         insert.Transaction = transaction;
-        insert.CommandText = """
-            INSERT INTO Transactions (Id, PlanId, OperationId, OperationVersion, CatalogVersion, PlanHash,
+        insert.CommandText = $"""
+            INSERT INTO {TransactionsTable} (Id, PlanId, OperationId, OperationVersion, CatalogVersion, PlanHash,
                 State, CreatedUtc, UpdatedUtc, EventCount, BackupCount, Indeterminate, Succeeded)
             VALUES ($id, $plan, $operation, $version, $catalog, $hash, $state, $created, $updated,
                 $events, $backups, $indeterminate, $succeeded)
@@ -340,8 +359,8 @@ public sealed partial class MemoryStore
 
         using var insertEvent = database.CreateCommand();
         insertEvent.Transaction = transaction;
-        insertEvent.CommandText = """
-            INSERT INTO TransactionEvents (TransactionId, Sequence, State, AtUtc, OperationId,
+        insertEvent.CommandText = $"""
+            INSERT INTO {TransactionEventsTable} (TransactionId, Sequence, State, AtUtc, OperationId,
                 OperationVersion, CatalogVersion, PlanHash, Detail, Error, MarkdownPath, PayloadHash)
             VALUES ($transaction, $sequence, $state, $at, $operation, $version, $catalog, $hash,
                 $detail, $error, $path, $payload)
@@ -366,8 +385,8 @@ public sealed partial class MemoryStore
 
         using var insertBackup = database.CreateCommand();
         insertBackup.Transaction = transaction;
-        insertBackup.CommandText = """
-            INSERT INTO TransactionBackups (TransactionId, BackupId, Sequence, PlanHash, ContentHash,
+        insertBackup.CommandText = $"""
+            INSERT INTO {TransactionBackupsTable} (TransactionId, BackupId, Sequence, PlanHash, ContentHash,
                 EntryCount, Complete, MarkdownPath, PayloadHash)
             VALUES ($transaction, $backup, $sequence, $plan, $content, $entries, $complete, $path, $payload)
             """;
@@ -388,8 +407,8 @@ public sealed partial class MemoryStore
 
         using var insertRecovery = database.CreateCommand();
         insertRecovery.Transaction = transaction;
-        insertRecovery.CommandText = """
-            INSERT OR REPLACE INTO Recoveries (RecoveryId, TransactionId, Outcome, FullyRecovered,
+        insertRecovery.CommandText = $"""
+            INSERT OR REPLACE INTO {RecoveriesTable} (RecoveryId, TransactionId, Outcome, FullyRecovered,
                 EffectMayHaveOccurred, ConflictCount, StartedUtc, CompletedUtc, PayloadHash)
             VALUES ($recovery, $transaction, $outcome, $fully, $effect, $conflicts, $started, $completed, $hash)
             """;
@@ -416,12 +435,12 @@ public sealed partial class MemoryStore
 
     private void WriteTransactionProjections(IReadOnlyList<TransactionRecord> records)
     {
-        Directory.CreateDirectory(Path.Combine(root, "reports", "transactions"));
+        Directory.CreateDirectory(Path.Combine(root, "reports", TransactionPartition));
         foreach (var record in records)
             RecordEnvelope.AtomicWrite(GetTransactionReportPath(record.TransactionId),
-                TransactionReport.Render(record), overwrite: true);
-        RecordEnvelope.AtomicWrite(Path.Combine(root, "memory", "RECOVERY.md"),
-            TransactionReport.RenderIndex(records), overwrite: true);
+                TransactionReport.Render(record, debloatJournal), overwrite: true);
+        RecordEnvelope.AtomicWrite(Path.Combine(root, "memory", debloatJournal ? "DEBLOAT.md" : "RECOVERY.md"),
+            TransactionReport.RenderIndex(records, debloatJournal), overwrite: true);
     }
 
     private string RelativePath(string path) =>
@@ -439,12 +458,12 @@ public sealed partial class MemoryStore
         var full = Path.IsPathFullyQualified(path)
             ? Path.GetFullPath(path)
             : Path.GetFullPath(Path.Combine(rootFull, path));
-        if (string.Equals(full, rootFull, StringComparison.OrdinalIgnoreCase) ||
-            full.StartsWith(basePath, StringComparison.OrdinalIgnoreCase))
+        var partitionBase = Path.Combine(rootFull, "memory", TransactionPartition) + Path.DirectorySeparatorChar;
+        if (full.StartsWith(partitionBase, StringComparison.OrdinalIgnoreCase))
             return full;
 
         var normalized = full.Replace('\\', '/');
-        const string marker = "/memory/transactions/";
+        var marker = $"/memory/{TransactionPartition}/";
         var index = normalized.LastIndexOf(marker, StringComparison.OrdinalIgnoreCase);
         if (index >= 0)
         {
@@ -456,7 +475,7 @@ public sealed partial class MemoryStore
         throw new InvalidDataException("Caminho de artefato fora da raiz de dados; recusado.");
     }
 
-    private static (TransactionEventRecord Event, string PayloadHash) ReadTransactionEvent(string path)
+    private (TransactionEventRecord Event, string PayloadHash) ReadTransactionEvent(string path)
     {
         if (new FileInfo(path).Length > RecordEnvelope.MaximumRecordBytes)
             throw new InvalidDataException("Evento de transação excede 4 MiB.");
@@ -468,7 +487,7 @@ public sealed partial class MemoryStore
         return (entry, RecordEnvelope.Hash(json));
     }
 
-    private static (BackupRecord Backup, string PayloadHash) ReadTransactionBackup(string path)
+    private (BackupRecord Backup, string PayloadHash) ReadTransactionBackup(string path)
     {
         if (new FileInfo(path).Length > RecordEnvelope.MaximumRecordBytes)
             throw new InvalidDataException("Backup de transação excede 4 MiB.");
@@ -480,7 +499,7 @@ public sealed partial class MemoryStore
         return (backup, RecordEnvelope.Hash(json));
     }
 
-    private static void ValidateEvent(TransactionEventRecord entry)
+    private void ValidateEvent(TransactionEventRecord entry)
     {
         if (entry.FormatVersion != 1)
             throw new InvalidDataException("Formato de evento de transação não suportado.");
@@ -490,6 +509,15 @@ public sealed partial class MemoryStore
             throw new InvalidDataException("Sequência de evento inválida.");
         if (string.IsNullOrWhiteSpace(entry.OperationId) || entry.OperationVersion <= 0)
             throw new InvalidDataException("Evento sem operação e versão válidas.");
+        ValidateJournalOperation(entry.OperationId);
+        if (debloatJournal && (entry.Recovery is not null || entry.State is
+                TransactionState.RecoveryRequested or TransactionState.RecoveryStarted or
+                TransactionState.RecoveryCompleted or TransactionState.RecoveryFailed))
+            throw new InvalidDataException("Debloat sintético não admite recuperação ou rollback.");
+        if (debloatJournal && (entry.Results?.Any(result => !IsSyntheticIdentity(result.TargetIdentity)) == true ||
+            entry.Verification?.Steps.Any(step => !IsSyntheticIdentity(step.TargetIdentity)) == true))
+            throw new InvalidDataException("Resultados Debloat admitem somente alvos Synthetic.");
+        if (entry.Backup is not null) ValidateBackupRecord(entry.Backup);
         if (string.IsNullOrWhiteSpace(entry.CatalogVersion) || string.IsNullOrWhiteSpace(entry.PlanHash))
             throw new InvalidDataException("Evento sem catálogo ou hash de plano.");
         if (entry.State == TransactionState.Planned && entry.Plan is null)
@@ -525,6 +553,11 @@ public sealed partial class MemoryStore
         }
         if (entry.Plan is { } plan)
         {
+            if (debloatJournal && plan.Changes.Any(change =>
+                    change.Target.Root != OperationTargetRoots.Synthetic ||
+                    !IsSyntheticIdentity(change.TargetIdentity) ||
+                    change.TargetIdentity != change.Target.Identity))
+                throw new InvalidDataException("Debloat admite somente alvos Synthetic.");
             if (plan.OperationId != entry.OperationId || plan.OperationVersion != entry.OperationVersion ||
                 !string.Equals(plan.CatalogVersion, entry.CatalogVersion, StringComparison.Ordinal) ||
                 !string.Equals(plan.PlanHash, entry.PlanHash, StringComparison.Ordinal))
@@ -536,12 +569,13 @@ public sealed partial class MemoryStore
         }
     }
 
-    private static void ValidateBackupRecord(BackupRecord backup)
+    private void ValidateBackupRecord(BackupRecord backup)
     {
         if (backup.BackupId == Guid.Empty || backup.TransactionId == Guid.Empty || backup.PlanId == Guid.Empty)
             throw new InvalidDataException("Backup sem identidade completa.");
         if (string.IsNullOrWhiteSpace(backup.OperationId) || backup.OperationVersion <= 0)
             throw new InvalidDataException("Backup sem operação válida.");
+        ValidateJournalOperation(backup.OperationId);
         if (string.IsNullOrWhiteSpace(backup.PlanHash) || string.IsNullOrWhiteSpace(backup.ContentHash))
             throw new InvalidDataException("Backup sem hash de plano ou conteúdo.");
         if (backup.Sequence <= 0)
@@ -555,6 +589,8 @@ public sealed partial class MemoryStore
         {
             if (string.IsNullOrWhiteSpace(entry.TargetIdentity))
                 throw new InvalidDataException("Backup com alvo sem identidade.");
+            if (debloatJournal && !IsSyntheticIdentity(entry.TargetIdentity))
+                throw new InvalidDataException("Snapshot Debloat admite somente alvos Synthetic.");
             if (!string.Equals(entry.Checksum, SafetyHashing.EntryChecksum(entry), StringComparison.Ordinal))
                 throw new InvalidDataException($"Checksum inválido para {entry.TargetIdentity}.");
         }
@@ -562,6 +598,15 @@ public sealed partial class MemoryStore
                 StringComparison.Ordinal))
             throw new InvalidDataException("Hash de conteúdo do backup não confere.");
     }
+
+    private void ValidateJournalOperation(string operationId)
+    {
+        if (operationId.StartsWith("DBLT-", StringComparison.Ordinal) != debloatJournal)
+            throw new InvalidDataException("Operação não pertence à partição de journal selecionada.");
+    }
+
+    private static bool IsSyntheticIdentity(string identity) =>
+        identity.StartsWith(OperationTargetRoots.Synthetic + "\\", StringComparison.Ordinal);
 
     private static string CanonicalJson(TransactionEventRecord entry) =>
         JsonSerializer.Serialize(entry, AuditJson.Options).Replace("\r\n", "\n");

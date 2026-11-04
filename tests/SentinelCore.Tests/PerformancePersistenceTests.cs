@@ -28,7 +28,7 @@ public sealed class PerformancePersistenceTests : IDisposable
         Assert.Null(copy.Coverage);
         Assert.Equal(PerformanceExecutionStatus.Completed,
             PerformanceCoverage.FromLegacy(copy).Execution);
-        Assert.Equal(11, ReadUserVersion());
+        Assert.Equal(12, ReadUserVersion());
     }
 
     [Fact]
@@ -129,7 +129,7 @@ public sealed class PerformancePersistenceTests : IDisposable
         Assert.Empty(sessions.Sessions);
         Assert.Single((await NewStore().LoadAsync()).Audits);
         Assert.Single((await NewStore().LoadInvestigationsAsync()).Investigations);
-        Assert.Equal(11, ReadUserVersion());
+        Assert.Equal(12, ReadUserVersion());
     }
 
     [Fact]
@@ -139,7 +139,7 @@ public sealed class PerformancePersistenceTests : IDisposable
         using (var db = Open())
         {
             using var command = db.CreateCommand();
-            command.CommandText = "PRAGMA user_version=12";
+            command.CommandText = "PRAGMA user_version=13";
             command.ExecuteNonQuery();
         }
         await Assert.ThrowsAsync<InvalidDataException>(() => NewStore().LoadSessionsAsync());
@@ -200,7 +200,7 @@ public sealed class PerformancePersistenceTests : IDisposable
         var copy = Assert.Single((await NewStore().LoadSessionsAsync()).Sessions);
         Assert.Equal(coverage.Execution, copy.Coverage!.Execution);
         Assert.Equal(coverage.CollectedSamples, copy.Coverage.CollectedSamples);
-        Assert.Equal(11, ReadUserVersion());
+        Assert.Equal(12, ReadUserVersion());
         using var db = Open();
         using var command = db.CreateCommand();
         command.CommandText = "SELECT ExecutionStatus, CoverageStatus FROM PerformanceSessions";

@@ -14,6 +14,8 @@
     <SentinelCoreRealTweaks Condition="'$(SentinelCoreRealTweaks)' == ''">false</SentinelCoreRealTweaks>
     <!-- Gate independente do R1. Mesmo verdadeiro, a R1 não compõe executor real nesta fase. -->
     <SentinelCoreRealRepairs Condition="'$(SentinelCoreRealRepairs)' == ''">false</SentinelCoreRealRepairs>
+    <!-- T3 independente: nenhum executor real é implementado, mesmo se esta propriedade for fornecida. -->
+    <SentinelCoreRealDebloat Condition="'$(SentinelCoreRealDebloat)' == ''">false</SentinelCoreRealDebloat>
   </PropertyGroup>
   <PropertyGroup Condition="'$(SentinelCoreRealTweaks)' == 'true'">
     <DefineConstants>$(DefineConstants);SENTINELCORE_REAL_TWEAKS</DefineConstants>

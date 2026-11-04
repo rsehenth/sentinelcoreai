@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Resource Include="Assets\app.ico" />
+    <Content Include="../../THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../SentinelCore.Application/SentinelCore.Application.csproj" />
@@ -17,5 +18,6 @@
     <ProjectReference Include="../SentinelCore.Infrastructure.Windows/SentinelCore.Infrastructure.Windows.csproj" />
     <ProjectReference Include="../SentinelCore.Infrastructure.Modifications/SentinelCore.Infrastructure.Modifications.csproj" />
     <ProjectReference Include="../SentinelCore.Infrastructure.Repairs/SentinelCore.Infrastructure.Repairs.csproj" />
+    <ProjectReference Include="../SentinelCore.Infrastructure.Debloat/SentinelCore.Infrastructure.Debloat.csproj" />
   </ItemGroup>
 </Project>

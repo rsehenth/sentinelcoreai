@@ -1,3 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup><EmbeddedResource Include="DebloatCatalogData.json" /></ItemGroup>
   <ItemGroup><ProjectReference Include="../SentinelCore.Domain/SentinelCore.Domain.csproj" /></ItemGroup>
 </Project>

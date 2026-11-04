@@ -16,6 +16,7 @@ $arguments = @('publish', (Join-Path $projectRoot 'src\SentinelCore.App\Sentinel
 $arguments += @('-p:SentinelCoreRealTweaks=false')
 # R1: o Repair Center não compila nem compõe executor real nesta fase.
 $arguments += @('-p:SentinelCoreRealRepairs=false')
+$arguments += @('-p:SentinelCoreRealDebloat=false')
 if ($SingleFile) { $arguments += @('-p:PublishSingleFile=true', '-p:IncludeNativeLibrariesForSelfExtract=true') }
 & (Join-Path $PSScriptRoot 'dotnet.ps1') @arguments
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

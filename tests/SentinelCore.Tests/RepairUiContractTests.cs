@@ -20,7 +20,7 @@ public sealed class RepairUiContractTests
         var xaml = AppSource("MainWindow.xaml");
         Assert.Contains("Content=\"Reparos do Windows\"", xaml);
         Assert.Contains("<TabItem x:Name=\"RepairsTab\" Header=\"Reparos do Windows\">", xaml);
-        var personalization = xaml.IndexOf("Content=\"Personalização\"", StringComparison.Ordinal);
+        var personalization = xaml.IndexOf("Content=\"Personalização &amp; Debloat\"", StringComparison.Ordinal);
         var repairs = xaml.IndexOf("Content=\"Reparos do Windows\"", StringComparison.Ordinal);
         Assert.True(personalization >= 0 && repairs > personalization);
     }

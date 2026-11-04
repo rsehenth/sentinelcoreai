@@ -1,5 +1,22 @@
 # SentinelCore AI
 
+**Atualização de 04/11/2026 — T3 implementada em modo sintético.** A página **Personalização & Debloat**
+inclui catálogo documental e inventário sintético apresentados separadamente, busca/filtros, seleção individual,
+plano, confirmação, simulação, histórico e informações de reinstalação. Nenhum aplicativo real é consultado,
+removido ou reinstalado. O catálogo documental tem 162 entradas; cinco fixtures são exercitáveis, incluindo
+Bloco de Notas com revisão média. Entradas do catálogo sem observação aparecem como
+**“Não verificado — inventário real indisponível”**, nunca como ausentes. Execução real permanece indisponível
+por gate independente e incondicional. Reinstalação não é rollback.
+
+SQLite atual: **12** (migração aditiva 11→12). Suíte atual: **1247/1247 em Debug e Release**, builds 0/0.
+Histórico Debloat separado em `memory/debloat` e `reports/debloat`, no mesmo banco. Relatório completo:
+[T3 — validação e limites](docs/validation/2026-11-04-debloat-manager-t3.md). As contagens anteriores em
+seções datadas descrevem suas respectivas etapas. T4 e validação real não foram iniciadas.
+
+A [T0 revisada](docs/planning/TWEAKS_DEBLOAT_T0_REVALIDATION_2026-11-04.md) preserva o histórico e registra
+273 fichas com riscos 49 BAIXO, 37 MÉDIO, 33 ALTO e 154 NÃO VALIDADO, além de shortlist de 13 escolhas.
+Os [avisos de terceiros](THIRD-PARTY-NOTICES.md) acompanham a distribuição.
+
 Diagnóstico profundo do Windows, baseado em evidências. Aplicativo desktop WPF, C# e .NET 10 LTS.
 As fases 0 a 5 entregam auditoria básica, inventário de hardware em onze categorias, investigação de eventos e
 metadados de relatórios de falha do Windows, sessões de desempenho com métricas de CPU, memória, processos e
@@ -50,14 +67,14 @@ cartões são agrupados em Explorador de Arquivos, Barra de tarefas e Aparência
 desabilitada na distribuição (`RealDisabled`) e **não é compilada** no build de distribuição: `--enable-real-tweaks`
 só tem efeito em um build experimental de validação (`scripts/publish-validation.ps1`, nunca distribuído),
 reservado à futura validação real. Nenhuma escrita real foi executada no computador de desenvolvimento.
-T3 (Debloat) e T4 não foram iniciadas.
+T3 foi implementada em modo sintético em 04/11/2026. T4 não foi iniciada.
 
 A **R1 — Windows Repair Center** foi implementada na sequência, ainda em `0.3.0-preview.8`, como módulo independente
 do Tweaks Manager: catálogo fechado para SFC (`/verifyonly`, `/scannow`), DISM (`CheckHealth`, `ScanHealth`,
 `RestoreHealth`), CHKDSK (`<volume>`, `<volume> /scan`) e WinRE (`/info`), com executáveis oficiais resolvidos somente
 em `System32` e argumentos fixos. A aba **Reparos do Windows** separa diagnóstico de reparação, exige confirmação
 digitada, registra a intenção antes do efeito, persiste intenção/registro Markdown imutáveis, relatório, projeção
-`REPAIRS.md` e SQLite esquema 11 (migração aditiva 10→11). A execução disponível é exclusivamente sintética, com
+`REPAIRS.md` e SQLite (migração R1 10→11; esquema atual 12). A execução disponível é exclusivamente sintética, com
 fixtures marcadas; nenhum SFC, DISM, CHKDSK ou `reagentc` real foi executado, nenhuma elevação foi solicitada e
 nenhuma configuração do Windows foi alterada. A validação real permanece pendente. Detalhes em
 [validação R1](docs/validation/2026-11-04-windows-repair-center-r1.md).
@@ -132,7 +149,7 @@ Os testes de persistência usam diretórios temporários isolados e dados fictí
 coletores reais do Windows, somente leitura; os testes da T2A/T2B usam uma implementação em memória de
 `IHkcuRegistryAccess` e não tocam o Registro real. Os testes da R1 usam `SyntheticRepairExecutor` e não iniciam
 `sfc.exe`, `dism.exe`, `chkdsk.exe` ou `reagentc.exe`. Nenhum teste modifica configurações do Windows ou usa o
-histórico de produção como raiz de teste. Suíte atual: **1165/1165 em Debug e Release**.
+histórico de produção como raiz de teste. Suíte atual: **1243/1243 em Debug e Release**.
 
 ## Gerar e executar o pacote
 

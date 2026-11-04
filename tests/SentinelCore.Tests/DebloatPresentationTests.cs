@@ -1,0 +1,76 @@
+using System.Xml.Linq;
+using SentinelCore.Domain;
+using Xunit;
+
+namespace SentinelCore.Tests;
+
+/// <summary>Structural safety contracts; these do not replace validation of the rendered WPF surface.</summary>
+public sealed class DebloatPresentationTests
+{
+    private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+    private static readonly XNamespace Xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
+    private static string Source(string name) => File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App", name));
+
+    [Fact]
+    public void ConfirmationIsEditableAndExecutionStartsDisabled()
+    {
+        var document = XDocument.Parse(Source("DebloatView.xaml"));
+        var confirmation = document.Descendants(Presentation + "TextBox")
+            .Single(item => (string?)item.Attribute(Xaml + "Name") == "ConfirmationText");
+        Assert.Equal("False", (string?)confirmation.Attribute("IsReadOnly"));
+        Assert.Equal("False", (string?)confirmation.Attribute("IsEnabled"));
+        var execute = document.Descendants(Presentation + "Button")
+            .Single(item => (string?)item.Attribute(Xaml + "Name") == "ExecuteButton");
+        Assert.Equal("False", (string?)execute.Attribute("IsEnabled"));
+        Assert.Contains("simulação", (string?)execute.Attribute("Content") ?? string.Empty);
+    }
+
+    [Fact]
+    public void InventoryIsIndividualReadOnlyAndSyntheticWarningIsVisible()
+    {
+        var document = XDocument.Parse(Source("DebloatView.xaml"));
+        Assert.Contains(document.Descendants(Presentation + "TextBlock"),
+            item => (string?)item.Attribute("Text") == DebloatLimits.SyntheticWarning);
+        var gridStyle = document.Descendants(Presentation + "Style")
+            .Single(item => (string?)item.Attribute("TargetType") == "DataGrid");
+        Assert.Contains(gridStyle.Elements(Presentation + "Setter"), item =>
+            (string?)item.Attribute("Property") == "SelectionMode" && (string?)item.Attribute("Value") == "Single");
+        Assert.Contains(gridStyle.Elements(Presentation + "Setter"), item =>
+            (string?)item.Attribute("Property") == "IsReadOnly" && (string?)item.Attribute("Value") == "True");
+        var source = Source("DebloatView.xaml.cs");
+        Assert.Contains("DebloatExecutionMode.Synthetic", source);
+        Assert.DoesNotContain("DebloatExecutionMode.Real", source);
+        Assert.DoesNotContain("Process.Start", source);
+        Assert.DoesNotContain("System.Management", source);
+    }
+
+    [Fact]
+    public void CatalogAndInventoryAreVisuallyDistinguished()
+    {
+        var document = XDocument.Parse(Source("DebloatView.xaml"));
+        var labels = document.Descendants(Presentation + "TextBlock")
+            .Select(item => (string?)item.Attribute("Text") ?? string.Empty).ToArray();
+        Assert.Contains("Catálogo de aplicativos", labels);
+        Assert.Contains("Inventário de aplicativos", labels);
+        Assert.Contains(labels, text => text.Contains("Não verificado — inventário real indisponível", StringComparison.Ordinal));
+        Assert.DoesNotContain(labels, text => text.Contains("não encontrado", StringComparison.OrdinalIgnoreCase) ||
+            text.Contains("não instalado", StringComparison.OrdinalIgnoreCase));
+        var headers = document.Descendants(Presentation + "DataGridTextColumn")
+            .Select(item => (string?)item.Attribute("Header") ?? string.Empty).ToArray();
+        Assert.Contains("Origem do registro", headers);
+        Assert.Contains("Presença no inventário", headers);
+    }
+
+    [Fact]
+    public void ReinstallationIsDocumentaryAndNoRecoveryActionIsExposed()
+    {
+        var document = XDocument.Parse(Source("DebloatView.xaml"));
+        Assert.Contains(document.Descendants(Presentation + "TextBlock"), item =>
+            (string?)item.Attribute("Text") == DebloatLimits.RecoveryWarning);
+        var labels = document.Descendants(Presentation + "Button")
+            .Select(item => (string?)item.Attribute("Content") ?? string.Empty).ToArray();
+        Assert.DoesNotContain(labels, label => label.Contains("rollback", StringComparison.OrdinalIgnoreCase) ||
+            label.Contains("reinstalar", StringComparison.OrdinalIgnoreCase) ||
+            label.Contains("remover", StringComparison.OrdinalIgnoreCase));
+    }
+}

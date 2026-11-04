@@ -5,6 +5,7 @@ using System.Windows.Media;
 using SentinelCore.Application;
 using SentinelCore.Domain;
 using SentinelCore.Infrastructure.Modifications;
+using SentinelCore.Infrastructure.Debloat;
 using SentinelCore.Infrastructure.Repairs;
 using SentinelCore.Infrastructure.Windows;
 using SentinelCore.Infrastructure.Windows.Monitoring;
@@ -86,6 +87,12 @@ public partial class App : System.Windows.Application
             var tweakManager = new TweakManager(tweakCatalog, tweakEngine, tweakRecovery, store,
                 realTweaksEnabled ? TweakExecutionMode.RealControlled : TweakExecutionMode.RealDisabled);
 
+            // T3: metadata fixtures only. No native package inventory or removal executor is composed.
+            var debloatCatalog = DebloatCatalog.CreateDefault();
+            var debloatInventory = SyntheticDebloatInventory.Create(debloatCatalog.All);
+            var debloatManager = new DebloatManager(debloatCatalog, debloatInventory,
+                new SyntheticDebloatRuntimeFactory(debloatInventory), store.CreateDebloatJournal(), transactionLocks);
+
             // R1 — Windows Repair Center. Nenhum executor real é composto: o gate é independente do Tweaks
             // e a execução disponível é exclusivamente sintética, com fixtures marcadas.
             var repairCatalog = RepairCatalog.CreateDefault();
@@ -100,7 +107,8 @@ public partial class App : System.Windows.Application
                 new HardwareRunner(WindowsHardwareCollectors.Create()),
                 new EventInvestigationRunner(WindowsEventEvidenceCollectors.Create()),
                 performanceRunner, networkRunner, graphicsRunner, correlationRunner, monitoringRunner,
-                tweakManager, repairManager, store, store, store, store, store, store, store, store);
+                tweakManager, repairManager, store, store, store, store, store, store, store, store,
+                debloat: debloatManager);
             MainWindow.Show();
         }
         catch (Exception error)

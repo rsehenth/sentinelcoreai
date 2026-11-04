@@ -557,3 +557,60 @@ Debloat e Recovery Center. A T3 não foi iniciada.
 autorização, a máquina de estados, o executor sintético, a interpretação, a persistência, o histórico, a UI e o gate
 de distribuição estão implementados e testados. A execução real das quatro ferramentas permanece indisponível e exige
 uma etapa futura isolada com autorização específica, proteção e fronteira privilegiada própria.
+
+## T0 — revisão documental de 04/11/2026
+
+- [x] Preservar T0/T1/T2A/T2B/R1 existentes; baseline encontrada `2ccc446`, árvore inicialmente limpa, schema 11.
+- [x] Reconfirmar upstream `5d88bfe9ef2be5a8a643166a6400eb78a30c46ec`, MIT e ausência de commit posterior em master.
+- [x] Reconferir 479 operações de Registro e cobertura dos 104 FeatureIds; Apps é seletor sem efeito autônomo.
+- [x] Produzir catálogo schema 2 com 273 fichas completas, matriz, 175 hashes e verificador somente leitura.
+- [x] Corrigir riscos: 49 BAIXO, 37 MÉDIO, 33 ALTO, 154 NÃO VALIDADO; 192 bloqueadas no planejamento.
+- [x] Corrigir shortlist para 13 escolhas; separar variantes Registro de efeitos compostos upstream.
+- [x] Aplicar revisão independente direcionada; preservar fichas/pareceres anteriores como histórico.
+- [x] Validar 14.024 verificações estruturais, fontes e hashes, sem rodar suíte funcional para mudança documental.
+- [x] Reafirmar IA como última grande capacidade, sem execução real, commit ou push.
+
+**Veredito T0:** **APROVADA COM RESSALVAS.** Referência vigente:
+[suplemento](docs/planning/TWEAKS_DEBLOAT_T0_REVALIDATION_2026-11-04.md). Os números 463/217 e 138/102/32/1
+do checklist original são registros anteriores às correções históricas; não são contagens vigentes.
+O pedido posterior autoriza T3 exclusivamente sintética; não autoriza consultas funcionais a pacotes reais ou T4.
+
+## T3 — Debloat Manager (04/11/2026; exclusivamente sintético)
+
+- [x] Confirmar baseline Debug 1165/1165, HEAD `2ccc446`, preservar trabalho T0 desta sessão.
+- [x] Ler docs/relatórios e mapear engine/journal/composição com Graphify e fontes.
+- [x] Integrar catálogo documental fechado: 162 entradas, 159 Appx/3 WinGet, riscos preliminares e reais distintos.
+- [x] Implementar inventário tipado/sintético e identidade exata, escopos/dependências, bloqueios e revisão média.
+- [x] Reutilizar Safety Engine e autorização, snapshot/hash, intenção antes do efeito e verificação em memória.
+- [x] Isolar adaptadores sintéticos em assembly Domain-only, preservando barreiras de Tweaks/diagnóstico.
+- [x] Implementar cenários determinísticos, estados parciais/interrompidos/indeterminados e falhas de persistência.
+- [x] Reutilizar journal em partição DBLT/Synthetic, mesmo SQLite, migração aditiva 11→12 e relatórios separados.
+- [x] Entregar WPF na página existente, filtros/pesquisa/seleção/plano/confirmação/cancelamento/histórico e reinstalação informativa.
+- [x] Fixar gate real independente falso sem argumento/configuração/variável capaz de habilitar execução.
+- [x] Adicionar 78 casos; 1243/1243 Debug e Release; builds 0/0; restore locked normal e single-file.
+- [x] Validar controle WPF real em host/raiz isolados, com somente fixtures: 19 verificações PASS e capturas.
+- [x] Executar revisões A segurança e B persistência, corrigir três achados médios e revalidar delta.
+- [x] Publicar self-contained em saída isolada com os três gates falsos, sem iniciar executável publicado.
+- [x] Atualizar documentação e MIT; nenhum dado de produção ou publicação anterior substituído.
+- [x] Não consultar pacotes reais, remover, reinstalar, elevar, criar VM/snapshot, iniciar T4, commit ou push.
+
+**T3 — IMPLEMENTAÇÃO CONCLUÍDA EM MODO SINTÉTICO.** [Relatório](docs/validation/2026-11-04-debloat-manager-t3.md).
+Validação real é pendência futura e não bloqueia a conclusão desta implementação sintética.
+
+## T3 — correção semântica de presença e versionamento (04/11/2026)
+
+- [x] Preservar as entregas T0 revisada e T3; nenhum reset, clean, stash ou rebase.
+- [x] Substituir “não encontrado” de entradas sem observação por **Não verificado — inventário real indisponível**.
+- [x] Adicionar `DebloatPresence` e `DebloatEligibility` ao Domain, com rótulos em `DebloatPresentation`.
+- [x] `LoadAsync` deixou de sintetizar `NotFound`; entradas do catálogo usam `Unknown` sem observação.
+- [x] Separar visualmente **Catálogo de aplicativos** e **Inventário de aplicativos**, com origem e presença por linha.
+- [x] Ajustar filtros para presentes, ausentes no inventário consultado e não verificados.
+- [x] Preservar as cinco fixtures sintéticas e não promover risco para tornar aplicativo elegível.
+- [x] Adicionar 4 casos de regressão e 1 contrato XAML; **1247/1247 Debug e Release**, builds 0/0.
+- [x] Confirmar `RealDebloatBuildGate` falso e incondicional; `RealTweakBuildGate`/`RealRepairBuildGate` preservados.
+- [x] Nenhuma consulta a pacotes reais, remoção, reinstalação, elevação, VM, snapshot, T3B, T3C ou T4.
+
+**T3 IMPLEMENTADA EM MODO SINTÉTICO.** Oferece catálogo, simulação, interface, autorização, histórico, persistência
+e proteções. Não oferece inventário nativo, remoção real, reinstalação real, recuperação de dados removidos nem
+validação operacional no Windows. **T3B** (inventário nativo somente leitura) e **T3C** (remoção controlada, mantida
+bloqueada) não foram iniciadas. A capacidade real não está pronta.

@@ -9,5 +9,6 @@
     <ProjectReference Include="../../src/SentinelCore.Infrastructure.Windows/SentinelCore.Infrastructure.Windows.csproj" />
     <ProjectReference Include="../../src/SentinelCore.Infrastructure.Modifications/SentinelCore.Infrastructure.Modifications.csproj" />
     <ProjectReference Include="../../src/SentinelCore.Infrastructure.Repairs/SentinelCore.Infrastructure.Repairs.csproj" />
+    <ProjectReference Include="../../src/SentinelCore.Infrastructure.Debloat/SentinelCore.Infrastructure.Debloat.csproj" />
   </ItemGroup>
 </Project>
