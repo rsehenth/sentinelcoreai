@@ -217,6 +217,7 @@ public partial class DebloatView : UserControl
 
     private void InvalidatePlan()
     {
+        RemovalPresentation.Present(DebloatRemovalPresentation.Unavailable());
         preparedPlan = null;
         ConfirmationText.Text = string.Empty;
         ConfirmationHint.Text = "A confirmação exata será exibida após preparar um plano elegível.";
@@ -249,6 +250,7 @@ public partial class DebloatView : UserControl
 
     private void ShowPlan(DebloatPreparedPlan plan)
     {
+        RemovalPresentation.Present(DebloatRemovalPresentation.FromLegacySynthetic(plan));
         var simulation = plan.Simulation;
         var text = new StringBuilder();
         text.AppendLine(DebloatLimits.SyntheticWarning);

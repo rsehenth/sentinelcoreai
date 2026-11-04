@@ -41,7 +41,9 @@ public sealed record TransactionEventRecord(
     IReadOnlyList<StepResult>? Results,
     VerificationResult? Verification,
     RecoveryResult? Recovery,
-    IReadOnlyList<string> Limitations);
+    IReadOnlyList<string> Limitations,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    DebloatRemovalReceipt? RemovalReceipt = null);
 
 public sealed record TransactionRecord(
     Guid TransactionId,
@@ -151,6 +153,11 @@ public static class TransactionProjection
     public static bool IsIndeterminate(IReadOnlyList<TransactionEventRecord> ordered)
     {
         if (ordered.Count == 0) return false;
+        // Package removal has no equivalent rollback. A failed post-check leaves possible effects unresolved.
+        // Preserve the established tweak semantics for all historical transactions without T3C receipts.
+        if (ordered[^1].State == TransactionState.VerificationFailed &&
+            ordered[0].OperationId.StartsWith("DBLT-RMV-", StringComparison.Ordinal) &&
+            ordered.Any(e => e.RemovalReceipt is { EffectMayHaveOccurred: true })) return true;
         var states = ordered.Select(item => item.State).ToList();
         var last = states[^1];
         if (last is TransactionState.Planned or TransactionState.PreflightPassed

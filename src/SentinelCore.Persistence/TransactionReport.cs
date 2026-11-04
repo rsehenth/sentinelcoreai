@@ -22,6 +22,7 @@ public static class TransactionReport
         if (!string.IsNullOrWhiteSpace(entry.Error)) builder.AppendLine($"- Erro: {Safe(entry.Error)}");
         if (entry.BackupPath is not null) builder.AppendLine($"- Backup: `{Safe(entry.BackupPath)}`");
         if (entry.Plan is not null) AppendPlan(builder, entry.Plan);
+        if (entry.RemovalReceipt is not null) AppendRemoval(builder, entry.RemovalReceipt);
         if (entry.Authorization is not null) AppendAuthorization(builder, entry.Authorization);
         if (entry.Backup is not null) AppendBackup(builder, entry.Backup);
         if (entry.Verification is not null) AppendVerification(builder, entry.Verification);
@@ -84,6 +85,8 @@ public static class TransactionReport
         if (transaction.Backup is not null) AppendBackup(builder, transaction.Backup);
         if (transaction.Verification is not null) AppendVerification(builder, transaction.Verification);
         if (transaction.Recovery is not null) AppendRecovery(builder, transaction.Recovery);
+        var removal = transaction.Events.LastOrDefault(e => e.RemovalReceipt is not null)?.RemovalReceipt;
+        if (removal is not null) AppendRemoval(builder, removal);
 
         builder.AppendLine();
         builder.AppendLine("## Journal");
@@ -94,6 +97,22 @@ public static class TransactionReport
 
         if (transaction.Limitations.Count > 0) AppendLimitations(builder, transaction.Limitations);
         return builder.ToString();
+    }
+
+    private static void AppendRemoval(StringBuilder builder, DebloatRemovalReceipt receipt)
+    {
+        builder.AppendLine();
+        builder.AppendLine("## T3C — resultado sintético de remoção controlada");
+        builder.AppendLine($"- Identidade: {Safe(receipt.Package.PackageFullName)}; SID: {Safe(receipt.Package.UserSecurityId)}");
+        builder.AppendLine($"- Estado da API: {receipt.Phase}; efeito possível: {receipt.EffectMayHaveOccurred}; falha parcial: {receipt.PartialFailure}");
+        builder.AppendLine($"- Abandono antes do início: {receipt.CancelledBeforeStart}");
+        builder.AppendLine($"- HRESULT: {receipt.HResult?.ToString() ?? "indisponível"}; estendido: {receipt.ExtendedHResult?.ToString() ?? "indisponível"}");
+        builder.AppendLine($"- Erro: {Safe(receipt.ErrorText)}; atividade: {receipt.ActivityId?.ToString() ?? "indisponível"}");
+        foreach (var p in receipt.Progress)
+            builder.AppendLine($"- Progresso: {p.Phase}; percentual informado: {p.ReportedPercentage?.ToString() ?? "não informado"}; {Safe(p.Information)}");
+        if (receipt.PostVerification is { } post)
+            builder.AppendLine($"- Pós-verificação: completa={post.Complete}; principal ausente={post.MainPackageAbsent}; efeitos conferem={post.EffectsMatchPlan}; {Safe(post.Information)}");
+        foreach (var text in DebloatRemovalMessages.Limitations) builder.AppendLine("- " + Safe(text));
     }
 
     public static string RenderIndex(IReadOnlyList<TransactionRecord> transactions, bool syntheticDebloat = false)

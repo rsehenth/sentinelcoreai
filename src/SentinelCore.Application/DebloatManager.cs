@@ -161,6 +161,8 @@ public sealed class DebloatManager
         var warnings = snapshot.Warnings.ToList();
         foreach (var record in snapshot.Transactions)
         {
+            // T3C has its own typed snapshot/presentation; it shares this journal, not the legacy payload shape.
+            if (record.OperationId.StartsWith("DBLT-RMV-", StringComparison.Ordinal)) continue;
             try
             {
                 if (!record.OperationId.StartsWith("DBLT-", StringComparison.Ordinal) || record.Plan is null)

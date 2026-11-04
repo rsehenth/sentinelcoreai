@@ -191,7 +191,8 @@ public sealed record ExecutionRequest(
     TargetValueState Before,
     TargetValueState After);
 
-public sealed record ExecutionOutcome(bool Applied, string? Error, bool Indeterminate)
+public sealed record ExecutionOutcome(bool Applied, string? Error, bool Indeterminate,
+    DebloatRemovalReceipt? RemovalReceipt = null)
 {
     public static ExecutionOutcome Success() => new(true, null, false);
     public static ExecutionOutcome Failed(string error) => new(false, error, false);

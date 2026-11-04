@@ -1,0 +1,38 @@
+<UserControl x:Class="SentinelCore.App.DebloatRemovalView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             AutomationProperties.AutomationId="DebloatRemovalPresentation">
+    <UserControl.Resources>
+        <Style x:Key="RemovalReadout" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+            <Setter Property="IsReadOnly" Value="True"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="AcceptsReturn" Value="True"/>
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="MaxHeight" Value="180"/>
+            <Setter Property="Margin" Value="0,6,0,12"/>
+        </Style>
+    </UserControl.Resources>
+    <Expander Header="Remoção controlada Appx/MSIX — execução real bloqueada" Foreground="{DynamicResource Text}"
+              AutomationProperties.AutomationId="DebloatRemovalDetails">
+        <StackPanel Margin="0,12,0,0">
+            <TextBlock Text="SIMULAÇÃO — NENHUM APLICATIVO REAL SERÁ REMOVIDO." Foreground="{DynamicResource Warn}" TextWrapping="Wrap"/>
+            <TextBlock Text="Plano e consequências" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding Plan, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Plano T3C"/>
+            <TextBlock Text="Dependências e efeitos indiretos" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding Dependencies, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Dependências T3C"/>
+            <TextBlock Text="Riscos e bloqueios" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding Risks, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Riscos T3C"/>
+            <TextBlock Text="Autorização específica" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding Authorization, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Autorização T3C"/>
+            <TextBlock Text="Estado e progresso" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding Progress, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Progresso T3C"/>
+            <TextBlock Text="Resultado e pós-verificação" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding Result, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Resultado T3C"/>
+            <TextBlock Text="Histórico" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding History, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Histórico T3C"/>
+            <TextBlock Text="Limitações e reinstalação documental" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding Limitations, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Limitações T3C"/>
+            <TextBox Text="{Binding Reinstallation, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Reinstalação T3C"/>
+        </StackPanel>
+    </Expander>
+</UserControl>

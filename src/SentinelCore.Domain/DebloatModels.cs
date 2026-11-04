@@ -15,7 +15,8 @@ public enum DebloatPresence
     PresentInSyntheticInventory,
     AbsentInConsultedInventory,
     IdentityDivergent,
-    Indeterminate
+    Indeterminate,
+    PresentInNativeInventory
 }
 
 public enum DebloatEligibility

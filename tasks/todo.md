@@ -1,5 +1,27 @@
 # Execução
 
+## T3C — Controlled App Removal Engine (04/11/2026; implementada, real bloqueado)
+
+- [x] Preservar T3B local e funcionalidades anteriores; consultar Graphify, contratos/docs e API oficial WinRT.
+- [x] Criar contratos tipados e preflight com identidade exata/SID, catálogo, completude, estado, dependências e efeitos.
+- [x] Preservar T0: 153 NÃO VALIDADOS / 9 ALTO; nenhum aplicativo real autorizado.
+- [x] Reutilizar SafetyEngine, autorização expirável/uso único, plano privado/hash, locks, snapshot/journal e pós-verificação.
+- [x] Implementar fluxo/adaptador inteiramente sintéticos, abandono anterior e acompanhamento não cancelável após início.
+- [x] Preservar bloqueio persistente do alvo após efeito possível e pós-verificação inconclusiva, inclusive reabertura.
+- [x] Criar assembly Removal.Native Domain-only, compilável em Debug/Release, sem referência App/testes ou opt-in.
+- [x] Reutilizar DBLT/Synthetic, Markdown imutável e SQLite 12; receipt opcional compatível, sem novo banco ou migração.
+- [x] Preparar componentes WPF somente leitura e integrá-los à página existente, mantendo ações T3/banner/identidade visual.
+- [x] Acrescentar 108 testes; **1.404/1.404 Debug e Release**, 0 falhas/ignorados, builds **0 avisos / 0 erros**.
+- [x] Validar host WPF exclusivamente sintético: 15 verificações PASS, Markdown/SQLite/relatório/reabertura e capturas.
+- [x] Executar duas revisões independentes; corrigir dois P2 com regressões reproduzidas e delta aprovado sem bloqueantes.
+- [x] Restore locked-mode e publish self-contained isolado; nenhum adaptador nativo Debloat/WinRT nos arquivos/deps.
+- [x] Atualizar docs/AGENTS/todo/relatório; não executar consultas/remoções reais, elevação, VM/snapshot, T4, commit ou push.
+- [ ] Validação operacional real futura, com autorização específica e política individual suficiente; não iniciada nesta etapa.
+
+**T3C — MOTOR NATIVO DE REMOÇÃO IMPLEMENTADO, EXECUÇÃO REAL BLOQUEADA E NÃO VALIDADA.**
+[Relatório técnico](../docs/validation/2026-11-04-controlled-app-removal-t3c.md). Os registros abaixo preservam o estado
+de cada entrega anterior; referências a T3C não iniciada descrevem o limite anterior ao pedido específico desta etapa.
+
 ## Fases 0 e 1
 
 - [x] Inspecionar pasta, Windows, Git e runtimes; obter autorização para SDK local.
@@ -611,6 +633,29 @@ Validação real é pendência futura e não bloqueia a conclusão desta impleme
 - [x] Nenhuma consulta a pacotes reais, remoção, reinstalação, elevação, VM, snapshot, T3B, T3C ou T4.
 
 **T3 IMPLEMENTADA EM MODO SINTÉTICO.** Oferece catálogo, simulação, interface, autorização, histórico, persistência
-e proteções. Não oferece inventário nativo, remoção real, reinstalação real, recuperação de dados removidos nem
-validação operacional no Windows. **T3B** (inventário nativo somente leitura) e **T3C** (remoção controlada, mantida
-bloqueada) não foram iniciadas. A capacidade real não está pronta.
+e proteções. Não oferece inventário nativo executado, remoção real, reinstalação real, recuperação de dados removidos
+nem validação operacional no Windows. A T3B foi implementada na sequência em modo compilável/não operacional; a
+**T3C** (remoção controlada) permanece bloqueada e não foi iniciada. A capacidade real não está pronta.
+
+## T3B — Inventário nativo Appx/MSIX (04/11/2026; implementado, não executado)
+
+- [x] Confirmar baseline 1.247 testes e preservar T0 revisada, T1, T2A, T2B, R1 e T3.
+- [x] Mapear dependências por fontes/csproj; índice Graphify estático estava em `2ccc446` e não continha T3/T3B.
+- [x] Definir contratos tipados de origem, estado da consulta, completude, metadados, erros e leitor somente leitura.
+- [x] Implementar correspondência exata com o catálogo, sem correspondência parcial ou wildcard.
+- [x] Implementar avaliação fail-closed: ausência só após consulta completa; falha/negação/parcial nunca confirma ausência.
+- [x] Preservar risco real T0 (9 ALTO / 153 NÃO VALIDADO) e bloquear identidade ambígua/divergente.
+- [x] Criar `SentinelCore.Infrastructure.Debloat.Native` em `net10.0-windows10.0.22621.0`, referenciando apenas Domain.
+- [x] Usar `PackageManager.FindPackagesForUser(string.Empty)`, sem outro SID, remoção, registro, deploy, provisionamento ou elevação.
+- [x] Não compor o adaptador no App; testes não referenciam o assembly; nenhum argumento de ativação.
+- [x] Adicionar painel WPF somente leitura, sem botão de consulta ou ação real; preservar aviso de simulação.
+- [x] Adicionar 49 casos sintéticos/estáticos de inventário, identidade, segurança e integração.
+- [x] Executar **1296/1296 em Debug e 1296/1296 em Release**; builds **0 avisos / 0 erros**.
+- [x] Confirmar os três gates reais fechados e `NativeDebloatInventoryGate` sempre falso.
+- [x] Executar revisões direcionadas de segurança e arquitetura; nenhum bloqueante comprovado.
+- [x] Não consultar pacotes reais, remover, reinstalar, elevar, criar VM/snapshot, iniciar T3C/T4, commit ou push.
+- [x] Atualizar ARCHITECTURE, SECURITY, ROADMAP, VALIDATION, AGENTS, todo e relatório T3B.
+
+**T3B — INVENTÁRIO NATIVO IMPLEMENTADO, EXECUÇÃO E VALIDAÇÃO REAIS PENDENTES.**
+[Relatório](docs/validation/2026-11-04-debloat-native-inventory-t3b.md). Nenhuma consulta real foi executada e o
+adaptador não está composto ou habilitado na distribuição. T3C e T4 permanecem não iniciadas.

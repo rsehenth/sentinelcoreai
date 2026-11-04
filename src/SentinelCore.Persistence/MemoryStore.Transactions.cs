@@ -76,6 +76,7 @@ public sealed partial class MemoryStore
             if (!TransactionProjection.IsAllowedTransition(last.State, entry.State))
                 throw new InvalidDataException(
                     $"Transição inválida no journal: {last.State} → {entry.State}; evento não gravado.");
+            ValidateRemovalAssociation(siblings.Append(entry).ToArray());
         }
         else if (entry.Sequence != 1 || entry.State != TransactionState.Planned)
         {
@@ -275,6 +276,7 @@ public sealed partial class MemoryStore
 
                 try
                 {
+                    ValidateRemovalAssociation(ordered.Select(item => item.Event).ToArray());
                     var record = TransactionProjection.Build(ordered.Select(item => item.Event).ToList());
                     records.Add(record);
                     eventRows.AddRange(ordered.Select(item => (transactionId, item.Event, item.Path, item.Hash)));
@@ -501,6 +503,20 @@ public sealed partial class MemoryStore
 
     private void ValidateEvent(TransactionEventRecord entry)
     {
+        if (entry.Plan is not null && entry.OperationId.StartsWith("DBLT-RMV-", StringComparison.Ordinal))
+            ValidateRemovalAssociation([entry]);
+        if (entry.RemovalReceipt is { } receipt)
+        {
+            if (!debloatJournal || !entry.OperationId.StartsWith("DBLT-RMV-", StringComparison.Ordinal) ||
+                entry.State is not (TransactionState.ExecutionCompleted or TransactionState.ExecutionFailed or TransactionState.ExecutionIndeterminate) ||
+                !receipt.Synthetic || receipt.OperationId != entry.TransactionId ||
+                !DebloatRemovalIdentityPolicy.IsValid(receipt.Package) || !Enum.IsDefined(receipt.Phase) ||
+                receipt.Progress is null || receipt.Progress.Count > 256 || receipt.Limitations is null ||
+                receipt.Progress.Any(p => p.OperationId != receipt.OperationId || !Enum.IsDefined(p.Phase) ||
+                    p.ReportedPercentage is > 100) ||
+                receipt.CancelledBeforeStart && (receipt.EffectMayHaveOccurred || receipt.Phase != DebloatRemovalPhase.Failed))
+                throw new InvalidDataException("Resultado T3C inválido ou fora da partição sintética.");
+        }
         if (entry.FormatVersion != 1)
             throw new InvalidDataException("Formato de evento de transação não suportado.");
         if (entry.TransactionId == Guid.Empty)
@@ -603,6 +619,55 @@ public sealed partial class MemoryStore
     {
         if (operationId.StartsWith("DBLT-", StringComparison.Ordinal) != debloatJournal)
             throw new InvalidDataException("Operação não pertence à partição de journal selecionada.");
+    }
+
+    private static void ValidateRemovalAssociation(IReadOnlyList<TransactionEventRecord> events)
+    {
+        if (!events[0].OperationId.StartsWith("DBLT-RMV-", StringComparison.Ordinal)) return;
+        try
+        {
+            var plan = events[0].Plan ?? throw new InvalidDataException("Intenção T3C sem plano.");
+            var change = plan.Changes.Single();
+            var snapshot = JsonSerializer.Deserialize<DebloatRemovalSnapshot>(change.Before.Data!);
+            var after = JsonSerializer.Deserialize<DebloatRemovalSnapshot>(change.After.Data!);
+            if (snapshot is null || snapshot.SchemaVersion != 1 || snapshot.Removed ||
+                !Enum.IsDefined(snapshot.Scenario) || !snapshot.Observation.Synthetic ||
+                snapshot.Observation.QueryState != DebloatInventoryQueryState.Completed ||
+                snapshot.Observation.Completeness != DebloatObservationCompleteness.Complete ||
+                snapshot.Observation.Dependencies.Completeness != DebloatObservationCompleteness.Complete ||
+                !snapshot.Observation.Dependencies.EffectsKnown ||
+                snapshot.Observation.Dependencies.UnknownConsequences.Count != 0 ||
+                snapshot.Observation.Packages is not { Count: > 0 and <= DebloatNativeLimits.MaximumPackages } ||
+                snapshot.Observation.Packages.Any(p => !Enum.IsDefined(p.Kind) || !Enum.IsDefined(p.Scope) ||
+                    !Enum.IsDefined(p.InstallState) || !DebloatNativeIdentity.IsValid(p)) ||
+                !DebloatRemovalIdentityPolicy.IsValid(snapshot.Observation.SelectedPackage) ||
+                !Enum.IsDefined(snapshot.CatalogEntry.PreliminaryRisk) || !Enum.IsDefined(snapshot.CatalogEntry.RealRisk) ||
+                snapshot.CatalogEntry.RealRisk is not (RiskLevel.High or RiskLevel.NotValidated) ||
+                snapshot.CatalogEntry.Id != snapshot.Observation.CatalogId ||
+                snapshot.CatalogEntry.TechnicalName != snapshot.Observation.SelectedPackage.TechnicalName ||
+                plan.TransactionId != events[0].TransactionId ||
+                plan.OperationId != "DBLT-RMV-" + snapshot.CatalogEntry.Id ||
+                change.Before.Kind != "DebloatRemovalMetadata" || change.After.Kind != change.Before.Kind ||
+                DebloatRemovalHashing.Hash(after) != DebloatRemovalHashing.Hash(snapshot with { Removed = true }))
+                throw new InvalidDataException("Snapshot T3C divergente ou versão desconhecida.");
+            foreach (var entry in events.Where(e => e.RemovalReceipt is not null))
+            {
+                var r = entry.RemovalReceipt!;
+                if (r.Package != snapshot.Observation.SelectedPackage ||
+                    r.Phase is not (DebloatRemovalPhase.Completed or DebloatRemovalPhase.Failed or DebloatRemovalPhase.Indeterminate) ||
+                    entry.State == TransactionState.ExecutionCompleted &&
+                    (r.Phase != DebloatRemovalPhase.Completed || r.HResult != 0 ||
+                        r.ExtendedHResult is not (null or 0) || !string.IsNullOrEmpty(r.ErrorText) || r.PartialFailure) ||
+                    entry.State == TransactionState.ExecutionFailed && r.EffectMayHaveOccurred)
+                    throw new InvalidDataException("Resultado T3C não corresponde ao plano/estado.");
+            }
+            if (events[^1].State == TransactionState.VerificationPassed &&
+                !events.Any(e => e.RemovalReceipt is { Phase: DebloatRemovalPhase.Completed,
+                    PostVerification: { Complete: true, MainPackageAbsent: true, EffectsMatchPlan: true } }))
+                throw new InvalidDataException("Sucesso T3C sem resultado e pós-verificação completos.");
+        }
+        catch (Exception e) when (e is JsonException or NullReferenceException or InvalidOperationException or ArgumentException)
+        { throw new InvalidDataException("Metadados T3C incompatíveis; preservar original.", e); }
     }
 
     private static bool IsSyntheticIdentity(string identity) =>

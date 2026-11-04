@@ -17,12 +17,14 @@ public sealed class SafetyEngine
     private readonly BackupService backups;
     private readonly VerificationEngine verification;
     private readonly IAuthorizationConfirmationPolicy? confirmationPolicy;
+    private readonly bool completeStartedExecution;
 
     public SafetyEngine(IOperationCatalog catalog, ISystemProfileReader profileReader,
         ITargetStateReader reader, IProtectionProvider protection, ITransactionJournalStore journal,
         IOperationExecutor executor, IExclusiveLockFactory locks, TimeProvider? time = null,
         TimeSpan? authorizationLifetime = null,
-        IAuthorizationConfirmationPolicy? confirmationPolicy = null)
+        IAuthorizationConfirmationPolicy? confirmationPolicy = null,
+        bool completeStartedExecution = false)
     {
         this.catalog = catalog;
         this.profileReader = profileReader;
@@ -33,6 +35,7 @@ public sealed class SafetyEngine
         this.locks = locks;
         this.time = time ?? TimeProvider.System;
         this.confirmationPolicy = confirmationPolicy;
+        this.completeStartedExecution = completeStartedExecution;
         preflight = new PreflightEngine(catalog, profileReader, reader, protection);
         authorization = new AuthorizationService(this.time, authorizationLifetime);
         backups = new BackupService(journal, this.time);
@@ -246,7 +249,10 @@ public sealed class SafetyEngine
                 detail: realEffect
                     ? "Efeito controlado em HKCU autorizado e iniciado."
                     : "Efeito sintético autorizado e iniciado.");
+            // Package removal cannot be cancelled after initiation. Existing tweak semantics remain unchanged.
+            var executionToken = completeStartedExecution ? CancellationToken.None : cancellationToken;
             var results = new List<StepResult>();
+            DebloatRemovalReceipt? removalReceipt = null;
             foreach (var change in plan.Changes.OrderBy(item => item.TargetIdentity, StringComparer.Ordinal))
             {
                 var request = new ExecutionRequest(plan.TransactionId, plan.PlanId, plan.OperationId,
@@ -254,6 +260,7 @@ public sealed class SafetyEngine
                 ExecutionOutcome outcome;
                 try
                 {
+                    // The adapter keeps cancellation until its actual initiation boundary, then ignores it.
                     outcome = await executor.ApplyAsync(request, cancellationToken);
                 }
                 catch (OperationCanceledException) { throw; }
@@ -262,6 +269,8 @@ public sealed class SafetyEngine
                     outcome = ExecutionOutcome.Unknown(error.Message);
                 }
 
+                removalReceipt = outcome.RemovalReceipt;
+
                 if (!outcome.Applied)
                 {
                     results.Add(new StepResult(change.TargetIdentity, false, false, false, outcome.Error,
@@ -269,8 +278,8 @@ public sealed class SafetyEngine
                     var state = outcome.Indeterminate
                         ? TransactionState.ExecutionIndeterminate
                         : TransactionState.ExecutionFailed;
-                    await session.AppendAsync(state, cancellationToken, results: results,
-                        error: outcome.Error, detail: "Execução interrompida.");
+                    await session.AppendAsync(state, executionToken, results: results,
+                        error: outcome.Error, detail: "Execução interrompida.", removalReceipt: removalReceipt);
                     return Failure(session,
                         outcome.Indeterminate ? BlockerCode.IndeterminateState : BlockerCode.ExecutionFailed,
                         outcome.Error ?? "Falha de execução.");
@@ -281,17 +290,17 @@ public sealed class SafetyEngine
                     [realEffect ? "Efeito aplicado." : "Efeito simulado aplicado."]));
             }
 
-            await session.AppendAsync(TransactionState.ExecutionCompleted, cancellationToken,
+            await session.AppendAsync(TransactionState.ExecutionCompleted, executionToken,
                 results: results,
                 detail: realEffect
                     ? "Efeitos controlados aplicados; verificação pendente."
-                    : "Efeitos simulados concluídos; verificação pendente.");
+                    : "Efeitos simulados concluídos; verificação pendente.", removalReceipt: removalReceipt);
 
-            var verify = await verification.VerifyAsync(plan, cancellationToken);
+            var verify = await verification.VerifyAsync(plan, executionToken);
             var verifyState = verify.Passed
                 ? TransactionState.VerificationPassed
                 : TransactionState.VerificationFailed;
-            await session.AppendAsync(verifyState, cancellationToken, verification: verify,
+            await session.AppendAsync(verifyState, executionToken, verification: verify,
                 results: verify.Steps,
                 detail: verify.Passed ? "Estado posterior confere com o plano."
                     : "Estado posterior diverge do plano.");
@@ -488,12 +497,13 @@ public sealed class SafetyEngine
             BackupRecord? backup = null, string? backupPath = null,
             AuthorizationToken? authorization = null,
             IReadOnlyList<StepResult>? results = null,
-            VerificationResult? verification = null, RecoveryResult? recovery = null)
+            VerificationResult? verification = null, RecoveryResult? recovery = null,
+            DebloatRemovalReceipt? removalReceipt = null)
         {
             var entry = new TransactionEventRecord(1, this.plan.TransactionId, NextSequence, state,
                 time.GetUtcNow(), this.plan.OperationId, this.plan.OperationVersion,
                 this.plan.CatalogVersion, this.plan.PlanHash, detail, error, plan, backup, backupPath,
-                authorization, results, verification, recovery, []);
+                authorization, results, verification, recovery, [], removalReceipt);
             var stored = await store.AppendEventAsync(entry, cancellationToken);
             Events.Add(stored);
         }

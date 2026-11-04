@@ -1,8 +1,28 @@
 # SentinelCore AI — instruções do projeto
 
-> **Estado vigente de 04/11/2026:** T3 sintética implementada, conforme seção T3 ao final. Referências anteriores
-> a “T3 não autorizada” descrevem o limite anterior ao pedido específico desta sessão. Execução/inventário funcional
-> real continuam proibidos; nenhuma autorização de T4 foi concedida.
+## T3C — remoção controlada compilável (04/11/2026)
+
+- **T3C — MOTOR NATIVO DE REMOÇÃO IMPLEMENTADO, EXECUÇÃO REAL BLOQUEADA E NÃO VALIDADA.**
+  [Relatório](docs/validation/2026-11-04-controlled-app-removal-t3c.md). T4 não iniciada.
+- O pedido T3C autorizou somente contratos, preflight, fluxo/testes sintéticos, apresentação e compilação do novo
+  `SentinelCore.Infrastructure.Debloat.Removal.Native`. Não executar `RemovePackageAsync` nem consultas reais.
+- Novo assembly Domain-only, sem referência App/testes e ausente do publish. Inventário T3B não recebe remoção.
+  `DebloatRemovalBuildGate` é incondicionalmente falso na entrada e antes da chamada privada; não criar opt-in.
+- Reutilizar SafetyEngine, AuthorizationService, locks, snapshot/journal DBLT/Synthetic e SQLite schema 12.
+  `RemovalReceipt` opcional em eventos preserva envelopes anteriores; null é omitido. Snapshot T3C schema 1.
+- Identidade completa/SID/catálogo/revisão/estado/dependências/consequências vinculados ao plano e revalidados.
+  T0 permanece 153 NÃO VALIDADOS / 9 ALTO. Nenhuma confirmação ou fixture autoriza aplicativo real.
+- Cancelamento só antes da entrada do executor. Após início, acompanhar sem cancelamento; progresso somente informado.
+  Verificação T3C inconclusiva com possível efeito mantém bloqueio persistente do alvo, inclusive após reabertura.
+- Nenhum rollback/reinstalação/recuperação automática de apps/dados. Snapshot é somente metadados.
+- A página mantém ações T3. Componentes WPF T3C são somente de apresentação e foram exercitados em host sintético.
+- Verificação: **1.404/1.404 Debug e Release**, 108 casos novos, builds **0/0**, 15 verificações WPF sintéticas.
+  Nenhuma consulta de pacotes reais, remoção real, modificação do Windows ou elevação solicitada.
+
+> **Estado vigente de 04/11/2026:** T3 sintética, T3B e T3C compiláveis implementadas, conforme seções próprias.
+> O pedido T3C autorizou contratos, fluxo sintético e adaptador nativo separado, sem executá-lo.
+> Execução real, consultas funcionais a pacotes e composição dos adaptadores nativos continuam proibidas.
+> T4 não foi autorizada. Restrições anteriores sobre implementar T3C são históricas, não autorização para executá-la.
 
 ## Escopo e arquitetura
 
@@ -49,7 +69,7 @@ Escritas apenas neste repositório, build/testes, temporários necessários e di
 - Documentar resultados exatos e limitações; não confundir compilação com validação funcional.
 - Não criar remoto, commit, push ou deploy automaticamente.
 
-## Personalização & Debloat — T1/T2A/T2B implementadas; T3 exige nova autorização
+## Personalização & Debloat — T3 sintética e T3B nativa implementadas; execução real exige autorização
 
 - O módulo é opcional e exclusivo para Windows 11. Consultar
   `docs/planning/TWEAKS_DEBLOAT_DISCOVERY.md`, `docs/planning/TWEAKS_DEBLOAT_T2A_ARCHITECTURE.md`,
@@ -117,7 +137,8 @@ Escritas apenas neste repositório, build/testes, temporários necessários e di
   fixture compõem o subconjunto operacional sintético. Bloco de Notas exige revisão média adicional. Não aceitar
   wildcard, correspondência parcial, identidade incompleta, dependência desconhecida ou pacote protegido/framework/recurso.
 - `SentinelCore.Infrastructure.Debloat` referencia apenas Domain e contém somente adaptadores sintéticos.
-  Não criar executor nativo/remover apps nesta fase. `RealDebloatBuildGate` recusa execução real incondicionalmente;
+  O executor nativo compilável autorizado posteriormente fica em assembly T3C separado; remover apps continua proibido.
+  `RealDebloatBuildGate` recusa execução real incondicionalmente;
   `SentinelCoreRealDebloat=false` é independente de Tweaks e Repairs e não possui opt-in operacional.
 - Reutilizar o Safety Engine existente com snapshot tipado da identidade/catálogo/cenário, token expirável de uso
   único e confirmação específica. Não criar segundo motor de segurança, banco ou recuperação automática.
@@ -131,7 +152,31 @@ Escritas apenas neste repositório, build/testes, temporários necessários e di
   (`SimulationAvailable`, `UnavailableForSimulation`, `ProtectedOrBlocked`). Entrada do catálogo sem observação
   aparece como **“Não verificado — inventário real indisponível”** e nunca como ausente ou não instalada. A UI separa
   **Catálogo de aplicativos** de **Inventário de aplicativos**.
-- Verificação registrada: 1247/1247 Debug e Release, builds 0/0 e 19 verificações WPF em host exclusivamente
+- Verificação registrada da T3: 1247/1247 Debug e Release, builds 0/0 e 19 verificações WPF em host exclusivamente
   sintético. Validação real permanece pendente e não é necessária para prosseguir no desenvolvimento sintético.
-  A **T3B** (inventário nativo somente leitura, sem consultas reais nos testes) e a **T3C** (remoção controlada,
-  mantida bloqueada) exigem nova autorização e não foram iniciadas.
+  A **T3B** foi implementada na sequência (ver seção própria); a **T3C** (remoção controlada) permanece bloqueada e
+  não foi iniciada.
+
+## T3B — Inventário nativo Appx/MSIX — implementado; execução e validação reais pendentes
+
+- O pedido de 04/11/2026 autorizou a implementação do inventário nativo **sem consultar pacotes reais**. Essa
+  autorização cobre contratos, correspondência com o catálogo, adaptador WinRT compilável e testes sintéticos; **não**
+  autoriza executar a enumeração, compor o adaptador na distribuição, remover/reinstalar/provisionar ou abrir T3C/T4.
+- `SentinelCore.Infrastructure.Debloat.Native` (`net10.0-windows10.0.22621.0`, `SupportedOSPlatformVersion
+  10.0.22000.0`) referencia apenas Domain. Usa `PackageManager.FindPackagesForUser(string.Empty)` (usuário atual),
+  sem outro SID, elevação, PowerShell, WinGet, processo externo, `FindPackages()` irrestrito ou API de remoção,
+  registro, deploy ou provisionamento. Não adicionar essas capacidades sem autorização específica.
+- App e testes **não referenciam** o assembly nativo; a solução apenas o compila. Nenhum argumento ativa o adaptador.
+  `NativeDebloatInventoryGate` é sempre falso. Preservar integralmente os três gates reais.
+- Contratos: `IDebloatNativeInventoryReader` somente leitura, `DebloatInventoryQueryResult`, estados
+  `NotExecuted`/`Completed`/`CompletedNoResults`/`Partial`/`AccessDenied`/`Interrupted`/`Failed`/`Unavailable`,
+  completude `NotObserved`/`Complete`/`Partial`/`Unavailable` e metadados Appx/MSIX tipados.
+- Ausência só é confirmada por consulta completa e sem erro fatal; consulta não executada, negada, interrompida,
+  parcial, com falha ou indisponível nunca confirma ausência nem reduz risco. Risco real T0 preservado
+  (9 ALTO / 153 NÃO VALIDADO). `DebloatNativeAssessment` não pode ser entregue ao `DebloatManager`.
+- Correspondência somente por nome técnico exato; o catálogo não possui PFN/publisher/versão/arquitetura por entrada.
+  Duplicidade, múltiplas versões, identidade divergente, framework/resource/opcional/bundle e fora do catálogo ficam
+  bloqueados. Aplicativo fora do catálogo aparece como “Aplicativo identificado — fora do catálogo de remoção.”
+- UI: painel somente leitura “Inventário nativo Appx/MSIX — não habilitado”; sem botão de consulta ou ação real.
+- Verificação: 1296/1296 Debug e Release (49 casos novos sobre 1247), builds 0/0. Nenhuma consulta real, remoção ou
+  elevação. Validação real pendente. Relatório: `docs/validation/2026-11-04-debloat-native-inventory-t3b.md`.
