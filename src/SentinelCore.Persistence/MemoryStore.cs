@@ -8,7 +8,7 @@ namespace SentinelCore.Persistence;
 
 public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInvestigationStore,
     IPerformanceSessionStore, INetworkSessionStore, IGraphicsInvestigationStore, ICorrelationInvestigationStore,
-    IMonitoringSessionStore, ITransactionJournalStore
+    IMonitoringSessionStore, ITransactionJournalStore, IRepairRecordStore
 {
     private readonly string root;
     private string Database => Path.Combine(root, "data", "sentinelcore.db");
@@ -63,7 +63,7 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
             File.Exists(HardwareRecordPath(audit.Id)) || File.Exists(EventRecordPath(audit.Id)) ||
             File.Exists(PerformanceRecordPath(audit.Id)) || File.Exists(NetworkRecordPath(audit.Id)) ||
             File.Exists(GraphicsRecordPath(audit.Id)) || File.Exists(CorrelationRecordPath(audit.Id)) ||
-            Directory.Exists(TransactionDirectory(audit.Id)))
+            Directory.Exists(TransactionDirectory(audit.Id)) || Directory.Exists(RepairDirectory(audit.Id)))
             throw new InvalidDataException("ID já existe em outro histórico; histórico preservado.");
         var json = CanonicalJson(audit);
         var path = RecordPath(audit);
@@ -93,7 +93,7 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
 
     private void EnsureDirectories()
     {
-        foreach (var relative in new[] { "memory", "memory/inventory", "memory/events", "memory/performance", "memory/network", "memory/graphics", "memory/correlation", "memory/monitoring", "memory/transactions", "data", "reports", "reports/hardware", "reports/events", "reports/performance", "reports/network", "reports/graphics", "reports/correlation", "reports/monitoring", "reports/transactions", "logs", Path.Combine("memory", "audits", "basic") })
+        foreach (var relative in new[] { "memory", "memory/inventory", "memory/events", "memory/performance", "memory/network", "memory/graphics", "memory/correlation", "memory/monitoring", "memory/transactions", "memory/repairs", "data", "reports", "reports/hardware", "reports/events", "reports/performance", "reports/network", "reports/graphics", "reports/correlation", "reports/monitoring", "reports/transactions", "reports/repairs", "logs", Path.Combine("memory", "audits", "basic") })
             Directory.CreateDirectory(Path.Combine(root, relative));
     }
 
@@ -130,9 +130,9 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
     {
         using var version = database.CreateCommand(); version.CommandText = "PRAGMA user_version";
         var schema = Convert.ToInt32(version.ExecuteScalar());
-        if (schema > 10)
+        if (schema > 11)
             throw new InvalidDataException("Banco de uma versão mais recente. Abra com uma versão compatível do aplicativo.");
-        if (schema == 10) return;
+        if (schema == 11) return;
         using var transaction = database.BeginTransaction();
         using var command = database.CreateCommand(); command.Transaction = transaction;
         if (schema < 1)
@@ -431,7 +431,35 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
                 """;
             command.ExecuteNonQuery();
         }
-        command.CommandText = "PRAGMA user_version = 10";
+        if (schema < 11)
+        {
+            command.CommandText = """
+                CREATE TABLE IF NOT EXISTS Repairs (
+                    Id TEXT PRIMARY KEY, FormatVersion INTEGER NOT NULL, SchemaVersion TEXT NOT NULL,
+                    SoftwareVersion TEXT NOT NULL, PlanId TEXT NOT NULL, OperationId TEXT NOT NULL,
+                    OperationVersion INTEGER NOT NULL, CatalogVersion TEXT NOT NULL, CatalogHash TEXT NOT NULL,
+                    DisplayName TEXT NOT NULL, Category TEXT NOT NULL, Kind TEXT NOT NULL, Risk TEXT NOT NULL,
+                    ExecutionMode TEXT NOT NULL, Synthetic INTEGER NOT NULL, VolumeId TEXT NULL,
+                    InvocationDisplay TEXT NOT NULL, State TEXT NOT NULL, Result TEXT NOT NULL,
+                    Confidence TEXT NOT NULL, ExitCode INTEGER NULL, ExitCodeText TEXT NULL,
+                    StartedUtc TEXT NOT NULL, CompletedUtc TEXT NOT NULL, DurationSeconds REAL NOT NULL,
+                    AuthorizationId TEXT NOT NULL, ConfirmationId TEXT NOT NULL, EvidenceJson TEXT NOT NULL,
+                    OutputSummary TEXT NOT NULL, OutputBytes INTEGER NOT NULL, OutputTruncated INTEGER NOT NULL,
+                    ResultSummary TEXT NOT NULL, RequiresRestart INTEGER NOT NULL,
+                    RequiresIntervention INTEGER NOT NULL, PossibleChangesJson TEXT NOT NULL,
+                    LimitationsJson TEXT NOT NULL, PreflightJson TEXT NOT NULL, StepsJson TEXT NOT NULL,
+                    OutputJson TEXT NOT NULL, MarkdownPath TEXT NOT NULL UNIQUE, PayloadHash TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS RepairSteps (
+                    RepairId TEXT NOT NULL REFERENCES Repairs(Id) ON DELETE CASCADE,
+                    Sequence INTEGER NOT NULL, AtUtc TEXT NOT NULL, State TEXT NOT NULL,
+                    Detail TEXT NOT NULL, ExitCode INTEGER NULL,
+                    PRIMARY KEY (RepairId, Sequence));
+                CREATE INDEX IF NOT EXISTS IX_Repairs_Completed ON Repairs(CompletedUtc DESC);
+                CREATE INDEX IF NOT EXISTS IX_Repairs_Operation ON Repairs(OperationId, CompletedUtc DESC);
+                """;
+            command.ExecuteNonQuery();
+        }
+        command.CommandText = "PRAGMA user_version = 11";
         command.ExecuteNonQuery();
         transaction.Commit();
     }

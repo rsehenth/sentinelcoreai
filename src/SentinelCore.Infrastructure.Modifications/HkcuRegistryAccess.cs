@@ -28,9 +28,9 @@ public sealed record HkcuValueRead(HkcuReadStatus Status, string Kind, string? D
         new(HkcuReadStatus.AccessDenied, RegistryValueKinds.Unknown, null, error);
     public static HkcuValueRead Invalid(string error) =>
         new(HkcuReadStatus.InvalidTarget, RegistryValueKinds.Unknown, null, error);
-    public static HkcuValueRead NotSupported() =>
+    public static HkcuValueRead NotSupported(string? error = null) =>
         new(HkcuReadStatus.Unsupported, RegistryValueKinds.Unknown, null,
-            "Registro do Windows indisponível nesta plataforma.");
+            error ?? "Registro do Windows indisponível nesta plataforma.");
     public static HkcuValueRead Failed(string error) =>
         new(HkcuReadStatus.Error, RegistryValueKinds.Unknown, null, error);
 }
@@ -51,8 +51,8 @@ public sealed record HkcuWriteResult(HkcuWriteStatus Status, string? Error)
     public static HkcuWriteResult Denied(string error) => new(HkcuWriteStatus.AccessDenied, error);
     public static HkcuWriteResult Missing() => new(HkcuWriteStatus.MissingKey, "Chave de destino ausente.");
     public static HkcuWriteResult Invalid(string error) => new(HkcuWriteStatus.InvalidTarget, error);
-    public static HkcuWriteResult NotSupported() =>
-        new(HkcuWriteStatus.Unsupported, "Registro do Windows indisponível nesta plataforma.");
+    public static HkcuWriteResult NotSupported(string? error = null) =>
+        new(HkcuWriteStatus.Unsupported, error ?? "Registro do Windows indisponível nesta plataforma.");
     public static HkcuWriteResult Failed(string error) => new(HkcuWriteStatus.Failed, error);
 }
 
@@ -77,6 +77,9 @@ public sealed class HkcuRegistryAccess : IHkcuRegistryAccess
     {
         if (!HkcuTargetPolicy.IsAllowed(target)) return HkcuValueRead.Invalid(HkcuTargetPolicy.RejectionReason(target));
         if (!OperatingSystem.IsWindows()) return HkcuValueRead.NotSupported();
+        if (!Environment.Is64BitProcess)
+            return HkcuValueRead.NotSupported(
+                "Processo não x64: o adaptador recusa o redirecionamento WOW6432Node do Registro.");
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(target.Path, writable: false);
@@ -110,6 +113,9 @@ public sealed class HkcuRegistryAccess : IHkcuRegistryAccess
     {
         if (!HkcuTargetPolicy.IsAllowed(target)) return HkcuWriteResult.Invalid(HkcuTargetPolicy.RejectionReason(target));
         if (!OperatingSystem.IsWindows()) return HkcuWriteResult.NotSupported();
+        if (!Environment.Is64BitProcess)
+            return HkcuWriteResult.NotSupported(
+                "Processo não x64: o adaptador recusa o redirecionamento WOW6432Node do Registro.");
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(target.Path, writable: true);
@@ -129,6 +135,9 @@ public sealed class HkcuRegistryAccess : IHkcuRegistryAccess
     {
         if (!HkcuTargetPolicy.IsAllowed(target)) return HkcuWriteResult.Invalid(HkcuTargetPolicy.RejectionReason(target));
         if (!OperatingSystem.IsWindows()) return HkcuWriteResult.NotSupported();
+        if (!Environment.Is64BitProcess)
+            return HkcuWriteResult.NotSupported(
+                "Processo não x64: o adaptador recusa o redirecionamento WOW6432Node do Registro.");
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(target.Path, writable: true);

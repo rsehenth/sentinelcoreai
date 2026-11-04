@@ -79,10 +79,10 @@ internal sealed class PreflightEngine
             }
             else if (string.Equals(target.Root, OperationTargetRoots.CurrentUser, StringComparison.Ordinal) &&
                      (!OperationTargetRoots.IsWellFormedCurrentUserTarget(target) ||
-                      !T2aTargetGuard.IsAllowed(target)))
+                      !HkcuCatalogGuard.IsAllowed(target)))
             {
                 blockers.Add(BlockerCode.TargetOutsideCatalog);
-                details.Add($"Alvo HKCU malformado ou fora do catálogo fechado da T2A: {target.Identity}.");
+                details.Add($"Alvo HKCU malformado ou fora do catálogo fechado de tweaks: {target.Identity}.");
             }
         }
 

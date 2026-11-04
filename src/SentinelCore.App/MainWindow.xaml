@@ -42,6 +42,7 @@
                     <ListBoxItem Content="Histórico" Tag="{StaticResource IconHistory}" ToolTip="Auditorias salvas neste computador (Ctrl+9)"/>
                     <ListBoxItem Content="Monitoramento" Tag="{StaticResource IconPerformance}" ToolTip="Sessões de observação autorizadas e registro de incidentes"/>
                     <ListBoxItem Content="Personalização" Tag="{StaticResource IconShieldCheck}" ToolTip="Tweaks controlados em HKCU, com backup e recuperação"/>
+                    <ListBoxItem Content="Reparos do Windows" Tag="{StaticResource IconShieldCheck}" ToolTip="Ferramentas oficiais de reparo do Windows em modo de simulação"/>
                 </ListBox>
 
                 <Border Grid.Row="2" Style="{StaticResource Card}" Padding="14,12">
@@ -1983,6 +1984,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                             </Grid.RowDefinitions>
 
                             <Grid>
@@ -2011,32 +2013,66 @@
 
                             <ItemsControl x:Name="TweaksCardsHost" Grid.Row="2" Margin="0,14,0,0"
                                           AutomationProperties.AutomationId="TweaksCards">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,10,0">
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding DisplayName}" FontSize="15" FontWeight="SemiBold"/>
-                                                <TextBlock Text="{Binding Category}" Style="{StaticResource Caption}" Margin="0,4,0,0"/>
-                                                <TextBlock Text="{Binding Description}" Style="{StaticResource Caption}" Margin="0,10,0,0" MaxHeight="54" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding CurrentSummary}" Margin="0,10,0,0" FontSize="12.5" Foreground="{StaticResource Accent}"/>
-                                                <TextBlock Text="{Binding DesiredSummary}" FontSize="12.5" Foreground="{StaticResource Accent}"/>
-                                                <TextBlock Text="{Binding RiskSummary}" Style="{StaticResource Caption}" Margin="0,8,0,0"/>
-                                                <TextBlock Text="{Binding Compatibility}" Style="{StaticResource Caption}"/>
-                                                <TextBlock Text="{Binding ProtectionsSummary}" Style="{StaticResource Caption}"/>
-                                                <TextBlock Text="{Binding Availability}" Style="{StaticResource Caption}" Margin="0,8,0,0" Foreground="{StaticResource Warn}"/>
-                                                <Button Content="Detalhes" Tag="{Binding OperationId}" Click="OnTweakDetails"
-                                                        Style="{StaticResource CompactButton}" HorizontalAlignment="Left" Margin="0,12,0,0"
-                                                        AutomationProperties.Name="Detalhes do tweak"/>
-                                            </StackPanel>
-                                        </Border>
+                                        <StackPanel Margin="0,0,0,10">
+                                            <TextBlock Text="{Binding Category}" FontSize="15" FontWeight="SemiBold"
+                                                       Margin="0,4,0,8" Foreground="{StaticResource Accent}"/>
+                                            <ItemsControl ItemsSource="{Binding Cards}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,10,0">
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding DisplayName}" FontSize="15" FontWeight="SemiBold"/>
+                                                                <TextBlock Text="{Binding Category}" Style="{StaticResource Caption}" Margin="0,4,0,0"/>
+                                                                <TextBlock Text="{Binding Description}" Style="{StaticResource Caption}" Margin="0,10,0,0" MaxHeight="54" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding CurrentSummary}" Margin="0,10,0,0" FontSize="12.5" Foreground="{StaticResource Accent}"/>
+                                                                <TextBlock Text="{Binding DesiredSummary}" FontSize="12.5" Foreground="{StaticResource Accent}"/>
+                                                                <TextBlock Text="{Binding RiskSummary}" Style="{StaticResource Caption}" Margin="0,8,0,0"/>
+                                                                <TextBlock Text="{Binding Compatibility}" Style="{StaticResource Caption}"/>
+                                                                <TextBlock Text="{Binding ProtectionsSummary}" Style="{StaticResource Caption}"/>
+                                                                <TextBlock Text="{Binding RecoverySummary}" Style="{StaticResource Caption}"/>
+                                                                <TextBlock Text="{Binding LimitationsSummary}" Style="{StaticResource Caption}" MaxHeight="40" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding Availability}" Style="{StaticResource Caption}" Margin="0,8,0,0" Foreground="{StaticResource Warn}"/>
+                                                                <Button Content="Detalhes" Tag="{Binding OperationId}" Click="OnTweakDetails"
+                                                                        Style="{StaticResource CompactButton}" HorizontalAlignment="Left" Margin="0,12,0,0"
+                                                                        AutomationProperties.Name="Detalhes do tweak"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <Grid Grid.Row="3" Margin="0,14,0,0">
+                            <Border Grid.Row="3" Style="{StaticResource Card}" Padding="16" Margin="0,4,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Modo de pesquisa da barra de tarefas" FontSize="15" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Um único controle para os quatro modos catalogados. Selecionar apenas prepara o plano; nenhuma alteração ocorre sem autorização específica."
+                                               Style="{StaticResource Caption}" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
+                                        <ComboBox x:Name="TweakSearchModeCombo" Width="270"
+                                                  DisplayMemberPath="DisplayName"
+                                                  SelectionChanged="OnTweakSearchModeSelectionChanged"
+                                                  AutomationProperties.AutomationId="TweakSearchMode"
+                                                  AutomationProperties.Name="Modo de pesquisa da barra de tarefas"/>
+                                        <Button x:Name="TweakSearchModePrepareButton" Content="Simular plano"
+                                                Tag="{StaticResource IconCompare}" Style="{StaticResource CompactButton}"
+                                                Click="OnTweakSearchModePrepare" IsEnabled="False" Margin="10,0,0,0"
+                                                AutomationProperties.AutomationId="PrepareSearchMode"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="TweakSearchModeStatus" Style="{StaticResource Caption}"
+                                               Margin="0,8,0,0" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"
+                                               Text="O modo observado é lido com o estado atual; a seleção não altera o Windows."/>
+                                </StackPanel>
+                            </Border>
+
+                            <Grid Grid.Row="4" Margin="0,14,0,0">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="2*"/>
                                     <ColumnDefinition Width="1.1*"/>
@@ -2095,7 +2131,7 @@
                                 </Border>
                             </Grid>
 
-                            <Border Grid.Row="4" Style="{StaticResource Card}" Padding="18" Margin="0,14,0,0">
+                            <Border Grid.Row="5" Style="{StaticResource Card}" Padding="18" Margin="0,14,0,0">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
@@ -2128,8 +2164,241 @@
                                 </Grid>
                             </Border>
 
-                            <TextBlock Grid.Row="5" Style="{StaticResource FootNote}" Margin="0,12,0,0"
-                                       Text="T2A: somente três operações HKCU do usuário atual, sem elevação. O modo real controlado permanece desabilitado por padrão nesta distribuição até a validação em VM Windows 11. Escrita no Registro não é declarada sucesso visual sem verificação; o Explorer não é reiniciado pelo aplicativo."/>
+                            <TextBlock Grid.Row="6" Style="{StaticResource FootNote}" Margin="0,12,0,0"
+                                       Text="T2B: operações HKCU do usuário atual, sem elevação e sem reiniciar o Explorer. O modo real controlado permanece desabilitado na distribuição; a validação real é pendente e não é executada no desenvolvimento. Escrita no Registro não é declarada sucesso visual sem verificação."/>
+                        </Grid>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ───── Reparos do Windows (R1) ───── -->
+                <TabItem x:Name="RepairsTab" Header="Reparos do Windows">
+                    <ScrollViewer x:Name="RepairsScroll" VerticalScrollBarVisibility="Auto" Focusable="False">
+                        <Grid Margin="32,28,32,24">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <Grid>
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                    <Border Width="48" Height="48" CornerRadius="13" Background="{StaticResource TileGradient}" BorderBrush="#2F6482" BorderThickness="1" Margin="0,0,16,0" VerticalAlignment="Top">
+                                        <Viewbox Width="23" Height="23"><Canvas Width="24" Height="24"><Path Data="{StaticResource IconShieldCheck}" Stroke="{StaticResource Accent}" StrokeThickness="1.9" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Canvas></Viewbox>
+                                    </Border>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <TextBlock Text="Reparos do Windows" Style="{StaticResource PageTitle}"/>
+                                        <TextBlock Text="Ferramentas oficiais de diagnóstico, verificação e reparação, com catálogo fechado e execução real bloqueada."
+                                                   Style="{StaticResource PageSubtitle}"/>
+                                    </StackPanel>
+                                </Grid>
+                                <Button x:Name="RepairsRefreshButton" Grid.Column="1" Content="Atualizar catálogo" Tag="{StaticResource IconRefresh}"
+                                        Style="{StaticResource GhostButton}" Click="OnRepairsRefresh" VerticalAlignment="Top" Margin="20,2,0,0"
+                                        AutomationProperties.AutomationId="RefreshRepairs"/>
+                            </Grid>
+
+                            <Border Grid.Row="1" Style="{StaticResource Card}" Padding="16" Margin="0,16,0,0">
+                                <StackPanel>
+                                    <TextBlock x:Name="RepairsModeText" FontWeight="SemiBold" FontSize="14" Foreground="{StaticResource Warn}"
+                                               Text="Execução real indisponível — modo de simulação."/>
+                                    <TextBlock x:Name="RepairsModeDetail" Style="{StaticResource Caption}" Margin="0,6,0,0"
+                                               Text="Catálogo fechado com executáveis oficiais e argumentos fixos. A execução real não é composta nesta distribuição."/>
+                                    <TextBlock x:Name="RepairsSyntheticBanner" Style="{StaticResource Caption}" Margin="0,6,0,0"
+                                               Foreground="{StaticResource Accent}" AutomationProperties.LiveSetting="Polite"
+                                               Text="FIXTURE SINTÉTICA — saída de teste, não é resultado do Windows real."/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="2" Style="{StaticResource Card}" Padding="16" Margin="0,12,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Volumes locais validados" FontSize="14" FontWeight="SemiBold"/>
+                                    <TextBlock Text="A lista é lida do Windows em modo somente leitura. Nenhum caminho ou letra de unidade é aceito como texto livre."
+                                               Style="{StaticResource Caption}" Margin="0,4,0,0"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                        <ComboBox x:Name="RepairsVolumeCombo" Width="380" DisplayMemberPath="DisplayText"
+                                                  SelectionChanged="OnRepairVolumeSelected"
+                                                  AutomationProperties.AutomationId="RepairVolume"
+                                                  AutomationProperties.Name="Volume local validado"/>
+                                        <TextBlock x:Name="RepairsVolumeText" Style="{StaticResource Caption}" VerticalAlignment="Center"
+                                                   Margin="12,0,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <ItemsControl x:Name="RepairsCardsHost" Grid.Row="3" Margin="0,14,0,0"
+                                          AutomationProperties.AutomationId="RepairCards">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,0,10">
+                                            <TextBlock Text="{Binding Category}" FontSize="15" FontWeight="SemiBold"
+                                                       Margin="0,4,0,8" Foreground="{StaticResource Accent}"/>
+                                            <ItemsControl ItemsSource="{Binding Cards}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Style="{StaticResource Card}" Padding="16" Margin="0,0,10,0">
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding DisplayName}" FontSize="15" FontWeight="SemiBold"/>
+                                                                <TextBlock Text="{Binding Category}" Style="{StaticResource Caption}" Margin="0,4,0,0"/>
+                                                                <TextBlock Text="{Binding Description}" Style="{StaticResource Caption}" Margin="0,10,0,0" MaxHeight="54" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding Command}" Margin="0,10,0,0" FontSize="12.5" Foreground="{StaticResource Accent}"/>
+                                                                <TextBlock Text="{Binding KindSummary}" FontSize="12.5" Foreground="{StaticResource Accent}"/>
+                                                                <TextBlock Text="{Binding RiskSummary}" Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                                                                <TextBlock Text="{Binding Privileges}" Style="{StaticResource Caption}"/>
+                                                                <TextBlock Text="{Binding RestartSummary}" Style="{StaticResource Caption}"/>
+                                                                <TextBlock Text="{Binding ConsequencesSummary}" Style="{StaticResource Caption}" MaxHeight="40" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding LimitationsSummary}" Style="{StaticResource Caption}" MaxHeight="40" TextTrimming="CharacterEllipsis"/>
+                                                                <TextBlock Text="{Binding Availability}" Style="{StaticResource Caption}" Margin="0,8,0,0" Foreground="{StaticResource Warn}"/>
+                                                                <Button Content="Detalhes" Tag="{Binding OperationId}" Click="OnRepairDetails"
+                                                                        Style="{StaticResource CompactButton}" HorizontalAlignment="Left" Margin="0,12,0,0"
+                                                                        AutomationProperties.Name="Detalhes do reparo"/>
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <Grid Grid.Row="4" Margin="0,14,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*"/>
+                                    <ColumnDefinition Width="1.1*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Border Style="{StaticResource Card}" Padding="18">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock x:Name="RepairsDetailsTitle" Text="Plano e confirmação" FontSize="15" FontWeight="SemiBold"/>
+                                        <TextBlock x:Name="RepairsDetailsMeta" Grid.Row="1" Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                                        <TextBox x:Name="RepairsDetailsText" Grid.Row="2" Margin="0,10,0,0" MinHeight="230" Height="260"
+                                                 FontSize="13" TextWrapping="Wrap" IsReadOnly="True" AcceptsReturn="True"
+                                                 VerticalScrollBarVisibility="Auto"
+                                                 Background="{StaticResource SurfaceGradient}" BorderBrush="{StaticResource LineStrong}"
+                                                 BorderThickness="1" Padding="14"
+                                                 AutomationProperties.AutomationId="RepairPlan"
+                                                 Text="Selecione um cartão para ler o estado, o volume e o plano simulado."/>
+                                        <StackPanel Grid.Row="3" Margin="0,12,0,0">
+                                            <TextBlock Text="Demonstração sintética" FontSize="13" FontWeight="SemiBold"/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                <ComboBox x:Name="RepairsScenarioCombo" Width="320" DisplayMemberPath="Label"
+                                                          AutomationProperties.AutomationId="RepairScenario"
+                                                          AutomationProperties.Name="Cenário sintético"/>
+                                                <TextBlock Text="A saída abaixo é uma fixture; não é resultado do Windows real."
+                                                           Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="4" Margin="0,10,0,0">
+                                            <TextBlock x:Name="RepairsConfirmationHint" Style="{StaticResource Caption}"
+                                                       Text="A autorização deve ser digitada exatamente como exibida; um clique genérico não é aceito."/>
+                                            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                                <TextBox x:Name="RepairsConfirmationText" Width="360" Style="{StaticResource SearchBox}"
+                                                         TextChanged="OnRepairConfirmationChanged"
+                                                         AutomationProperties.AutomationId="RepairConfirmation"
+                                                         AutomationProperties.Name="Confirmação específica do reparo"/>
+                                                <Button x:Name="RepairsAuthorizeButton" Content="Autorizar e executar (sintético)"
+                                                        Tag="{StaticResource IconShieldCheck}" Style="{StaticResource PrimaryButton}"
+                                                        Click="OnRepairAuthorize" IsEnabled="False" Margin="10,0,0,0"
+                                                        AutomationProperties.AutomationId="AuthorizeRepair"/>
+                                                <Button x:Name="RepairsCancelButton" Content="Cancelar" Tag="{StaticResource IconStop}"
+                                                        Click="OnRepairCancel" IsEnabled="False" Margin="8,0,0,0"
+                                                        AutomationProperties.AutomationId="CancelRepair"/>
+                                                <Button x:Name="RepairsRetrySaveButton" Content="Tentar salvar novamente"
+                                                        Click="OnRepairRetrySave" IsEnabled="False" Margin="8,0,0,0"
+                                                        AutomationProperties.AutomationId="RetryRepairSave"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="5" Margin="0,10,0,0">
+                                            <ProgressBar x:Name="RepairsProgress" Height="4" Visibility="Collapsed" IsIndeterminate="False"
+                                                         Background="{StaticResource SurfaceRaised}" Foreground="{StaticResource Accent}"/>
+                                            <TextBlock x:Name="RepairsProgressLabel" Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                                            <TextBlock x:Name="RepairsStatusText" Margin="0,6,0,0" TextWrapping="Wrap"
+                                                       Foreground="{StaticResource Muted}" AutomationProperties.LiveSetting="Polite"
+                                                       Text="Nenhuma execução iniciada. A execução real está indisponível."/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <Border Grid.Column="1" Style="{StaticResource Card}" Padding="18" Margin="14,0,0,0">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="*"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock Text="Histórico de reparos" FontSize="15" FontWeight="SemiBold"/>
+                                        <ListBox x:Name="RepairsHistoryList" Grid.Row="1" Margin="0,8,0,0" MinHeight="230"
+                                                 SelectionChanged="OnRepairHistorySelected"
+                                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                                 AutomationProperties.AutomationId="RepairHistory">
+                                            <ListBox.ItemTemplate><DataTemplate>
+                                                <StackPanel Margin="0,2">
+                                                    <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" TextWrapping="NoWrap"/>
+                                                    <TextBlock Text="{Binding DateText}" Style="{StaticResource Caption}" TextWrapping="NoWrap"/>
+                                                    <TextBlock Text="{Binding SummaryText}" Style="{StaticResource Caption}" TextWrapping="NoWrap"/>
+                                                </StackPanel>
+                                            </DataTemplate></ListBox.ItemTemplate>
+                                        </ListBox>
+                                        <TextBlock x:Name="RepairsUnfinishedText" Grid.Row="2" Style="{StaticResource Caption}"
+                                                   Margin="0,8,0,0" Text="Nenhuma intenção sem registro final."/>
+                                        <Button x:Name="RepairsReportButton" Grid.Row="3" Content="Abrir relatório"
+                                                Tag="{StaticResource IconFolder}" Style="{StaticResource CompactButton}"
+                                                Click="OnRepairReport" IsEnabled="False" HorizontalAlignment="Left" Margin="0,8,0,0"
+                                                AutomationProperties.AutomationId="OpenRepairReport"/>
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <Border Grid.Row="5" Style="{StaticResource Card}" Padding="18" Margin="0,14,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Saída e interpretação" FontSize="15" FontWeight="SemiBold"/>
+                                    <TextBlock Text="A saída é limitada, sanitizada e marcada como fixture quando sintética. Nenhum percentual é inventado."
+                                               Style="{StaticResource Caption}" Margin="0,4,0,0"/>
+                                    <TextBox x:Name="RepairsOutputText" Margin="0,10,0,0" MinHeight="170" Height="220"
+                                             FontSize="13" TextWrapping="Wrap" IsReadOnly="True" AcceptsReturn="True"
+                                             VerticalScrollBarVisibility="Auto"
+                                             Background="{StaticResource SurfaceGradient}" BorderBrush="{StaticResource LineStrong}"
+                                             BorderThickness="1" Padding="14"
+                                             AutomationProperties.AutomationId="RepairOutput"
+                                             Text="Nenhuma saída registrada."/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Grid.Row="6" Style="{StaticResource Card}" Padding="18" Margin="0,14,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Operações documentadas, indisponíveis" FontSize="15" FontWeight="SemiBold"/>
+                                    <TextBlock Text="As operações abaixo exigem avaliação específica de desmontagem, reinicialização, duração, perda de dados e ausência de rollback convencional."
+                                               Style="{StaticResource Caption}" Margin="0,4,0,0"/>
+                                    <TextBox x:Name="RepairsDocumentedText" Margin="0,10,0,0" MinHeight="120" Height="170"
+                                             FontSize="13" TextWrapping="Wrap" IsReadOnly="True" AcceptsReturn="True"
+                                             VerticalScrollBarVisibility="Auto"
+                                             Background="{StaticResource SurfaceGradient}" BorderBrush="{StaticResource LineStrong}"
+                                             BorderThickness="1" Padding="14"
+                                             AutomationProperties.AutomationId="RepairDocumented"
+                                             Text="Nenhuma operação documentada carregada."/>
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock Grid.Row="7" Style="{StaticResource FootNote}" Margin="0,12,0,0"
+                                       Text="R1 — Windows Repair Center: catálogo fechado, argumentos fixos, executáveis oficiais em System32 e nenhuma execução real nesta distribuição. SFC, DISM e CHKDSK não possuem rollback equivalente aos Tweaks. A validação real permanece pendente."/>
                         </Grid>
                     </ScrollViewer>
                 </TabItem>

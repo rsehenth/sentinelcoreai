@@ -6,9 +6,11 @@ metadados de relatórios de falha do Windows, sessões de desempenho com métric
 armazenamento, diagnóstico de rede e gráfico, correlação determinística entre as evidências históricas, sessões
 autorizadas de monitoramento com registro manual de incidentes, histórico local, memória Markdown e comparação entre
 snapshots.
-O produto funciona offline após a publicação. Não executa reparos, otimizações, correções ou comandos de IA. A única
-escrita no Windows é a T2A: três ajustes visuais em HKCU, com catálogo fechado, backup, autorização e recuperação;
-na distribuição padrão essa escrita permanece desabilitada até validação em VM Windows 11.
+O produto funciona offline após a publicação. O diagnóstico não executa reparos, otimizações, correções ou comandos
+de IA. A única escrita no Windows é a T2B: nove ajustes visuais em HKCU, com catálogo fechado, backup, autorização e
+recuperação; na distribuição padrão essa escrita permanece desabilitada até a validação real. O **R1 — Windows Repair
+Center** adiciona a aba de ferramentas oficiais de reparo, com catálogo fechado e execução real bloqueada; o fluxo é
+demonstrado somente por fixtures sintéticas explicitamente marcadas.
 
 ## Estado
 
@@ -20,9 +22,10 @@ pós-leitura e a sobredeclaração de cobertura. A correlação herda a parciali
 execução real resulta em cobertura parcial. O parecer está em [validação](docs/VALIDATION.md). Os históricos
 anteriores permanecem preservados e nenhum registro foi reescrito.
 Personalização & Debloat tem a T0 concluída como auditoria documental, a **T1 — Safety & Recovery Core**
-implementada como infraestrutura de segurança, autorização, journal, backup e recuperação, e a **T2A — First
-Controlled Windows Tweaks** implementada com três operações reais em HKCU e a aba **Personalização**. A execução
-real está desabilitada na distribuição até validação em VM Windows 11 com snapshot; a T2B, T3 (Debloat) e T4
+implementada como infraestrutura de segurança, autorização, journal, backup e recuperação, a **T2A — First
+Controlled Windows Tweaks** implementada com três operações reais em HKCU e a **T2B — Windows Tweaks Expansion**
+com seis operações adicionais no mesmo catálogo fechado. A aba **Personalização** mostra os nove cartões. A execução
+real está desabilitada na distribuição; a validação real foi adiada por decisão de projeto. A T3 (Debloat) e a T4
 permanecem futuras.
 
 A Fase 5 (Persistent Monitoring) foi implementada em `0.3.0-preview.8`: sessões de 5, 15 ou 30 minutos, uma por vez,
@@ -37,19 +40,27 @@ operações sintéticas, preflight, simulação sem efeitos, backup do estado ob
 único, journal imutável, execução sintética, verificação e recuperação com conflito. O schema SQLite passou a 10
 com migração aditiva 9→10 e continua reconstruível dos Markdowns.
 
-A **T2A — First Controlled Windows Tweaks** foi implementada sobre esse motor com três operações reais, quatro
-valores `REG_DWORD` em HKCU do usuário atual e sem elevação: mostrar extensões (`HideFileExt=0`), alinhar a barra
-de tarefas à esquerda (`TaskbarAl=0`) e ativar o modo escuro (`AppsUseLightTheme=0` e
-`SystemUsesLightTheme=0`). O catálogo é fechado e validado em duas camadas; o adaptador nativo não aceita caminho,
-valor ou operação fora da lista, não cria/remove chaves, não usa HKLM/HKCR/HKU, PowerShell, `reg.exe`, `.reg`,
-DISM, Appx, serviço, tarefa ou comando arbitrário. O modo escuro tem dois alvos e é explicitamente não atômico;
-a recuperação restaura o estado observado, preserva ausência original e não sobrescreve conflito. A aba
-**Personalização** mostra os três cartões, o plano, a confirmação digitada, o histórico e um Recovery Center
-inicial. A escrita real permanece desabilitada na distribuição (`RealDisabled`) e **não é compilada** no build de
-distribuição: `--enable-real-tweaks` só tem efeito em um build experimental de validação
-(`scripts/publish-validation.ps1`, nunca distribuído), usado exclusivamente em VM Windows 11 com snapshot. Nenhuma
-escrita real foi executada no computador de desenvolvimento.
-T2B, T3 (Debloat) e T4 (validação em VM) não foram iniciadas.
+A **T2B — Windows Tweaks Expansion** levou o mesmo catálogo fechado (`t2b-hkcu-1`) a nove operações, ainda sem
+elevação e somente em HKCU: mostrar arquivos e pastas ocultos (`Hidden=1`), ocultar o botão Visualizar Tarefas
+(`ShowTaskViewButton=0`) e os quatro modos de pesquisa da barra de tarefas (`SearchboxTaskbarMode` 0–3, com
+`SC-TW-TSK-02`, `SC-TW-TSK-03`, `SC-TW-TSK-05` e `SC-TW-TSK-04`). Os sete valores permitidos continuam validados
+em duas camadas (`HkcuCatalogGuard` e `HkcuTargetPolicy`), com backup, journal, verificação e rollback pelo estado
+observado. A pesquisa usa um único controle mutuamente exclusivo; selecionar um modo apenas prepara o plano. Os
+cartões são agrupados em Explorador de Arquivos, Barra de tarefas e Aparência. A escrita real permanece
+desabilitada na distribuição (`RealDisabled`) e **não é compilada** no build de distribuição: `--enable-real-tweaks`
+só tem efeito em um build experimental de validação (`scripts/publish-validation.ps1`, nunca distribuído),
+reservado à futura validação real. Nenhuma escrita real foi executada no computador de desenvolvimento.
+T3 (Debloat) e T4 não foram iniciadas.
+
+A **R1 — Windows Repair Center** foi implementada na sequência, ainda em `0.3.0-preview.8`, como módulo independente
+do Tweaks Manager: catálogo fechado para SFC (`/verifyonly`, `/scannow`), DISM (`CheckHealth`, `ScanHealth`,
+`RestoreHealth`), CHKDSK (`<volume>`, `<volume> /scan`) e WinRE (`/info`), com executáveis oficiais resolvidos somente
+em `System32` e argumentos fixos. A aba **Reparos do Windows** separa diagnóstico de reparação, exige confirmação
+digitada, registra a intenção antes do efeito, persiste intenção/registro Markdown imutáveis, relatório, projeção
+`REPAIRS.md` e SQLite esquema 11 (migração aditiva 10→11). A execução disponível é exclusivamente sintética, com
+fixtures marcadas; nenhum SFC, DISM, CHKDSK ou `reagentc` real foi executado, nenhuma elevação foi solicitada e
+nenhuma configuração do Windows foi alterada. A validação real permanece pendente. Detalhes em
+[validação R1](docs/validation/2026-11-04-windows-repair-center-r1.md).
 
 Versão 0.3.0-preview.7 — Evidence Correlation Engine. A aba **Correlação de evidências** reutiliza somente
 registros históricos já persistidos (auditorias, hardware, eventos/WER, desempenho, rede e gráficos) e produz
@@ -118,9 +129,10 @@ Execute no PowerShell, a partir da raiz:
 ```
 
 Os testes de persistência usam diretórios temporários isolados e dados fictícios. A suíte inclui um smoke test de
-coletores reais do Windows, somente leitura; os testes da T2A usam uma implementação em memória de
-`IHkcuRegistryAccess` e não tocam o Registro real. Nenhum teste modifica configurações do Windows ou usa o
-histórico de produção como raiz de teste. Suíte atual: **980/980 em Debug e Release**.
+coletores reais do Windows, somente leitura; os testes da T2A/T2B usam uma implementação em memória de
+`IHkcuRegistryAccess` e não tocam o Registro real. Os testes da R1 usam `SyntheticRepairExecutor` e não iniciam
+`sfc.exe`, `dism.exe`, `chkdsk.exe` ou `reagentc.exe`. Nenhum teste modifica configurações do Windows ou usa o
+histórico de produção como raiz de teste. Suíte atual: **1165/1165 em Debug e Release**.
 
 ## Gerar e executar o pacote
 
@@ -132,9 +144,9 @@ histórico de produção como raiz de teste. Suíte atual: **980/980 em Debug e 
 O destino é versionado a partir de `Directory.Build.props`; o script recusa sobrescrever sem `-Force`.
 Feche a instância publicada antes de gerar novamente o pacote.
 Distribua **toda a pasta** `artifacts/publish/0.3.0-preview.8/win-x64`, incluindo DLLs nativas.
-`publish.ps1` fixa `-p:SentinelCoreRealTweaks=false`: o pacote de distribuição não compila a escrita real da T2A.
+`publish.ps1` fixa `-p:SentinelCoreRealTweaks=false`: o pacote de distribuição não compila a escrita real da T2B.
 
-Build experimental de validação (T2A), **nunca distribuído**, apenas para VM Windows 11 com snapshot:
+Build experimental de validação (T2A/T2B), **nunca distribuído**, reservado à futura validação real:
 
 ```powershell
 .\scripts\publish-validation.ps1

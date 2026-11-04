@@ -16,5 +16,6 @@
     <ProjectReference Include="../SentinelCore.Persistence/SentinelCore.Persistence.csproj" />
     <ProjectReference Include="../SentinelCore.Infrastructure.Windows/SentinelCore.Infrastructure.Windows.csproj" />
     <ProjectReference Include="../SentinelCore.Infrastructure.Modifications/SentinelCore.Infrastructure.Modifications.csproj" />
+    <ProjectReference Include="../SentinelCore.Infrastructure.Repairs/SentinelCore.Infrastructure.Repairs.csproj" />
   </ItemGroup>
 </Project>

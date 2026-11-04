@@ -171,6 +171,12 @@
           "SentinelCore.Domain": "[0.3.0-preview.8, )"
         }
       },
+      "sentinelcore.infrastructure.repairs": {
+        "type": "Project",
+        "dependencies": {
+          "SentinelCore.Domain": "[0.3.0-preview.8, )"
+        }
+      },
       "sentinelcore.infrastructure.windows": {
         "type": "Project",
         "dependencies": {

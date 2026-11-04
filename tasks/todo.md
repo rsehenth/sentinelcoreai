@@ -475,3 +475,85 @@ clique real.
 - [x] Não executar commit, push ou deploy; não iniciar T2B, T3 ou T4.
 - [x] Registrar formalmente que a T2A continua **aguardando validação real em VM Windows 11 com snapshot**
   ([relatório](docs/validation/2026-11-02-tweaks-debloat-t2a-build-separation.md)).
+
+## T2B — Windows Tweaks Expansion (implementada; VALIDAÇÃO REAL PENDENTE)
+
+- [x] Confirmar o estado real: `master` com as alterações locais preservadas, versão `0.3.0-preview.8`, schema 10,
+  baseline **980/980** em Debug e Release; não executar reset, clean, commit ou push.
+- [x] Ler AGENTS, ARCHITECTURE, SECURITY, ROADMAP, VALIDATION, T0, arquitetura T1, parecer T2A, catálogo
+  `docs/planning/tweaks-debloat/` e `tasks/todo.md`; confirmar caminhos e compatibilidade no catálogo auditado.
+- [x] Expandir o catálogo fechado para `t2b-hkcu-1`, incorporando as três operações da T2A e as seis novas, sem
+  catálogo executável paralelo.
+- [x] Implementar `SC-TW-EXP-06` (`Hidden=1`), `SC-TW-TSK-06` (`ShowTaskViewButton=0`) e os quatro modos de
+  `SearchboxTaskbarMode` (`SC-TW-TSK-02=0`, `SC-TW-TSK-03=1`, `SC-TW-TSK-05=2`, `SC-TW-TSK-04=3`).
+- [x] Estender `HkcuTargetPolicy` para as sete identidades exatas e substituir o guard da T2A por
+  `HkcuCatalogGuard`, derivado do catálogo expandido.
+- [x] Implementar `TaskbarSearchModeController` com quatro opções mutuamente exclusivas; selecionar apenas
+  prepara o plano e nenhum valor é presumido.
+- [x] Implementar `TweakPresentation` para agrupar os cartões em Explorador de Arquivos, Barra de tarefas e
+  Aparência, sem lógica de negócio no code-behind.
+- [x] Integrar as novas operações ao fluxo T1/T2A: preflight, estado observado, plano/hash, simulação, backup,
+  autorização, revalidação, journal, execução, verificação, histórico e recuperação.
+- [x] Ampliar a aba **Personalização** com os nove cartões agrupados, o controle único de pesquisa e o painel de
+  plano/histórico/recuperação; nenhum botão decorativo.
+- [x] Preservar o build gate: `T2bCatalog` na composição, `RealDisabled` por padrão, nenhuma alteração em
+  `RealTweakBuildGate`, nenhum build experimental executado.
+- [x] Adicionar **88 testes** sintéticos (1068 no total) cobrindo catálogo, allowlist, leitura, execução, modos de
+  pesquisa, conflitos sucessivos, persistência, reconstrução SQLite, apresentação, distribuição e regressões.
+- [x] Executar builds Debug/Release `0/0` e suítes completas **1068/1068** em Debug e Release.
+- [x] Submeter o estado a duas revisões independentes (segurança e persistência/recuperação), exclusivamente
+  estáticas/sintéticas, e registrar os pareceres.
+- [x] Confirmar que **nenhuma escrita real foi executada**, nenhuma VM foi criada e nenhum build experimental foi
+  iniciado; a capacidade real permanece indisponível na distribuição.
+- [x] Atualizar ARCHITECTURE, SECURITY, ROADMAP, VALIDATION, AGENTS, README, este arquivo e o relatório da T2B.
+- [x] Não executar commit, push ou deploy; não iniciar T3 ou T4.
+
+**Veredito:** **T2B — IMPLEMENTAÇÃO CONCLUÍDA.** A validação real dos novos valores, do efeito visual e da
+recuperação permanece pendente por decisão de projeto e será concentrada na etapa futura única de Tweaks,
+Debloat e Recovery Center. A T3 não foi iniciada.
+
+## R1 — Windows Repair Center (implementada; VALIDAÇÃO REAL PENDENTE)
+
+- [x] Confirmar o estado real: `master` com as alterações locais preservadas, versão `0.3.0-preview.8`, schema 10,
+  baseline **1068/1068** em Debug e Release; não executar reset, clean, commit ou push.
+- [x] Ler AGENTS, ARCHITECTURE, SECURITY, ROADMAP, VALIDATION, T2B, `tasks/todo.md` e a documentação T1/T2A/T2B.
+- [x] Mapear Diagnostic Engine, Safety Engine, catálogo, preflight, autorização, persistência, Recovery Center e UI;
+  preservar a separação de capacidades e não reutilizar o rollback de Tweaks para reparos.
+- [x] Criar contratos tipados no Domain para ferramenta, operação, volume, invocação, perfil, preflight, plano,
+  autorização, progresso, resultado, evidência, registro, intenção, histórico e hash.
+- [x] Implementar o catálogo fechado `r1-windows-repair-1` com oito operações oficiais e nove operações avançadas
+  somente documentais/indisponíveis.
+- [x] Implementar allowlist exata de argumentos, volume validado `A:`–`Z:` e recusa de operação avançada disponível,
+  risco alto/não validado, volume indevido e comando/caminho livre.
+- [x] Implementar `RepairPreflightEngine`, `RepairInvocationBuilder`, `RepairAuthorizationService`,
+  `RepairResultInterpreter`, `RepairStateMachine`, `RepairCenter` e `RepairPresentation`.
+- [x] Separar simulação de execução real; simulação exige Windows 11, ferramenta disponível e volume válido; execução
+  real é bloqueada por gate independente e ausência de broker de elevação.
+- [x] Implementar `SentinelCore.Infrastructure.Repairs` isolado, com perfil, volumes somente leitura, política de
+  caminho oficial em `System32` e executor exclusivamente sintético. Nenhum processo é iniciado.
+- [x] Implementar fixtures sintéticas para sucesso, erro, acesso negado, sistema incompatível, corrupção encontrada/não
+  encontrada, reparação parcial, reinicialização, fonte ausente, volume indisponível, sistema de arquivos incompatível,
+  saída incompleta, interrupção, cancelamento e WinRE habilitado/desabilitado.
+- [x] Implementar intenção antes do efeito, autorização de uso único `AUTORIZAR REPARO <id> <hash12>`, consumo,
+  revalidação de plano/estado/volume e bloqueio de reutilização.
+- [x] Implementar persistência `memory/repairs/<id>/intent.md`/`record.md`, `reports/repairs/<id>.md`,
+  `memory/REPAIRS.md` e SQLite esquema 11 com migração aditiva 10→11.
+- [x] Implementar a aba **Reparos do Windows** com quatro categorias, volume validado, plano, confirmação, cenário
+  sintético, barra indeterminada, tempo decorrido, saída, histórico, intenções pendentes e relatório.
+- [x] Preservar o build gate: `SentinelCoreRealRepairs=false`, `RealExecutionImplemented=false`, `RepairCenter` recusa
+  modo real, `publish.ps1` fixa o gate em falso e nenhum executor real é composto.
+- [x] Adicionar **97 casos de teste** (1165 no total) cobrindo catálogo, argumentos, volumes, caminho oficial,
+  preflight, autorização, plano adulterado, reutilização, volume alterado, estados, interpretação, saída/limites,
+  persistência, imutabilidade, intenção órfã, corrupção, reconstrução SQLite, migração, arquitetura, gate e UI.
+- [x] Executar builds Debug/Release `0/0`, restore locked-mode e suítes **1165/1165 em Debug e 1165/1165 em Release**.
+- [x] Validar a UI em diretório isolado por captura: aba, banner de simulação, aviso de fixture, volume C: NTFS e
+  cartões de SFC/DISM; nenhuma fixture executada nessa abertura e fechamento gracioso.
+- [x] Confirmar que **nenhum SFC, DISM, CHKDSK ou REAGENTC real foi executado**, nenhuma elevação foi solicitada,
+  nenhuma VM foi criada e nenhuma configuração do Windows foi alterada.
+- [x] Atualizar ARCHITECTURE, SECURITY, ROADMAP, VALIDATION, README, AGENTS, este arquivo e o relatório da R1.
+- [x] Não executar commit, push ou deploy; não iniciar T3, T4 ou validação real automaticamente.
+
+**Veredito:** **R1 IMPLEMENTADA — VALIDAÇÃO REAL PENDENTE.** A aba, o catálogo, os contratos, o preflight, a
+autorização, a máquina de estados, o executor sintético, a interpretação, a persistência, o histórico, a UI e o gate
+de distribuição estão implementados e testados. A execução real das quatro ferramentas permanece indisponível e exige
+uma etapa futura isolada com autorização específica, proteção e fronteira privilegiada própria.

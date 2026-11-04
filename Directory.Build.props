@@ -12,8 +12,13 @@
   <PropertyGroup>
     <!-- Distribuição: a execução real da T2A não é compilada. Só o build experimental de validação a habilita. -->
     <SentinelCoreRealTweaks Condition="'$(SentinelCoreRealTweaks)' == ''">false</SentinelCoreRealTweaks>
+    <!-- Gate independente do R1. Mesmo verdadeiro, a R1 não compõe executor real nesta fase. -->
+    <SentinelCoreRealRepairs Condition="'$(SentinelCoreRealRepairs)' == ''">false</SentinelCoreRealRepairs>
   </PropertyGroup>
   <PropertyGroup Condition="'$(SentinelCoreRealTweaks)' == 'true'">
     <DefineConstants>$(DefineConstants);SENTINELCORE_REAL_TWEAKS</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(SentinelCoreRealRepairs)' == 'true'">
+    <DefineConstants>$(DefineConstants);SENTINELCORE_REAL_REPAIRS</DefineConstants>
   </PropertyGroup>
 </Project>

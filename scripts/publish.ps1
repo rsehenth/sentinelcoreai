@@ -14,6 +14,8 @@ if (Test-Path -LiteralPath $output) {
 $arguments = @('publish', (Join-Path $projectRoot 'src\SentinelCore.App\SentinelCore.App.csproj'), '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', '-o', $output, '-p:PublishTrimmed=false')
 # Build de distribuição: a execução real da T2A não é compilada, mesmo que o ambiente tente habilitá-la.
 $arguments += @('-p:SentinelCoreRealTweaks=false')
+# R1: o Repair Center não compila nem compõe executor real nesta fase.
+$arguments += @('-p:SentinelCoreRealRepairs=false')
 if ($SingleFile) { $arguments += @('-p:PublishSingleFile=true', '-p:IncludeNativeLibrariesForSelfExtract=true') }
 & (Join-Path $PSScriptRoot 'dotnet.ps1') @arguments
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

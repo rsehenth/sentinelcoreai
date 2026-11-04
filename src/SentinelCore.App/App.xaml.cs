@@ -5,6 +5,7 @@ using System.Windows.Media;
 using SentinelCore.Application;
 using SentinelCore.Domain;
 using SentinelCore.Infrastructure.Modifications;
+using SentinelCore.Infrastructure.Repairs;
 using SentinelCore.Infrastructure.Windows;
 using SentinelCore.Infrastructure.Windows.Monitoring;
 using SentinelCore.Infrastructure.Windows.Network;
@@ -68,26 +69,38 @@ public partial class App : System.Windows.Application
                     new NetworkMonitoringSource(WindowsNetworkCollectors.CreateSampleCollectors())
                 ], store, limits: monitoringLimits);
             var realTweaksEnabled = RealTweakBuildGate.AllowsRealExecution(e.Args);
-            var tweakCatalog = T2aCatalog.Create();
+            var tweakCatalog = T2bCatalog.Create();
             var registryAccess = new HkcuRegistryAccess();
             var tweakReader = new HkcuRegistryTargetReader(registryAccess);
             IOperationExecutor tweakExecutor = realTweaksEnabled
                 ? new HkcuRegistryOperationExecutor(registryAccess)
                 : new DisabledOperationExecutor();
             var tweakProfile = new Windows11SystemProfileReader(new HkcuPolicyProbe(),
-                realTweaksEnabled, T2aCatalog.OperationIds);
+                realTweaksEnabled, T2bCatalog.OperationIds);
             var transactionLocks = new FileExclusiveLockFactory(dataRoot);
             var tweakEngine = new SafetyEngine(tweakCatalog, tweakProfile, tweakReader,
-                new HkcuProtectionProvider(), store, tweakExecutor, transactionLocks);
+                new HkcuProtectionProvider(), store, tweakExecutor, transactionLocks,
+                confirmationPolicy: new TweakAuthorizationConfirmationPolicy());
             var tweakRecovery = new RecoveryService(store, tweakReader, tweakExecutor, transactionLocks,
                 catalog: tweakCatalog, confirmationPolicy: new TweakRecoveryConfirmationPolicy());
             var tweakManager = new TweakManager(tweakCatalog, tweakEngine, tweakRecovery, store,
                 realTweaksEnabled ? TweakExecutionMode.RealControlled : TweakExecutionMode.RealDisabled);
+
+            // R1 — Windows Repair Center. Nenhum executor real é composto: o gate é independente do Tweaks
+            // e a execução disponível é exclusivamente sintética, com fixtures marcadas.
+            var repairCatalog = RepairCatalog.CreateDefault();
+            var repairVolumes = new WindowsRepairVolumeProvider();
+            var repairPreflight = new RepairPreflightEngine(repairCatalog,
+                new WindowsRepairSystemProfileReader(), repairVolumes, new WindowsRepairToolLocator());
+            var repairCenter = new RepairCenter(repairCatalog, repairPreflight,
+                new SyntheticRepairExecutor(), store);
+            var repairManager = new RepairManager(repairCatalog, repairCenter, repairVolumes);
+
             MainWindow = new MainWindow(new AuditRunner(WindowsCollectors.CreateBasic()),
                 new HardwareRunner(WindowsHardwareCollectors.Create()),
                 new EventInvestigationRunner(WindowsEventEvidenceCollectors.Create()),
                 performanceRunner, networkRunner, graphicsRunner, correlationRunner, monitoringRunner,
-                tweakManager, store, store, store, store, store, store, store, store);
+                tweakManager, repairManager, store, store, store, store, store, store, store, store);
             MainWindow.Show();
         }
         catch (Exception error)

@@ -37,6 +37,13 @@ public sealed class BackupService
                 continue;
             }
 
+            if (state.TargetExists && state.Value is null)
+            {
+                limitations.Add($"{change.TargetIdentity}: alvo existe sem valor observado; " +
+                    "backup não é completo para reversão.");
+                complete = false;
+            }
+
             var value = state.TargetExists
                 ? state.Value ?? new TargetValueState(false, "Unknown", null)
                 : new TargetValueState(false, "Unknown", null);

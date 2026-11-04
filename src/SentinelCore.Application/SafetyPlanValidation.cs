@@ -26,6 +26,12 @@ internal static class SafetyPlanValidation
             reason = "Descritor apresentado diverge do plano.";
             return false;
         }
+        if (plan.Risk != descriptor.Risk || plan.Scope != descriptor.Scope ||
+            plan.Protection != descriptor.Protection)
+        {
+            reason = "Risco, escopo ou proteção do plano diverge do catálogo.";
+            return false;
+        }
         if (!string.Equals(plan.CatalogVersion, catalog.Version, StringComparison.Ordinal))
         {
             reason = "Versão do catálogo diverge do plano.";

@@ -125,19 +125,3 @@ public static class T2aCatalog
     private static TargetValueState DarkOrOff() =>
         new(true, RegistryValueKinds.DWord, "0");
 }
-
-/// <summary>
-/// Segunda camada do Safety Engine: qualquer alvo HKCU fora dos quatro valores exatos da T2A é recusado
-/// antes de qualquer leitura. O adaptador nativo mantém a mesma lista de forma independente.
-/// </summary>
-internal static class T2aTargetGuard
-{
-    public static IReadOnlyList<OperationTarget> AllowedTargets { get; } =
-        T2aCatalog.Operations()
-            .SelectMany(operation => operation.Targets)
-            .DistinctBy(target => target.Identity, StringComparer.Ordinal)
-            .ToList();
-
-    public static bool IsAllowed(OperationTarget target) =>
-        AllowedTargets.Any(item => string.Equals(item.Identity, target.Identity, StringComparison.Ordinal));
-}

@@ -53,7 +53,7 @@ public partial class MainWindow : Window
     public MainWindow(AuditRunner runner, HardwareRunner hardwareRunner, EventInvestigationRunner eventRunner,
         PerformanceSessionRunner performanceRunner, NetworkSessionRunner networkRunner,
         GraphicsInvestigationRunner graphicsRunner, EvidenceCorrelationRunner correlationRunner,
-        MonitoringSessionRunner monitoringRunner, TweakManager tweaks,
+        MonitoringSessionRunner monitoringRunner, TweakManager tweaks, RepairManager repairs,
         IAuditStore store, IHardwareSnapshotStore hardwareStore,
         IEventInvestigationStore eventStore, IPerformanceSessionStore performanceStore,
         INetworkSessionStore networkStore, IGraphicsInvestigationStore graphicsStore,
@@ -69,6 +69,7 @@ public partial class MainWindow : Window
         this.correlationRunner = correlationRunner;
         this.monitoringRunner = monitoringRunner;
         this.tweaks = tweaks;
+        this.repairs = repairs;
         this.store = store;
         this.hardwareStore = hardwareStore;
         this.eventStore = eventStore;
@@ -85,6 +86,7 @@ public partial class MainWindow : Window
         InitializeCorrelation();
         InitializeMonitoring();
         InitializeTweaks();
+        InitializeRepairs();
         SetHardwareCategories(null);
         UpdateHardwareButtons();
         freshnessTimer.Tick += (_, _) => UpdateSummary();
@@ -176,6 +178,9 @@ public partial class MainWindow : Window
 
             try { await ReloadMonitoringAsync(); }
             catch (Exception error) { ShowMonitoringFailure("Não foi possível recuperar as sessões de monitoramento", error); }
+
+            try { await ReloadRepairsAsync(); }
+            catch (Exception error) { ShowFailure("Não foi possível recuperar o histórico de reparos", error); }
         }
         finally
         {
@@ -346,6 +351,16 @@ public partial class MainWindow : Window
         {
             e.Cancel = true;
             TweakStatusText.Text = "Encerrando: aguarde a operação de tweak ou recuperação e o journal durável.";
+            return;
+        }
+
+        if (repairsBusy)
+        {
+            e.Cancel = true;
+            repairClosingAfterSave = true;
+            repairCancellation?.Cancel();
+            RepairsStatusText.Text = "Encerrando: aguarde a execução sintética e a gravação do registro de reparo. " +
+                "A interrupção real de uma ferramenta oficial não é garantida.";
             return;
         }
 

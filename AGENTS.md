@@ -12,10 +12,11 @@
 ## Segurança obrigatória
 
 **Agentes futuros não podem modificar o sistema operacional sem autorização específica do usuário.**
-O diagnóstico é somente de leitura. A única exceção implementada é a T2A, que escreve quatro valores HKCU
-(`HideFileExt`, `TaskbarAl`, `AppsUseLightTheme`, `SystemUsesLightTheme`) pelo Safety Engine, com catálogo
-fechado, backup, autorização digitada, journal e verificação; essa escrita está desabilitada na distribuição
-(`RealDisabled`) até validação em VM. São proibidos: alterar Registro fora da T2A, HKLM/HKCR/HKU, serviços,
+O diagnóstico é somente de leitura. A única exceção implementada é a T2B, que escreve sete valores HKCU
+(`HideFileExt`, `TaskbarAl`, `AppsUseLightTheme`, `SystemUsesLightTheme`, `Hidden`, `ShowTaskViewButton` e
+`SearchboxTaskbarMode`) pelo Safety Engine, com catálogo fechado, backup, autorização digitada, journal e
+verificação; essa escrita está desabilitada na distribuição (`RealDisabled`) até a validação real. São proibidos:
+alterar Registro fora da T2B, HKLM/HKCR/HKU, serviços,
 processos do usuário, drivers, BIOS, firmware, energia, proteções, arquivos de sistema, reparos ou reinícios.
 Não solicitar elevação para iniciar. Informação inacessível deve gerar limitação, não tentativa de contornar permissões.
 Não instalar ferramentas globais ou alterar variáveis permanentes. O SDK local só foi autorizado nesta sessão.
@@ -44,24 +45,29 @@ Escritas apenas neste repositório, build/testes, temporários necessários e di
 - Documentar resultados exatos e limitações; não confundir compilação com validação funcional.
 - Não criar remoto, commit, push ou deploy automaticamente.
 
-## Personalização & Debloat — T1/T2A implementadas; ampliação exige autorização
+## Personalização & Debloat — T1/T2A/T2B implementadas; T3 exige nova autorização
 
 - O módulo é opcional e exclusivo para Windows 11. Consultar
-  `docs/planning/TWEAKS_DEBLOAT_DISCOVERY.md`, `docs/planning/TWEAKS_DEBLOAT_T2A_ARCHITECTURE.md` e
-  `docs/ROADMAP.md` antes de propor qualquer ampliação.
-- A T1 (Safety & Recovery Core) e a T2A (três operações reais em HKCU) estão implementadas. A T2A escreve
-  somente `HideFileExt`, `TaskbarAl`, `AppsUseLightTheme` e `SystemUsesLightTheme`, todos HKCU e `REG_DWORD 0`,
-  com catálogo fechado, backup, autorização digitada, journal e verificação. Não há HKLM/HKCR/HKU, criação de
-  chave, script, PowerShell, `reg.exe`, `.reg`, Appx, serviço, tarefa, DISM ou elevação.
+  `docs/planning/TWEAKS_DEBLOAT_DISCOVERY.md`, `docs/planning/TWEAKS_DEBLOAT_T2A_ARCHITECTURE.md`,
+  `docs/ARCHITECTURE.md` e `docs/ROADMAP.md` antes de propor qualquer ampliação.
+- A T1 (Safety & Recovery Core), a T2A (três operações HKCU) e a T2B (seis operações adicionais) estão
+  implementadas. O catálogo publicado é `t2b-hkcu-1` e contém nove operações: `HideFileExt=0`, `TaskbarAl=0`,
+  `AppsUseLightTheme=0`, `SystemUsesLightTheme=0`, `Hidden=1`, `ShowTaskViewButton=0` e `SearchboxTaskbarMode`
+  (0–3). Não há HKLM/HKCR/HKU, criação de chave, script, PowerShell, `reg.exe`, `.reg`, Appx, serviço, tarefa,
+  DISM ou elevação.
 - **A execução real permanece desabilitada na distribuição (`RealDisabled`).** A separação é feita em tempo de
   compilação: o build de distribuição (padrão) não compila a escrita real e `--enable-real-tweaks` não tem efeito,
   mesmo por chamada interna. Somente builds experimentais de validação (`-p:SentinelCoreRealTweaks=true`) compilam
-  o executor HKCU e aceitam o opt-in; esses builds são exclusivos para VM de validação e nunca devem ser distribuídos.
-  Não executar escrita real no computador de desenvolvimento, não instalar virtualização sem autorização e não
-  declarar a T2A pronta para distribuição sem validação real em VM com snapshot.
-- A T2B, o Debloat e o Recovery Center completo não estão autorizados. Não adicionar operações, abas vazias,
+  o executor HKCU e aceitam o opt-in; esses builds são exclusivos para a futura validação real e nunca devem ser
+  distribuídos. Não executar escrita real no computador de desenvolvimento.
+- **Diretriz vigente:** durante o desenvolvimento dos módulos Tweaks, Debloat e Recovery Center, não serão
+  realizados testes reais no Windows (nem VM/snapshot). Os testes automatizados são obrigatórios e usam mocks,
+  fakes, adaptadores em memória e armazenamento temporário isolado. A validação real será concentrada em uma etapa
+  futura única, após a conclusão dos módulos. Isso não autoriza declarar operações não validadas como seguras nem
+  habilitar a execução real na distribuição.
+- A T3 (Debloat) e o Recovery Center completo continuam não autorizados. Não adicionar operações, abas vazias,
   botões decorativos ou um segundo Safety Engine/backup/journal.
-- Preservar separação entre Diagnostic Engine (leitura) e Controlled Modification Engine da T2A (operações
+- Preservar separação entre Diagnostic Engine (leitura) e Controlled Modification Engine da T2B (operações
   tipadas, autorizadas e auditáveis); diagnóstico e IA não recebem acesso implícito ao executor.
 - Risco alto e classificação não validada são bloqueados no backend, inclusive em chamadas internas.
   Baixo/médio exigem análise individual, proteção suficiente, simulação e autorização explícita.
@@ -73,3 +79,24 @@ Escritas apenas neste repositório, build/testes, temporários necessários e di
   Não executar scripts terceiros nem importar ajustes ou classificações upstream indiscriminadamente.
 - Revisões documentais preservam código, testes, lockfiles, executáveis publicados e dados reais. Builds de
   verificação usam saída isolada. Não confundir revisão concluída com aprovação ou correções implementadas.
+
+## R1 — Windows Repair Center — implementado; execução real desabilitada
+
+- O módulo é independente do Tweaks Manager e cobre SFC, DISM, CHKDSK e WinRE em catálogo fechado
+  (`r1-windows-repair-1`). Oito operações são simuláveis; as operações avançadas (`/f`, `/r`, `/x`, `/spotfix`,
+  verificação offline, boot, `reagentc /enable|/disable|/boottore`, BCD e redefinição) são somente documentais.
+- **Nenhuma ferramenta real pode ser executada nesta fase.** Não iniciar `sfc.exe`, `dism.exe`, `chkdsk.exe` ou
+  `reagentc.exe`, nem por diagnóstico ou consulta. Não solicitar elevação, não criar broker/serviço privilegiado e
+  não usar `cmd.exe`, PowerShell, script, `.reg` ou caminho configurável.
+- O executor disponível é `SyntheticRepairExecutor`; toda saída é fixture marcada. O `RepairCenter` recusa modo real.
+  O gate é independente do Tweaks (`SentinelCoreRealRepairs=false`, `RealExecutionImplemented=false`).
+- Executáveis oficiais são resolvidos somente em `System32`, sem `PATH`; o volume de `chkdsk` vem de lista validada.
+  Toda execução exige confirmação `AUTORIZAR REPARO <id> <hash12>` e autorização de uso único.
+- Persistência: intenção antes do efeito, `memory/repairs/<id>/intent.md` e `record.md` imutáveis,
+  `reports/repairs/<id>.md`, `memory/REPAIRS.md` e SQLite esquema 11 (migração aditiva 10→11). Intenção órfã é
+  interrompida, nunca concluída; o Markdown é autoritativo.
+- Reparações não possuem rollback equivalente aos Tweaks. Não prometer reversão de SFC/DISM/CHKDSK, recuperação por
+  ponto de restauração ou correção de todas as falhas. Não executar reparação automática após auditoria, correlação,
+  monitoramento ou IA; não alterar Windows Update, Defender, firewall ou políticas.
+- A validação real das quatro ferramentas permanece pendente e exige etapa isolada com autorização específica,
+  proteção e fronteira privilegiada própria. Não declarar a R1 pronta para uso real sem essa validação.

@@ -44,11 +44,12 @@ public sealed class HkcuPolicyProbe : IHkcuPolicyProbe
             "política do usuário");
         AddLimitation(limitations, machineAppearance);
         AddLimitation(limitations, userAppearance);
-        if (machineAppearance.Value == 1 || userAppearance.Value == 1)
+        if (HkcuPolicyDecision.BlocksAppearance(machineAppearance) ||
+            HkcuPolicyDecision.BlocksAppearance(userAppearance))
         {
             blocked.Add(DarkModeOperationId);
-            limitations.Add("Política NoDispAppearancePage impede alterações de aparência; " +
-                "a operação de modo escuro é bloqueada e a política não é contornada.");
+            limitations.Add("Política NoDispAppearancePage impede alterações de aparência ou não pôde ser " +
+                "interpretada; a operação de modo escuro é bloqueada e a política não é contornada.");
         }
 
         var machineFolder = ReadDWord(Registry.LocalMachine, PoliciesExplorerPath, NoFolderOptions,
@@ -64,41 +65,67 @@ public sealed class HkcuPolicyProbe : IHkcuPolicyProbe
         return new HkcuPolicyEvaluation(blocked, [], limitations.Distinct().ToList());
     }
 
-    private static void AddLimitation(List<string> limitations, PolicyRead read)
+    private static void AddLimitation(List<string> limitations, HkcuPolicyRead read)
     {
         if (read.Limitation is not null) limitations.Add(read.Limitation);
     }
 
-    private static PolicyRead ReadDWord(RegistryKey root, string path, string name, string description)
+    private static HkcuPolicyRead ReadDWord(RegistryKey root, string path, string name, string description)
     {
         if (!OperatingSystem.IsWindows())
-            return new PolicyRead(null, $"{description} {name} não avaliada fora do Windows.");
+            return HkcuPolicyRead.Indeterminate($"{description} {name} não avaliada fora do Windows.");
         try
         {
             using var key = root.OpenSubKey(path, writable: false);
-            if (key is null) return new PolicyRead(null, null);
+            if (key is null) return HkcuPolicyRead.Absent();
             if (!key.GetValueNames().Any(item => string.Equals(item, name, StringComparison.OrdinalIgnoreCase)))
-                return new PolicyRead(null, null);
+                return HkcuPolicyRead.Absent();
             var value = key.GetValue(name, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
             return value is int number
-                ? new PolicyRead(number, null)
-                : new PolicyRead(null, $"A {description} {name} não é um DWORD; valor não interpretado.");
+                ? HkcuPolicyRead.Of(number)
+                : HkcuPolicyRead.Indeterminate(
+                    $"A {description} {name} não é um DWORD; valor não interpretado.");
         }
         catch (SecurityException error)
         {
-            return new PolicyRead(null, $"Acesso negado ao ler a {description} {name}: {error.Message}");
+            return HkcuPolicyRead.Indeterminate(
+                $"Acesso negado ao ler a {description} {name}: {error.Message}");
         }
         catch (UnauthorizedAccessException error)
         {
-            return new PolicyRead(null, $"Acesso negado ao ler a {description} {name}: {error.Message}");
+            return HkcuPolicyRead.Indeterminate(
+                $"Acesso negado ao ler a {description} {name}: {error.Message}");
         }
         catch (Exception error) when (error is IOException or ArgumentException or ObjectDisposedException)
         {
-            return new PolicyRead(null, $"A {description} {name} não pôde ser lida: {error.Message}");
+            return HkcuPolicyRead.Indeterminate(
+                $"A {description} {name} não pôde ser lida: {error.Message}");
         }
     }
+}
 
-    private sealed record PolicyRead(int? Value, string? Limitation);
+/// <summary>
+/// Leitura de uma política documentada. <see cref="IsUnreadable"/> distingue uma política comprovadamente
+/// ausente de uma política presente que não pôde ser interpretada por tipo incorreto ou acesso negado.
+/// </summary>
+public sealed record HkcuPolicyRead(int? Value, bool IsUnreadable, string? Limitation)
+{
+    public static HkcuPolicyRead Absent() => new(null, false, null);
+    public static HkcuPolicyRead Of(int value) => new(value, false, null);
+    public static HkcuPolicyRead Indeterminate(string limitation) => new(null, true, limitation);
+}
+
+/// <summary>
+/// Decisão pura e verificável por testes sintéticos: aparência é bloqueada quando a política está habilitada
+/// (`1`) ou quando o valor não pôde ser interpretado (fail-closed). O adaptador não altera a política.
+/// </summary>
+public static class HkcuPolicyDecision
+{
+    public static bool BlocksAppearance(HkcuPolicyRead read)
+    {
+        ArgumentNullException.ThrowIfNull(read);
+        return read.IsUnreadable || read.Value == 1;
+    }
 }
 
 /// <summary>
@@ -149,8 +176,12 @@ public sealed class Windows11SystemProfileReader : ISystemProfileReader
         {
             blocked.AddRange(gatedOperationIds);
             limitations.Add("Modo real controlado desabilitado nesta distribuição; " +
-                "as três operações permanecem somente leitura/simulação até validação em VM.");
+                "as operações cadastradas permanecem somente leitura/simulação até a validação real.");
         }
+
+        if (OperatingSystem.IsWindows() && Environment.IsPrivilegedProcess)
+            limitations.Add("Aplicativo em execução elevada; elevação não é necessária e a execução real " +
+                "deve ser evitada nesse estado.");
 
         return new SystemProfile(
             windows11 ? $"Windows 11 build {build}" : $"Windows build {build}",

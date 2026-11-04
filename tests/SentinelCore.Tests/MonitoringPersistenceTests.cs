@@ -72,7 +72,7 @@ public sealed class MonitoringPersistenceTests : IDisposable
         Assert.Equal(segment.ObservationCount, copy.Segments.Single().ObservationCount);
         Assert.Equal(incident.Id, copy.Incidents.Single().Id);
         Assert.Equal(EventCategory.Graphics, loaded.Segments.Single().Events.Single().Category);
-        Assert.Equal(10, ReadUserVersion());
+        Assert.Equal(11, ReadUserVersion());
     }
 
     [Fact]
@@ -248,7 +248,7 @@ public sealed class MonitoringPersistenceTests : IDisposable
         var loaded = await NewStore().LoadMonitoringSessionsAsync();
         Assert.Single(loaded.Sessions);
         Assert.Single((await NewStore().LoadAsync()).Audits);
-        Assert.Equal(10, ReadUserVersion());
+        Assert.Equal(11, ReadUserVersion());
     }
 
     [Fact]
@@ -258,7 +258,7 @@ public sealed class MonitoringPersistenceTests : IDisposable
         using (var db = Open())
         {
             using var command = db.CreateCommand();
-            command.CommandText = "PRAGMA user_version=11";
+            command.CommandText = "PRAGMA user_version=12";
             command.ExecuteNonQuery();
         }
 

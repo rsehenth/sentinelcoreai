@@ -126,7 +126,8 @@ internal sealed class T2aScope : IDisposable
     {
         var real = realExecutionEnabled ?? this.realExecutionEnabled;
         Engine = new SafetyEngine(Catalog, Profile, Reader, new HkcuProtectionProvider(),
-            journal, Executor, Locks, Time, TimeSpan.FromMinutes(2));
+            journal, Executor, Locks, Time, TimeSpan.FromMinutes(2),
+            new TweakAuthorizationConfirmationPolicy());
         Recovery = new RecoveryService(journal, Reader, Executor, Locks, Time, Catalog,
             new TweakRecoveryConfirmationPolicy());
         Manager = new TweakManager(Catalog, Engine, Recovery, journal,

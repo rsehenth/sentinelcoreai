@@ -30,8 +30,8 @@ public sealed record TweakOperationView(
     string? LoadError);
 
 /// <summary>
-/// Fachada de apresentação/orquestração da T2A. Não escreve no Windows: toda execução e recuperação passam
-/// pelo Safety Engine e pelo <see cref="RecoveryService"/> da T1.
+/// Fachada de apresentação/orquestração dos tweaks (T2A + T2B). Não escreve no Windows: toda execução e
+/// recuperação passam pelo Safety Engine e pelo <see cref="RecoveryService"/> da T1.
 /// </summary>
 public sealed class TweakManager
 {
@@ -144,7 +144,7 @@ public sealed class TweakManager
         var availability = mode switch
         {
             TweakExecutionMode.RealDisabled => "Execução real desabilitada nesta distribuição; " +
-                "validação em VM Windows 11 pendente.",
+                "validação real pendente.",
             _ when simulation.CanExecute => "Disponível para execução controlada em HKCU.",
             _ => "Indisponível: " + string.Join(", ", simulation.Blockers)
         };
@@ -158,6 +158,26 @@ public sealed class TweakManager
     private static string Compatibility(OperationDescriptor operation) =>
         $"Windows 11 · build mínimo {operation.Compatibility.MinimumBuild}" +
         (operation.Compatibility.MaximumBuild is null ? "" : $" · máximo {operation.Compatibility.MaximumBuild}");
+}
+
+/// <summary>
+/// Vincula a confirmação de execução ao plano concreto. A política é opcional no Safety Engine; a composição de
+/// tweaks a fornece para que o backend — e não apenas a janela — recuse um texto genérico.
+/// </summary>
+public interface IAuthorizationConfirmationPolicy
+{
+    bool IsValid(OperationPlan plan, string? confirmation);
+}
+
+public sealed class TweakAuthorizationConfirmationPolicy : IAuthorizationConfirmationPolicy
+{
+    public bool IsValid(OperationPlan plan, string? confirmation)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        return SafetyText.IsValidConfirmation(confirmation) &&
+            string.Equals(confirmation!.Trim(), TweakManager.BuildConfirmationText(plan),
+                StringComparison.Ordinal);
+    }
 }
 
 /// <summary>
@@ -187,6 +207,6 @@ public sealed class DisabledOperationExecutor : IOperationExecutor
     {
         cancellationToken.ThrowIfCancellationRequested();
         return Task.FromResult(ExecutionOutcome.Failed(
-            "Execução real desabilitada nesta distribuição; validação em VM Windows 11 pendente."));
+            "Execução real desabilitada nesta distribuição; validação real pendente."));
     }
 }

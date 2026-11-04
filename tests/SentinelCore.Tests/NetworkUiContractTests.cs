@@ -25,6 +25,7 @@ public sealed class NetworkUiContractTests
     [InlineData("MainWindow.Events.cs", "EventCategoryRow")]
     [InlineData("MainWindow.Monitoring.cs", "MonitoringPresetRow")]
     [InlineData("MainWindow.Monitoring.cs", "MonitoringCategoryRow")]
+    [InlineData("MainWindow.Repairs.cs", "RepairScenarioRow")]
     public void ComboBoxItemRecordsOverrideToStringSoTheSelectionBoxShowsTheLabel(string file, string record)
     {
         // O ControlTemplate de ComboBox em App.xaml exibe SelectionBoxItem; sem ToString() a caixa fechada mostra
@@ -43,7 +44,7 @@ public sealed class NetworkUiContractTests
         // Se alguém criar um novo ComboBox com DisplayMemberPath="Label" a lista acima precisa crescer junto.
         var xaml = AppSource("MainWindow.xaml");
         var comboBoxesBoundToLabel = Regex.Matches(xaml, @"<ComboBox\b[^>]*DisplayMemberPath=""Label""", RegexOptions.Singleline).Count;
-        Assert.Equal(8, comboBoxesBoundToLabel);
+        Assert.Equal(9, comboBoxesBoundToLabel);
     }
 
     private static NetworkTcpipEventContext TcpipContext(int attempts, int ephemeral) =>

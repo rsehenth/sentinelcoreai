@@ -116,7 +116,10 @@ public static class TransactionProjection
         var results = ordered.Where(item => item.Results is not null)
             .SelectMany(item => item.Results!).GroupBy(item => item.TargetIdentity)
             .Select(group => group.Last()).ToList();
-        var limitations = ordered.SelectMany(item => item.Limitations).Distinct().ToList();
+        var limitations = ordered.SelectMany(item => item.Limitations).ToList();
+        if (plan is not null) limitations.AddRange(plan.Limitations);
+        if (verification is not null) limitations.AddRange(verification.Limitations);
+        limitations = limitations.Distinct().ToList();
         if (warnings is not null) limitations.AddRange(warnings);
 
         var indeterminate = IsIndeterminate(ordered);

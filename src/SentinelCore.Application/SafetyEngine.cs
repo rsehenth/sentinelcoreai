@@ -16,11 +16,13 @@ public sealed class SafetyEngine
     private readonly AuthorizationService authorization;
     private readonly BackupService backups;
     private readonly VerificationEngine verification;
+    private readonly IAuthorizationConfirmationPolicy? confirmationPolicy;
 
     public SafetyEngine(IOperationCatalog catalog, ISystemProfileReader profileReader,
         ITargetStateReader reader, IProtectionProvider protection, ITransactionJournalStore journal,
         IOperationExecutor executor, IExclusiveLockFactory locks, TimeProvider? time = null,
-        TimeSpan? authorizationLifetime = null)
+        TimeSpan? authorizationLifetime = null,
+        IAuthorizationConfirmationPolicy? confirmationPolicy = null)
     {
         this.catalog = catalog;
         this.profileReader = profileReader;
@@ -30,6 +32,7 @@ public sealed class SafetyEngine
         this.executor = executor;
         this.locks = locks;
         this.time = time ?? TimeProvider.System;
+        this.confirmationPolicy = confirmationPolicy;
         preflight = new PreflightEngine(catalog, profileReader, reader, protection);
         authorization = new AuthorizationService(this.time, authorizationLifetime);
         backups = new BackupService(journal, this.time);
@@ -54,6 +57,7 @@ public sealed class SafetyEngine
             throw new InvalidOperationException("Plano bloqueado não pode ser autorizado.");
         if (SafetyGates.RiskGate(simulation.Operation) is { } blocker)
             throw new InvalidOperationException($"Operação bloqueada no backend: {blocker}.");
+        EnsureAuthorizable(simulation.Operation);
         var plan = simulation.Plan;
         if (!SafetyPlanValidation.MatchesCatalog(catalog, simulation.Operation, plan, out var mismatch))
             throw new InvalidOperationException("Plano não corresponde ao catálogo fechado: " + mismatch);
@@ -61,7 +65,31 @@ public sealed class SafetyEngine
                 plan.OperationId, plan.OperationVersion, plan.CatalogVersion, plan.Risk, plan.Scope,
                 plan.Protection, plan.ObservedStateHash, plan.Changes), StringComparison.Ordinal))
             throw new InvalidOperationException("Plano inconsistente; nova simulação é necessária.");
+        if (confirmationPolicy is not null &&
+            !confirmationPolicy.IsValid(plan, userConfirmationId))
+            throw new InvalidOperationException(
+                "A confirmação digitada não corresponde à operação e ao plano apresentado.");
         return authorization.Issue(plan, userConfirmationId);
+    }
+
+    /// <summary>
+    /// Reconfere no backend as condições globais de composição antes de emitir autorização. Não substitui o
+    /// preflight assíncrono da execução, mas impede que um objeto de simulação adulterado obtenha token em
+    /// distribuição desabilitada ou sob política restritiva.
+    /// </summary>
+    private void EnsureAuthorizable(OperationDescriptor operation)
+    {
+        var profile = profileReader.Read();
+        if (!profile.IsWindows11)
+            throw new InvalidOperationException("Windows 11 é obrigatório para autorizar a operação.");
+        if (operation.Scope != OperationScope.CurrentUser)
+            throw new InvalidOperationException("Somente operações do usuário atual podem ser autorizadas.");
+        if (operation.Availability != OperationAvailability.Enabled)
+            throw new InvalidOperationException("Operação desabilitada ou bloqueada no catálogo.");
+        if (profile.BlockedOperationIds.Contains(operation.Id, StringComparer.OrdinalIgnoreCase) ||
+            profile.BlockedCategories.Contains(operation.Category, StringComparer.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                "Política restritiva bloqueia a operação; autorização recusada.");
     }
 
     public async Task<TransactionExecutionResult> ExecuteAsync(OperationPlan plan,

@@ -48,7 +48,7 @@ public sealed class GraphicsPersistenceTests : IDisposable
         Assert.True(bytes > 0);
         Assert.True(File.Exists(store.GetGraphicsReportPath(investigation.Id)));
         Assert.True(File.Exists(Path.Combine(root, "memory", "GRAPHICS.md")));
-        Assert.Equal(10, ReadUserVersion());
+        Assert.Equal(11, ReadUserVersion());
     }
 
     [Fact]
@@ -156,7 +156,7 @@ public sealed class GraphicsPersistenceTests : IDisposable
         var rebuilt = Assert.Single(loaded.Investigations);
         Assert.Equal(investigation.Id, rebuilt.Id);
         Assert.Equal(investigation.Events.Count, rebuilt.Events.Count);
-        Assert.Equal(10, ReadUserVersion());
+        Assert.Equal(11, ReadUserVersion());
 
         using var db = Open();
         using var command = db.CreateCommand();
@@ -191,7 +191,7 @@ public sealed class GraphicsPersistenceTests : IDisposable
         Assert.Single((await NewStore().LoadAsync()).Audits);
         Assert.Single((await NewStore().LoadInvestigationsAsync()).Investigations);
         Assert.Single((await NewStore().LoadSessionsAsync()).Sessions);
-        Assert.Equal(10, ReadUserVersion());
+        Assert.Equal(11, ReadUserVersion());
     }
 
     [Fact]
@@ -201,7 +201,7 @@ public sealed class GraphicsPersistenceTests : IDisposable
         using (var db = Open())
         {
             using var command = db.CreateCommand();
-            command.CommandText = "PRAGMA user_version=11";
+            command.CommandText = "PRAGMA user_version=12";
             command.ExecuteNonQuery();
         }
 

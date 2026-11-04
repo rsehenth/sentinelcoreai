@@ -11,6 +11,8 @@ public partial class MainWindow
 {
     private readonly TweakManager? tweaks;
     private IReadOnlyList<TweakOperationView> tweakViews = [];
+    private TaskbarSearchModeController? searchModes;
+    private TaskbarSearchModeState? searchModeState;
     private SimulationResult? tweakSimulation;
     private TransactionRecord? tweakSelectedTransaction;
     private RecoveryPreview? tweakPreview;
@@ -24,26 +26,29 @@ public partial class MainWindow
             TweaksModeText.Text = "Personalização indisponível nesta composição.";
             TweaksModeDetail.Text = "Nenhum motor de tweaks foi composto.";
             TweaksRefreshButton.IsEnabled = false;
+            TweakSearchModeCombo.IsEnabled = false;
+            TweakSearchModePrepareButton.IsEnabled = false;
             return;
         }
 
+        searchModes = new TaskbarSearchModeController(tweaks);
         (TweaksModeText.Text, TweaksModeDetail.Text) = tweaks.Mode switch
         {
             TweakExecutionMode.RealControlled => (
                 "Modo real controlado — HKCU do usuário atual",
-                "Somente as três operações cadastradas, sem elevação e sem reiniciar o Explorer. " +
+                $"{tweaks.Operations.Count} operações cadastradas, sem elevação e sem reiniciar o Explorer. " +
                 "Cada escrita exige plano, backup, autorização específica e verificação."),
             TweakExecutionMode.Validation => (
                 "Modo de validação — adaptadores sintéticos",
                 "Nenhum Registro real é lido ou alterado; o modo existe para testes automatizados."),
             _ => (
                 "Modo real desabilitado — leitura e simulação",
-                "A escrita está bloqueada no backend nesta distribuição. A validação prática depende de " +
-                "uma VM Windows 11 isolada, com snapshot e autorização específica.")
+                "A escrita está bloqueada no backend nesta distribuição. A validação real permanece pendente " +
+                "e não é executada no computador de desenvolvimento.")
         };
         TweaksSubtitle.Text = tweaks.RealExecutionEnabled
-            ? "Três operações HKCU · backup obrigatório · rollback pelo estado observado."
-            : "Três operações HKCU em modo de leitura/simulação · escrita real indisponível.";
+            ? $"{tweaks.Operations.Count} operações HKCU · backup obrigatório · rollback pelo estado observado."
+            : $"{tweaks.Operations.Count} operações HKCU em modo de leitura/simulação · escrita real indisponível.";
         Pages.SelectionChanged += OnTweaksPageSelectionChanged;
         UpdateTweakButtons();
     }
@@ -81,13 +86,11 @@ public partial class MainWindow
         try
         {
             tweakViews = await tweaks.LoadAsync();
-            var orderedViews = T2aCatalog.OperationIds
-                .Select(id => tweakViews.FirstOrDefault(view => view.OperationId == id))
-                .Where(view => view is not null)
-                .Select(view => view!)
-                .Concat(tweakViews.Where(view => !T2aCatalog.OperationIds.Contains(view.OperationId)))
+            TweaksCardsHost.ItemsSource = TweakPresentation.GroupByCategory(tweakViews)
+                .Select(group => new TweakCategoryRow(group.Category,
+                    group.Operations.Select(view => new TweakCardRow(view)).ToArray()))
                 .ToArray();
-            TweaksCardsHost.ItemsSource = orderedViews.Select(view => new TweakCardRow(view)).ToArray();
+            await ReloadSearchModeAsync();
             await ReloadTweakHistoryAsync(selectTransaction);
             tweaksLoaded = true;
             TweakDetailsText.Text = "Selecione 'Detalhes' em um cartão para ler o estado atual e simular o plano.";
@@ -131,6 +134,67 @@ public partial class MainWindow
         }
     }
 
+    private async Task ReloadSearchModeAsync()
+    {
+        if (searchModes is null) return;
+        try
+        {
+            searchModeState = await searchModes.LoadAsync();
+            var options = searchModeState.Options;
+            TweakSearchModeCombo.ItemsSource = options;
+            TweakSearchModeCombo.SelectedItem = searchModeState.ObservedMode is { } observed
+                ? options.FirstOrDefault(option => option.Mode == observed)
+                : null;
+            TweakSearchModeStatus.Text = "Modo observado: " + searchModeState.ObservedLabel +
+                (searchModeState.Limitation is null ? string.Empty : " · " + searchModeState.Limitation) +
+                " · selecionar não altera o Windows.";
+        }
+        catch (Exception error)
+        {
+            searchModeState = null;
+            TweakSearchModeCombo.ItemsSource = null;
+            TweakSearchModeStatus.Text = "Modo de pesquisa indisponível: " + error.Message;
+        }
+    }
+
+    private void OnTweakSearchModeSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!tweaksBusy && searchModeState is not null &&
+            TweakSearchModeCombo.SelectedItem is TaskbarSearchMode mode)
+        {
+            TweakSearchModeStatus.Text = searchModeState.IsSelected(mode.Mode)
+                ? $"Modo observado selecionado ({mode.Mode} — {mode.DisplayName}). Nenhuma alteração foi feita."
+                : $"Seleção {mode.Mode} — {mode.DisplayName} preparada. Clique em 'Simular plano' para " +
+                  "simular; nenhuma alteração foi feita.";
+        }
+        UpdateTweakButtons();
+    }
+
+    private async void OnTweakSearchModePrepare(object sender, RoutedEventArgs e)
+    {
+        if (tweaks is null || searchModes is null || tweaksBusy) return;
+        if (TweakSearchModeCombo.SelectedItem is not TaskbarSearchMode mode) return;
+        tweaksBusy = true;
+        UpdateTweakButtons();
+        try
+        {
+            var simulation = await searchModes.PrepareAsync(mode.Mode);
+            ShowTweakSimulation(simulation,
+                $"Modo {mode.Mode} — {mode.DisplayName}: plano simulado sem efeito. " +
+                "A seleção do controle não alterou o Windows.");
+        }
+        catch (Exception error)
+        {
+            ShowFailure("Não foi possível preparar o modo de pesquisa", error);
+            TweakSearchModeStatus.Text = "Plano indisponível; nenhuma alteração foi executada.";
+        }
+        finally
+        {
+            tweaksBusy = false;
+            UpdateTweakButtons();
+        }
+    }
+
     private async void OnTweakDetails(object sender, RoutedEventArgs e)
     {
         if (tweaks is null || tweaksBusy) return;
@@ -140,19 +204,7 @@ public partial class MainWindow
         try
         {
             var simulation = await tweaks.SimulateAsync(operationId);
-            tweakSimulation = simulation;
-            tweakPreview = null;
-            TweakDetailsTitle.Text = simulation.Operation.DisplayName;
-            TweakDetailsMeta.Text = $"Operação {simulation.Operation.Id} v{simulation.Operation.Version} · " +
-                $"risco {simulation.Operation.Risk} · {simulation.Operation.Scope}";
-            TweakDetailsText.Text = BuildTweakPlanText(simulation);
-            TweakConfirmationText.Text = string.Empty;
-            TweakConfirmationHint.Text = simulation.CanExecute && tweaks.RealExecutionEnabled
-                ? "Digite exatamente: " + TweakManager.BuildConfirmationText(simulation.Plan)
-                : "Plano indisponível para autorização: " + string.Join(", ", simulation.Blockers);
-            TweakStatusText.Text = simulation.CanExecute
-                ? "Plano simulado sem efeito. A autorização abaixo é vinculada a este plano e ao estado observado."
-                : "Plano bloqueado no backend; nenhuma escrita será aceita.";
+            ShowTweakSimulation(simulation);
         }
         catch (Exception error)
         {
@@ -166,6 +218,23 @@ public partial class MainWindow
         }
     }
 
+    private void ShowTweakSimulation(SimulationResult simulation, string? status = null)
+    {
+        tweakSimulation = simulation;
+        tweakPreview = null;
+        TweakDetailsTitle.Text = simulation.Operation.DisplayName;
+        TweakDetailsMeta.Text = $"Operação {simulation.Operation.Id} v{simulation.Operation.Version} · " +
+            $"risco {simulation.Operation.Risk} · {simulation.Operation.Scope}";
+        TweakDetailsText.Text = BuildTweakPlanText(simulation);
+        TweakConfirmationText.Text = string.Empty;
+        TweakConfirmationHint.Text = simulation.CanExecute && tweaks is { RealExecutionEnabled: true }
+            ? "Digite exatamente: " + TweakManager.BuildConfirmationText(simulation.Plan)
+            : "Plano indisponível para autorização: " + string.Join(", ", simulation.Blockers);
+        TweakStatusText.Text = status ?? (simulation.CanExecute
+            ? "Plano simulado sem efeito. A autorização abaixo é vinculada a este plano e ao estado observado."
+            : "Plano bloqueado no backend; nenhuma escrita será aceita.");
+    }
+
     private async void OnTweakAuthorize(object sender, RoutedEventArgs e)
     {
         if (tweaks is null || tweaksBusy || tweakSimulation is null) return;
@@ -173,7 +242,7 @@ public partial class MainWindow
         var expected = TweakManager.BuildConfirmationText(plan);
         if (!tweaks.RealExecutionEnabled)
         {
-            TweakStatusText.Text = "Execução real desabilitada nesta distribuição; validação em VM pendente.";
+            TweakStatusText.Text = "Execução real desabilitada nesta distribuição; validação real pendente.";
             return;
         }
         var typedConfirmation = TweakConfirmationText.Text.Trim();
@@ -318,6 +387,9 @@ public partial class MainWindow
         TweakRollbackButton.IsEnabled = idle && tweaks is { RealExecutionEnabled: true } &&
             tweakPreview is { CanRecover: true } &&
             string.Equals(TweakRecoveryConfirmationText.Text.Trim(), recoveryText, StringComparison.Ordinal);
+        if (TweakSearchModePrepareButton is not null)
+            TweakSearchModePrepareButton.IsEnabled = idle && searchModes is not null &&
+                TweakSearchModeCombo?.SelectedItem is TaskbarSearchMode;
     }
 
     private static string BuildTweakPlanText(SimulationResult simulation)
@@ -436,6 +508,8 @@ public partial class MainWindow
         return text.ToString();
     }
 
+    private sealed record TweakCategoryRow(string Category, IReadOnlyList<TweakCardRow> Cards);
+
     private sealed record TweakCardRow(TweakOperationView View)
     {
         public string OperationId => View.OperationId;
@@ -447,6 +521,10 @@ public partial class MainWindow
         public string RiskSummary => "Risco: " + View.Risk;
         public string Compatibility => View.Compatibility;
         public string ProtectionsSummary => "Proteções: " + string.Join(" · ", View.Protections);
+        public string RecoverySummary => "Recuperação: estado observado, com detecção de conflito.";
+        public string LimitationsSummary => View.Limitations.Count == 0
+            ? string.Empty
+            : "Limitações: " + string.Join(" · ", View.Limitations);
         public string Availability => View.Availability + (View.LoadError is null ? "" : " Leitura: " + View.LoadError);
     }
 

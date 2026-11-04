@@ -54,11 +54,12 @@ public sealed class T2aCatalogTests
     }
 
     [Fact]
-    public void AdapterAllowlistCoversCatalogTargetsExactly()
+    public void AdapterAllowlistCoversTheExpandedCatalogTargetsExactly()
     {
-        var catalogTargets = T2aCatalog.Create().All
+        var catalogTargets = T2bCatalog.Create().All
             .SelectMany(item => item.Targets)
             .Select(item => item.Identity)
+            .Distinct(StringComparer.Ordinal)
             .OrderBy(item => item, StringComparer.Ordinal)
             .ToList();
         var adapterTargets = HkcuTargetPolicy.AllowedTargets
