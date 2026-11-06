@@ -137,23 +137,30 @@ public sealed class Windows11SystemProfileReader : ISystemProfileReader
     private readonly IHkcuPolicyProbe policy;
     private readonly bool realExecutionEnabled;
     private readonly IReadOnlyList<string> gatedOperationIds;
-    private readonly int? buildOverride;
+    private readonly Func<bool> isWindows;
+    private readonly Func<int> readBuild;
+    private readonly Func<bool> isPrivileged;
     private readonly TimeProvider time;
 
     public Windows11SystemProfileReader(IHkcuPolicyProbe policy, bool realExecutionEnabled,
-        IReadOnlyList<string> gatedOperationIds, int? buildOverride = null, TimeProvider? time = null)
+        IReadOnlyList<string> gatedOperationIds, Func<bool> isWindows, Func<int> readBuild,
+        Func<bool> isPrivileged, TimeProvider? time = null)
     {
         this.policy = policy;
         this.realExecutionEnabled = realExecutionEnabled;
         this.gatedOperationIds = gatedOperationIds;
-        this.buildOverride = buildOverride;
+        this.isWindows = isWindows ?? throw new ArgumentNullException(nameof(isWindows));
+        this.readBuild = readBuild ?? throw new ArgumentNullException(nameof(readBuild));
+        this.isPrivileged = isPrivileged ?? throw new ArgumentNullException(nameof(isPrivileged));
         this.time = time ?? TimeProvider.System;
     }
 
     public SystemProfile Read()
     {
-        var build = buildOverride ?? (OperatingSystem.IsWindows() ? Environment.OSVersion.Version.Build : 0);
-        var windows11 = OperatingSystem.IsWindows() && build >= 22000;
+        var windows = isWindows();
+        var build = readBuild();
+        var windows11 = windows && build >= 22000;
+        var privileged = isPrivileged();
         var limitations = new List<string>();
         var blocked = new List<string>();
         IReadOnlyList<string> blockedCategories = [];
@@ -179,7 +186,7 @@ public sealed class Windows11SystemProfileReader : ISystemProfileReader
                 "as operações cadastradas permanecem somente leitura/simulação até a validação real.");
         }
 
-        if (OperatingSystem.IsWindows() && Environment.IsPrivilegedProcess)
+        if (windows && privileged)
             limitations.Add("Aplicativo em execução elevada; elevação não é necessária e a execução real " +
                 "deve ser evitada nesse estado.");
 
@@ -187,7 +194,7 @@ public sealed class Windows11SystemProfileReader : ISystemProfileReader
             windows11 ? $"Windows 11 build {build}" : $"Windows build {build}",
             build,
             windows11,
-            Environment.IsPrivilegedProcess,
+            privileged,
             blocked.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             blockedCategories,
             [],

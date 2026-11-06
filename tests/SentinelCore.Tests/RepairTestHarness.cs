@@ -113,13 +113,14 @@ internal sealed class RepairScope : IDisposable
     public RepairCenter Center { get; }
     public RepairManager Manager { get; }
 
-    public RepairScope(IRepairRecordStore? recordStore = null)
+    public RepairScope(IRepairRecordStore? recordStore = null, Func<string>? profilePath = null)
     {
         Time = new TestTimeProvider(new DateTimeOffset(2026, 11, 4, 12, 0, 0, TimeSpan.Zero));
         Store = new MemoryStore(Root);
         Executor = new CountingRepairExecutor(new SyntheticRepairExecutor(Time));
         var preflight = new RepairPreflightEngine(Catalog, Profile, Volumes, Tools, Time);
-        Center = new RepairCenter(Catalog, preflight, Executor, recordStore ?? Store, Time,
+        Center = new RepairCenter(Catalog, preflight, Executor, recordStore ?? Store,
+            profilePath ?? (() => @"C:\Fixture\User"), Time,
             TimeSpan.FromMinutes(2));
         Manager = new RepairManager(Catalog, Center, Volumes);
     }

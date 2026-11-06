@@ -232,7 +232,7 @@ public sealed class RepairCenterTests
             scope.Tools, scope.Time);
 
         Assert.Throws<InvalidOperationException>(() => new RepairCenter(scope.Catalog, preflight,
-            scope.Executor, scope.Store, scope.Time, mode: RepairExecutionMode.Real));
+            scope.Executor, scope.Store, () => @"C:\Fixture\User", scope.Time, mode: RepairExecutionMode.Real));
     }
 
     [Fact]

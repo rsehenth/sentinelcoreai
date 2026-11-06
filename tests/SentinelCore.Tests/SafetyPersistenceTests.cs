@@ -9,6 +9,110 @@ namespace SentinelCore.Tests;
 
 public sealed class SafetyPersistenceTests
 {
+    [Fact]
+    public async Task ExistingEmptyJournalWithTemporaryCannotBeReused()
+    {
+        using var scope = new SafetyScope();
+        scope.Seed("Preference.Test", "A");
+        var p = (await scope.Engine.SimulateAsync("SYN-PREF-01")).Plan;
+        var entry = new TransactionEventRecord(1, p.TransactionId, 1, TransactionState.Planned,
+            scope.Time.Now, p.OperationId, p.OperationVersion, p.CatalogVersion, p.PlanHash,
+            null, null, p, null, null, null, null, null, null, []);
+        var directory = Path.GetDirectoryName(EventPath(scope, p.TransactionId, 1, entry.State))!;
+        Directory.CreateDirectory(directory);
+        var partial = Path.Combine(directory, "0001-Planned.md.fixture.tmp");
+        File.WriteAllText(partial, "fixture incompleta");
+        await Assert.ThrowsAsync<InvalidDataException>(() => scope.Store.AppendEventAsync(entry));
+        Assert.False(File.Exists(EventPath(scope, p.TransactionId, 1, entry.State)));
+        Assert.Equal("fixture incompleta", File.ReadAllText(partial));
+        Assert.NotEmpty((await scope.Store.LoadTransactionsAsync()).Warnings);
+    }
+    [Fact]
+    public async Task ReopeningContradictoryEventPreservesAndExcludesHistory()
+    {
+        using var scope = new SafetyScope();
+        var transaction = await ExecutedAsync(scope);
+        var last = transaction.Events[^1];
+        var path = EventPath(scope, transaction.TransactionId, last.Sequence, last.State);
+        var contradictory = last with { Verification = last.Verification! with { Passed = false } };
+        var text = RecordEnvelope.Wrap("fixture", JsonSerializer.Serialize(contradictory, AuditJson.Options));
+        File.WriteAllText(path, text);
+        var snapshot = await new MemoryStore(scope.Root).LoadTransactionsAsync();
+        Assert.Empty(snapshot.Transactions);
+        Assert.NotEmpty(snapshot.Warnings);
+        Assert.Equal(text, File.ReadAllText(path));
+    }
+    [Fact]
+    public async Task ContradictoryFirstEventIsRejectedBeforeWriting()
+    {
+        using var scope = new SafetyScope();
+        scope.Seed("Preference.Test", "A");
+        var p = (await scope.Engine.SimulateAsync("SYN-PREF-01")).Plan;
+        var entry = new TransactionEventRecord(1, p.TransactionId, 1, TransactionState.Planned,
+            scope.Time.Now, p.OperationId, p.OperationVersion, p.CatalogVersion, p.PlanHash,
+            null, null, p, null, null, null, null, new VerificationResult(true, "fixture", [], []), null, []);
+        await Assert.ThrowsAsync<InvalidDataException>(() => scope.Store.AppendEventAsync(entry));
+        Assert.False(File.Exists(EventPath(scope, p.TransactionId, 1, TransactionState.Planned)));
+        Assert.Empty((await scope.Store.LoadTransactionsAsync()).Warnings);
+        Assert.False(Directory.Exists(Path.Combine(scope.Root, "memory", "transactions", p.TransactionId.ToString("D"))));
+    }
+    [Fact]
+    public async Task AtomicWritePublicationFailurePreservesExistingJournalAndCleansTemporary()
+    {
+        using var scope = new SafetyScope();
+        var transaction = await ExecutedAsync(scope);
+        var existing = EventPath(scope, transaction.TransactionId, 1, TransactionState.Planned);
+        var before = File.ReadAllBytes(existing);
+        var blockedPath = Path.Combine(Path.GetDirectoryName(existing)!, "blocked.md");
+        Directory.CreateDirectory(blockedPath);
+        Assert.ThrowsAny<IOException>(() => RecordEnvelope.AtomicWrite(blockedPath, "fixture", overwrite: false));
+        Assert.Equal(before, File.ReadAllBytes(existing));
+        Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(existing)!, "blocked.md.*.tmp"));
+        Assert.True(Assert.Single((await new MemoryStore(scope.Root).LoadTransactionsAsync()).Transactions).Succeeded);
+    }
+    [Fact]
+    public async Task ContradictoryVerificationIsRejectedBeforeWriting()
+    {
+        using var scope = new SafetyScope();
+        var transaction = await ExecutedAsync(scope);
+        var last = transaction.Events[^1];
+        var path = EventPath(scope, transaction.TransactionId, last.Sequence, last.State);
+        File.Delete(path);
+        var contradictory = last with { Verification = last.Verification! with { Passed = false } };
+        await Assert.ThrowsAsync<InvalidDataException>(() => scope.Store.AppendEventAsync(contradictory));
+        Assert.False(File.Exists(path));
+        var reopened = Assert.Single((await new MemoryStore(scope.Root).LoadTransactionsAsync()).Transactions);
+        Assert.False(reopened.Succeeded);
+        Assert.True(reopened.IsIndeterminate);
+    }
+
+    [Fact]
+    public async Task PlanTransactionIdentityMismatchIsRejectedBeforeWriting()
+    {
+        using var scope = new SafetyScope();
+        scope.Seed("Preference.Test", "A");
+        var original = (await scope.Engine.SimulateAsync("SYN-PREF-01")).Plan;
+        var plan = original with { TransactionId = Guid.NewGuid() };
+        plan = plan with { PlanHash = SafetyHashing.PlanHash(plan.PlanId, plan.TransactionId, plan.OperationId,
+            plan.OperationVersion, plan.CatalogVersion, plan.Risk, plan.Scope, plan.Protection,
+            plan.ObservedStateHash, plan.Changes) };
+        var entry = new TransactionEventRecord(1, original.TransactionId, 1, TransactionState.Planned,
+            scope.Time.Now, plan.OperationId, plan.OperationVersion, plan.CatalogVersion, plan.PlanHash,
+            null, null, plan, null, null, null, null, null, null, []);
+        await Assert.ThrowsAsync<InvalidDataException>(() => scope.Store.AppendEventAsync(entry));
+        Assert.False(File.Exists(EventPath(scope, entry.TransactionId, 1, entry.State)));
+    }
+
+    [Fact]
+    public async Task MissingJournalDirectoryIsReportedAsUnavailable()
+    {
+        using var scope = new SafetyScope();
+        var id = Guid.NewGuid();
+        Directory.CreateDirectory(Path.Combine(scope.Root, "memory", "transactions", id.ToString("D")));
+        var snapshot = await scope.Store.LoadTransactionsAsync();
+        Assert.NotEmpty(snapshot.Warnings);
+        Assert.Empty(snapshot.Transactions);
+    }
     private static string EventPath(SafetyScope scope, Guid transactionId, int sequence,
         TransactionState state) => Path.Combine(scope.Root, "memory", "transactions",
         transactionId.ToString("D"), "journal", $"{sequence:D4}-{state}.md");
@@ -138,6 +242,53 @@ public sealed class SafetyPersistenceTests
         Assert.Empty(snapshot.Transactions);
         Assert.True(Directory.GetFiles(Path.Combine(scope.Root, "memory", "transactions",
             transaction.TransactionId.ToString("D"), "journal")).Length >= 7);
+    }
+
+    [Fact]
+    public async Task AppendDoesNotWriteWhenEarlierJournalEventIsMissing()
+    {
+        using var scope = new SafetyScope();
+        var transaction = await ExecutedAsync(scope);
+        File.Delete(EventPath(scope, transaction.TransactionId, 2, TransactionState.PreflightPassed));
+        var next = transaction.Events[^1] with { Sequence = 9, State = TransactionState.RecoveryRequested };
+        var nextPath = EventPath(scope, transaction.TransactionId, next.Sequence, next.State);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => scope.Store.AppendEventAsync(next));
+        Assert.False(File.Exists(nextPath));
+    }
+
+    [Fact]
+    public async Task AppendDoesNotWriteWhenEarlierEventHasWrongFileName()
+    {
+        using var scope = new SafetyScope();
+        var transaction = await ExecutedAsync(scope);
+        var original = EventPath(scope, transaction.TransactionId, 2, TransactionState.PreflightPassed);
+        File.Move(original, Path.Combine(Path.GetDirectoryName(original)!, "0002-WrongState.md"));
+        var next = transaction.Events[^1] with { Sequence = 9, State = TransactionState.RecoveryRequested };
+        var nextPath = EventPath(scope, transaction.TransactionId, next.Sequence, next.State);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() => scope.Store.AppendEventAsync(next));
+        Assert.False(File.Exists(nextPath));
+    }
+
+    [Fact]
+    public async Task AppendDoesNotWriteWhenEarlierTransitionIsInvalid()
+    {
+        using var scope = new SafetyScope();
+        var transaction = await ExecutedAsync(scope);
+        var original = EventPath(scope, transaction.TransactionId, 2, TransactionState.PreflightPassed);
+        var changed = EventPath(scope, transaction.TransactionId, 2, TransactionState.Interrupted);
+        var json = RecordEnvelope.Unwrap(File.ReadAllText(original).Replace("\r\n", "\n"));
+        var altered = json.Replace("\"State\": \"PreflightPassed\"", "\"State\": \"Interrupted\"");
+        Assert.NotEqual(json, altered);
+        File.WriteAllText(changed, RecordEnvelope.Wrap("evento sintético", altered));
+        File.Delete(original);
+        var next = transaction.Events[^1] with { Sequence = 9, State = TransactionState.RecoveryRequested };
+        var nextPath = EventPath(scope, transaction.TransactionId, next.Sequence, next.State);
+
+        var error = await Record.ExceptionAsync(() => scope.Store.AppendEventAsync(next));
+        Assert.True(error is IOException or InvalidDataException);
+        Assert.False(File.Exists(nextPath));
     }
 
     [Fact]

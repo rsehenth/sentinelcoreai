@@ -167,10 +167,10 @@ public sealed class RepairResultInterpreterTests
     [Fact]
     public void OutputLimiterCapsLinesBytesAndLineLengthAndTruncates()
     {
-        var many = RepairOutputLimiter.Limit(Enumerable.Range(0, 250).Select(index => "line " + index));
-        var longLine = RepairOutputLimiter.Limit(["x" + new string('y', 1000)]);
+        var many = RepairOutputLimiter.Limit(Enumerable.Range(0, 250).Select(index => "line " + index), @"C:\Fixture\User");
+        var longLine = RepairOutputLimiter.Limit(["x" + new string('y', 1000)], @"C:\Fixture\User");
         var bytes = RepairOutputLimiter.Limit(Enumerable.Range(0, 200)
-            .Select(index => new string((char)('a' + index % 26), 500)));
+            .Select(index => new string((char)('a' + index % 26), 500)), @"C:\Fixture\User");
 
         Assert.Equal(RepairLimits.MaxOutputLines, many.Lines.Count);
         Assert.True(many.Truncated);

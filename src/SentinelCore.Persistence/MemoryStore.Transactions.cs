@@ -35,15 +35,17 @@ public sealed partial class MemoryStore
         CancellationToken cancellationToken = default) => Task.Run(() =>
     {
         ValidateEvent(entry);
+        ValidateRecoveryHistoryEvent(entry);
         EnsureDirectories();
         using var storeLock = Lock();
         EnsureNoForeignRecord(entry.TransactionId);
         var directory = TransactionJournalDirectory(entry.TransactionId);
-        Directory.CreateDirectory(directory);
+        if (!Directory.Exists(directory) && Directory.Exists(TransactionDirectory(entry.TransactionId)))
+            throw new InvalidDataException("Transação existente sem journal; evento não gravado.");
         var json = CanonicalJson(entry);
 
-        var existing = Directory.EnumerateFiles(directory, $"{entry.Sequence:D4}-*.md",
-                SearchOption.TopDirectoryOnly)
+        var existing = (Directory.Exists(directory) ? Directory.EnumerateFiles(directory, $"{entry.Sequence:D4}-*.md",
+                SearchOption.TopDirectoryOnly) : [])
             .OrderBy(item => item, StringComparer.OrdinalIgnoreCase).ToList();
         if (existing.Count > 0)
         {
@@ -58,20 +60,28 @@ public sealed partial class MemoryStore
                 "Sequência de journal já existe com conteúdo diferente; registro preservado.");
         }
 
-        var siblings = Directory.EnumerateFiles(directory, "*.md", SearchOption.TopDirectoryOnly)
-            .Select(ReadTransactionEvent).Select(item => item.Event).ToList();
+        var siblings = (Directory.Exists(directory) ? Directory.EnumerateFiles(directory, "*.md", SearchOption.TopDirectoryOnly) : [])
+            .Select(path =>
+            {
+                var item = ReadTransactionEvent(path).Event;
+                ValidateTransactionEventFileName(path, item);
+                return item;
+            }).OrderBy(item => item.Sequence).ToList();
         if (siblings.Count > 0)
         {
+            if (siblings[0].State != TransactionState.Planned ||
+                siblings.Where((item, index) => item.Sequence != index + 1).Any())
+                throw new InvalidDataException("Journal incompleto ou com sequência duplicada; evento não gravado.");
             var previous = siblings.Max(item => item.Sequence);
             if (entry.Sequence != previous + 1)
                 throw new InvalidDataException("Sequência de journal fora de ordem.");
-            var first = siblings.MinBy(item => item.Sequence)!;
-            if (first.TransactionId != entry.TransactionId ||
-                first.OperationId != entry.OperationId ||
-                first.OperationVersion != entry.OperationVersion ||
-                !string.Equals(first.CatalogVersion, entry.CatalogVersion, StringComparison.Ordinal) ||
-                !string.Equals(first.PlanHash, entry.PlanHash, StringComparison.Ordinal))
+            if (siblings.Any(item => item.TransactionId != entry.TransactionId ||
+                item.OperationId != entry.OperationId ||
+                item.OperationVersion != entry.OperationVersion ||
+                !string.Equals(item.CatalogVersion, entry.CatalogVersion, StringComparison.Ordinal) ||
+                !string.Equals(item.PlanHash, entry.PlanHash, StringComparison.Ordinal)))
                 throw new InvalidDataException("Evento não pertence ao mesmo plano da transação.");
+            _ = TransactionProjection.Build(siblings);
             var last = siblings.MaxBy(item => item.Sequence)!;
             if (!TransactionProjection.IsAllowedTransition(last.State, entry.State))
                 throw new InvalidDataException(
@@ -82,11 +92,17 @@ public sealed partial class MemoryStore
         {
             throw new InvalidDataException("Primeiro evento deve ser Planned na sequência 1.");
         }
+        else if (Directory.Exists(directory))
+        {
+            throw new InvalidDataException("Journal existente sem eventos válidos; evento não gravado.");
+        }
+        ValidateRecoveryHistoryTransaction(siblings.Append(entry).ToArray());
 
         cancellationToken.ThrowIfCancellationRequested();
         var document = RecordEnvelope.Wrap(TransactionReport.RenderEvent(entry, debloatJournal), json);
         if (Encoding.UTF8.GetByteCount(document) > RecordEnvelope.MaximumRecordBytes)
             throw new InvalidDataException("Evento de transação excede 4 MiB.");
+        Directory.CreateDirectory(directory);
         RecordEnvelope.AtomicWrite(TransactionEventPath(entry.TransactionId, entry.Sequence, entry.State),
             document, overwrite: false);
         return FinishEvent(entry);
@@ -198,8 +214,7 @@ public sealed partial class MemoryStore
                 var journalDirectory = Path.Combine(directory, "journal");
                 if (!Directory.Exists(journalDirectory))
                 {
-                    if (database is null)
-                        warnings.Add($"Transação {transactionId:D} sem diretório de journal; estado indisponível, original preservado.");
+                    warnings.Add($"Transação {transactionId:D} sem diretório de journal; estado indisponível, original preservado.");
                     continue;
                 }
                 try { EnsureNoForeignRecord(transactionId); }
@@ -220,12 +235,7 @@ public sealed partial class MemoryStore
                         if (database is null) ValidateRecoveryHistoryEvent(stored);
                         if (stored.TransactionId != transactionId)
                             throw new InvalidDataException("Evento fora da pasta da transação informada.");
-                        var name = Path.GetFileNameWithoutExtension(path);
-                        var separator = name.IndexOf('-');
-                        if (separator <= 0 || !int.TryParse(name[..separator], out var sequence) ||
-                            sequence != stored.Sequence || !name[(separator + 1)..].Equals(stored.State.ToString(),
-                                StringComparison.Ordinal))
-                            throw new InvalidDataException("Nome de arquivo de evento inválido.");
+                        ValidateTransactionEventFileName(path, stored);
                         events.Add((stored, path, hash));
                     }
                     catch (Exception error) when (error is InvalidDataException or JsonException or IOException
@@ -283,8 +293,7 @@ public sealed partial class MemoryStore
                 try
                 {
                     ValidateRemovalAssociation(ordered.Select(item => item.Event).ToArray());
-                    if (database is null)
-                        ValidateRecoveryHistoryTransaction(ordered.Select(item => item.Event).ToArray());
+                    ValidateRecoveryHistoryTransaction(ordered.Select(item => item.Event).ToArray());
                     var record = TransactionProjection.Build(ordered.Select(item => item.Event).ToList());
                     records.Add(record);
                     eventRows.AddRange(ordered.Select(item => (transactionId, item.Event, item.Path, item.Hash)));
@@ -488,6 +497,16 @@ public sealed partial class MemoryStore
         throw new InvalidDataException("Caminho de artefato fora da raiz de dados; recusado.");
     }
 
+    private static void ValidateTransactionEventFileName(string path, TransactionEventRecord stored)
+    {
+        var name = Path.GetFileNameWithoutExtension(path);
+        var separator = name.IndexOf('-');
+        if (separator <= 0 || !int.TryParse(name[..separator], out var sequence) ||
+            sequence != stored.Sequence || !name[(separator + 1)..].Equals(stored.State.ToString(),
+                StringComparison.Ordinal))
+            throw new InvalidDataException("Nome de arquivo de evento inválido.");
+    }
+
     private (TransactionEventRecord Event, string PayloadHash) ReadTransactionEvent(string path)
     {
         if (new FileInfo(path).Length > RecordEnvelope.MaximumRecordBytes)
@@ -497,6 +516,7 @@ public sealed partial class MemoryStore
         var entry = JsonSerializer.Deserialize<TransactionEventRecord>(json, AuditJson.Options)
             ?? throw new InvalidDataException("Payload de evento nulo.");
         ValidateEvent(entry);
+        ValidateRecoveryHistoryEvent(entry);
         return (entry, RecordEnvelope.Hash(json));
     }
 
@@ -585,7 +605,8 @@ public sealed partial class MemoryStore
                     !IsSyntheticIdentity(change.TargetIdentity) ||
                     change.TargetIdentity != change.Target.Identity))
                 throw new InvalidDataException("Debloat admite somente alvos Synthetic.");
-            if (plan.OperationId != entry.OperationId || plan.OperationVersion != entry.OperationVersion ||
+            if (plan.TransactionId != entry.TransactionId ||
+                plan.OperationId != entry.OperationId || plan.OperationVersion != entry.OperationVersion ||
                 !string.Equals(plan.CatalogVersion, entry.CatalogVersion, StringComparison.Ordinal) ||
                 !string.Equals(plan.PlanHash, entry.PlanHash, StringComparison.Ordinal))
                 throw new InvalidDataException("Plano não corresponde ao evento que o contém.");

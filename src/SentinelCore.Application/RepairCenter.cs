@@ -19,19 +19,21 @@ public sealed class RepairCenter
     private readonly RepairPreflightEngine preflight;
     private readonly IRepairExecutor executor;
     private readonly IRepairRecordStore store;
+    private readonly Func<string> profilePath;
     private readonly RepairAuthorizationService authorization;
     private readonly TimeProvider time;
     private readonly bool isSynthetic;
     private readonly RepairExecutionMode mode;
 
     public RepairCenter(IRepairCatalog catalog, RepairPreflightEngine preflight, IRepairExecutor executor,
-        IRepairRecordStore store, TimeProvider? time = null, TimeSpan? authorizationLifetime = null,
+        IRepairRecordStore store, Func<string> profilePath, TimeProvider? time = null, TimeSpan? authorizationLifetime = null,
         RepairExecutionMode mode = RepairExecutionMode.Simulation)
     {
         this.catalog = catalog;
         this.preflight = preflight;
         this.executor = executor;
         this.store = store;
+        this.profilePath = profilePath ?? throw new ArgumentNullException(nameof(profilePath));
         this.time = time ?? TimeProvider.System;
         if (mode != RepairExecutionMode.Simulation)
             throw new InvalidOperationException(
@@ -208,7 +210,7 @@ public sealed class RepairCenter
         }
 
         var interpretation = RepairResultInterpreter.Interpret(operation, outcome);
-        var limited = RepairOutputLimiter.Limit(outcome.Output.Select(line => line.Text));
+        var limited = RepairOutputLimiter.Limit(outcome.Output.Select(line => line.Text), profilePath());
         var finalState = ResolveState(outcome);
         var completedAt = outcome.CompletedAtUtc == default ? time.GetUtcNow() : outcome.CompletedAtUtc;
         if (completedAt < startedAt) completedAt = startedAt;

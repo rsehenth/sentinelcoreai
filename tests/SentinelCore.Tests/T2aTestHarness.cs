@@ -118,7 +118,7 @@ internal sealed class T2aScope : IDisposable
         Executor = new HkcuRegistryOperationExecutor(Access);
         Locks = new FileExclusiveLockFactory(Root);
         Profile = new Windows11SystemProfileReader(Policy, realExecutionEnabled,
-            T2aCatalog.OperationIds, build, Time);
+            T2aCatalog.OperationIds, () => windows11, () => build, () => false, Time);
         Rebuild(journal ?? Store, realExecutionEnabled);
     }
 

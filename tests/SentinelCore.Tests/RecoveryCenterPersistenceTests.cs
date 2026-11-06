@@ -23,8 +23,8 @@ public sealed class RecoveryCenterPersistenceTests
         Assert.All(sources, source =>
         {
             Assert.Empty(source.Transactions); Assert.Empty(source.Repairs);
-            Assert.Equal(RecoveryEvidenceStatus.Partial, source.Status);
-            Assert.Contains(source.Warnings, warning => warning.Contains("SQLite", StringComparison.Ordinal));
+            Assert.Equal(RecoveryEvidenceStatus.Unavailable, source.Status);
+            Assert.Contains(source.Warnings, warning => warning.Contains("indisponível", StringComparison.Ordinal));
         });
         Assert.False(Directory.Exists(untouchedRoot));
     }

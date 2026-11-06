@@ -207,6 +207,7 @@ public sealed class NetworkEndpointCollectorTests
     }
 
     [Fact]
+    [Trait("Category", "WindowsIntegration")]
     public void ProcessResolverResolvesSystemIdleSystemAndCurrentProcessWithoutFullPath()
     {
         var resolver = new NetworkProcessResolver();

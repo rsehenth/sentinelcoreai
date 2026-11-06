@@ -266,6 +266,7 @@ public sealed class PerformanceNormalizerTests
     }
 
     [Fact]
+    [Trait("Category", "WindowsIntegration")]
     public async Task RealCollectorsReturnTicksWithoutThrowing()
     {
         var collectors = WindowsPerformanceCollectors.Create();

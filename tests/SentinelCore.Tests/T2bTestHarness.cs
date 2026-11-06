@@ -35,7 +35,7 @@ internal sealed class T2bScope : IDisposable
         Executor = new HkcuRegistryOperationExecutor(Access);
         Locks = new FileExclusiveLockFactory(Root);
         Profile = new Windows11SystemProfileReader(Policy, realExecutionEnabled,
-            T2bCatalog.OperationIds, build, Time);
+            T2bCatalog.OperationIds, () => windows11, () => build, () => false, Time);
         Rebuild(journal ?? Store, realExecutionEnabled);
     }
 

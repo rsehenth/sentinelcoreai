@@ -406,20 +406,20 @@ public static class RepairOutputLimiter
     private static readonly Regex UserProfilePattern = new(
         @"[A-Za-z]:\\Users\\[^\\\s]+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    public static RepairLimitedOutput Limit(IEnumerable<string> lines)
+    public static RepairLimitedOutput Limit(IEnumerable<string> lines, string profilePath)
     {
         ArgumentNullException.ThrowIfNull(lines);
+        ArgumentNullException.ThrowIfNull(profilePath);
         var source = lines.ToList();
         var limited = new List<RepairOutputLine>();
         var bytes = 0;
         var truncated = false;
         long sequence = 0;
-        var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
         foreach (var raw in source)
         {
             sequence++;
-            var text = Sanitize(raw, profile, out var lineTruncated);
+            var text = Sanitize(raw, profilePath, out var lineTruncated);
             if (lineTruncated) truncated = true;
             if (limited.Count >= RepairLimits.MaxOutputLines)
             {

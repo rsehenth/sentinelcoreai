@@ -10,5 +10,6 @@
     <ProjectReference Include="../../src/SentinelCore.Infrastructure.Modifications/SentinelCore.Infrastructure.Modifications.csproj" />
     <ProjectReference Include="../../src/SentinelCore.Infrastructure.Repairs/SentinelCore.Infrastructure.Repairs.csproj" />
     <ProjectReference Include="../../src/SentinelCore.Infrastructure.Debloat/SentinelCore.Infrastructure.Debloat.csproj" />
+    <ProjectReference Include="../SyntheticJournalWorker/SyntheticJournalWorker.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

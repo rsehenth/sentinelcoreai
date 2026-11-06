@@ -1,5 +1,32 @@
 # SentinelCore AI
 
+**T4B.3 e T4B — concluídas no escopo sintético documentado (06/11/2026).** Central de Recuperação medida com 100, 1.000 e 5.000 operações sintéticas
+(leitura de 1.000 operações: 25 s → 5 s; 5.000 operações: ≈ 22 s com cache quente; cancelamento < 1 ms); 10.000 operações **não** medidas
+(impedimento de tempo documentado). Host WPF isolado com 35 verificações PASS, publish inspecionado (sem worker, runner, testes ou
+assemblies nativos), cinco gates fechados e `RecordEnvelope.Probe` avaliado. **312 casos Synthetic aprovados em Debug e Release**; 1.244
+Unclassified e 6 WindowsIntegration não executados. Revisões A/B por subagentes distintos, sem bloqueantes. **Não é homologação
+operacional**: nenhuma execução real no Windows foi feita. [Relatório T4B.3](docs/validation/2026-11-05-t4b3-final-consolidation.md).
+
+[Revisão final para versionamento](docs/validation/2026-11-06-t4b-final-versioning-review.md): matriz alinhada, bytes auditados
+preservados em checkout e auxiliares restritos a fixtures temporárias próprias; sem nova medição de desempenho.
+
+**T4B.1-S:** subconjunto de 270 casos revalidado em Debug e Release; cobertura global e validação real
+continuam pendentes. [Evidências e limites](docs/validation/2026-11-05-t4b1s-isolation-validation.md).
+
+**Cobertura crítica parcial:** identificadas leituras reais indiretas em uma rodada de testes; casos afetados
+foram excluídos. [Incidente, cobertura por módulo e pendências](docs/validation/2026-11-05-t4b1-critical-coverage.md).
+
+**Atualização T4B.1:** 146 casos Synthetic aprovados; a cobertura global permanece pendente.
+[Runner e evidências](docs/validation/2026-11-05-t4b1-runner-and-coverage.md).
+
+**T4B.1 parcial:** 48 casos auditados na seleção, seis de integração identificados e 1.462 ainda não
+classificados. [Matriz e limitações](docs/validation/2026-11-05-t4b1-isolation-progress.md).
+
+**Histórico T4B.1 — implementação então parcial.** O runner `./tests/run-synthetic.ps1 -Configuration Debug`
+seleciona somente os testes explicitamente auditados; use `Release` para a outra configuração. A classificação
+da suíte restante continua pendente; os benchmarks, a validação WPF e as revisões foram concluídos no escopo da T4B.3.
+[Estado e limitações](docs/validation/2026-11-05-reliability-hardening-t4b-progress.md).
+
 **T4A — Central de Recuperação, 04/11/2026.** Navegação própria com histórico unificado de Tweaks T2A/T2B,
 Debloat T3, remoção controlada T3C e reparos R1; painel, pesquisa/filtros, detalhes, eventos, conflitos,
 intervenção e integridade. A central da distribuição é somente leitura. Recuperação de Tweaks é exercitada
@@ -7,9 +34,10 @@ somente em host sintético pelo RecoveryService existente; aplicativos e reparos
 Fontes incompletas não viram zero; origem histórica desconhecida não é presumida.
 
 SQLite continua no esquema **12**, sem migração. T3C: **implementação concluída; execução real bloqueada e validação
-prática pendente**. T4B e validação real não iniciadas. [Relatório T4A](docs/validation/2026-11-04-recovery-center-t4a.md).
-Verificação T4A: **1.510/1.510 testes sintéticos em Debug e Release**, 110 casos novos, builds **0 avisos/0 erros**
+prática pendente**. Validação real não iniciada. [Relatório T4A](docs/validation/2026-11-04-recovery-center-t4a.md).
+Verificação T4A: **1.510/1.510 testes selecionados em Debug e Release**, 110 casos novos, builds **0 avisos/0 erros**
 e **35 verificações WPF**. Quatro testes legados com consultas reais foram excluídos por filtro, sem execução.
+Depois foi identificado um quinto teste com leitura do processo real entre os selecionados; a rodada T4A não comprova isolamento integral.
 As contagens abaixo descrevem entregas anteriores; os resultados vigentes T4A estão no relatório.
 
 **Atualização de 04/11/2026 — T3 implementada em modo sintético.** A página **Personalização & Debloat**
@@ -55,7 +83,7 @@ implementada como infraestrutura de segurança, autorização, journal, backup e
 Controlled Windows Tweaks** implementada com três operações reais em HKCU e a **T2B — Windows Tweaks Expansion**
 com seis operações adicionais no mesmo catálogo fechado. A aba **Personalização** mostra os nove cartões. A execução
 real está desabilitada na distribuição; a validação real foi adiada por decisão de projeto. A T3 sintética e a
-T4A estão implementadas; T4B/validação real permanecem futuras.
+T4A estão implementadas; T4B foi concluída no escopo sintético documentado. A validação operacional permanece futura.
 
 A Fase 5 (Persistent Monitoring) foi implementada em `0.3.0-preview.8`: sessões de 5, 15 ou 30 minutos, uma por vez,
 somente após autorização explícita, com eventos incrementais, CPU/memória nativas, rede sem endereços e gráficos
@@ -76,10 +104,11 @@ elevação e somente em HKCU: mostrar arquivos e pastas ocultos (`Hidden=1`), oc
 em duas camadas (`HkcuCatalogGuard` e `HkcuTargetPolicy`), com backup, journal, verificação e rollback pelo estado
 observado. A pesquisa usa um único controle mutuamente exclusivo; selecionar um modo apenas prepara o plano. Os
 cartões são agrupados em Explorador de Arquivos, Barra de tarefas e Aparência. A escrita real permanece
-desabilitada na distribuição (`RealDisabled`) e **não é compilada** no build de distribuição: `--enable-real-tweaks`
+desabilitada na distribuição (`RealDisabled`): o executor HKCU está compilado, mas o gate falso e a composição com
+`DisabledOperationExecutor` impedem seu uso. `--enable-real-tweaks`
 só tem efeito em um build experimental de validação (`scripts/publish-validation.ps1`, nunca distribuído),
 reservado à futura validação real. Nenhuma escrita real foi executada no computador de desenvolvimento.
-T3 foi implementada em modo sintético em 04/11/2026. A T4A acrescenta a central unificada; T4B não iniciada.
+T3 foi implementada em modo sintético em 04/11/2026. A T4A acrescenta a central unificada; T4B está concluída no escopo sintético documentado.
 
 A **R1 — Windows Repair Center** foi implementada na sequência, ainda em `0.3.0-preview.8`, como módulo independente
 do Tweaks Manager: catálogo fechado para SFC (`/verifyonly`, `/scannow`), DISM (`CheckHealth`, `ScanHealth`,
@@ -175,7 +204,8 @@ e todos os testes novos são sintéticos. Comandos, contagens e exclusões estã
 O destino é versionado a partir de `Directory.Build.props`; o script recusa sobrescrever sem `-Force`.
 Feche a instância publicada antes de gerar novamente o pacote.
 Distribua **toda a pasta** `artifacts/publish/0.3.0-preview.8/win-x64`, incluindo DLLs nativas.
-`publish.ps1` fixa `-p:SentinelCoreRealTweaks=false`: o pacote de distribuição não compila a escrita real da T2B.
+`publish.ps1` fixa `-p:SentinelCoreRealTweaks=false`: o gate e a composição bloqueiam a escrita real da T2B;
+o executor HKCU permanece compilado no assembly distribuído.
 
 Build experimental de validação (T2A/T2B), **nunca distribuído**, reservado à futura validação real:
 

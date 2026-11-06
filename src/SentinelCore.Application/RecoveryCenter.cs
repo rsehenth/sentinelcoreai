@@ -86,6 +86,8 @@ public sealed class RecoveryCenter
         var unique = new List<RecoveryOperation>();
         foreach (var group in operations.GroupBy(o => o.Id))
         {
+            // A single record cannot diverge from itself; fingerprints (full JSON serialization) are needed only for repeated identities.
+            if (group.Count() == 1) { unique.Add(group.First()); continue; }
             var variants = group.GroupBy(Fingerprint, StringComparer.Ordinal).ToArray();
             if (variants.Length != 1)
             {

@@ -24,19 +24,18 @@ public sealed partial class MemoryStore : IRecoveryHistoryReader
         cancellationToken.ThrowIfCancellationRequested();
         var sources = new List<RecoveryHistorySource>();
         FileStream? historyLock = null;
+        // Directories already proven free of reparse points during this single pass; never reused across passes.
+        var verified = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         try
         {
-            CheckRecoveryPath(root);
+            CheckRecoveryPath(root, verified);
             var lockPath = Path.Combine(root, "data", "store.lock");
-            if (RecoveryPathExists(lockPath))
-            {
-                CheckRecoveryPath(lockPath);
-                historyLock = new FileStream(lockPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            }
-            ReadRecoveryTransactions(new MemoryStore(root), RecoveryModule.Tweaks, sources, cancellationToken);
-            ReadRecoveryTransactions(new MemoryStore(root, true), RecoveryModule.Debloat, sources, cancellationToken);
-            ReadRecoveryRepairs(sources, cancellationToken);
-            CheckRecoveryDatabase(sources, cancellationToken);
+            CheckRecoveryPath(lockPath, verified);
+            historyLock = new FileStream(lockPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            ReadRecoveryTransactions(new MemoryStore(root), RecoveryModule.Tweaks, sources, cancellationToken, verified);
+            ReadRecoveryTransactions(new MemoryStore(root, true), RecoveryModule.Debloat, sources, cancellationToken, verified);
+            ReadRecoveryRepairs(sources, cancellationToken, verified);
+            CheckRecoveryDatabase(sources, cancellationToken, verified);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception error) when (IsRecoveryReadError(error))
@@ -111,6 +110,8 @@ public sealed partial class MemoryStore : IRecoveryHistoryReader
                     throw new InvalidDataException("Estado de verificação contradiz o resultado e as evidências registradas.");
             }
             if (entry.Recovery is not { } recovery) continue;
+            if (recovery.Steps is null || recovery.Conflicts is null || recovery.Limitations is null)
+                throw new InvalidDataException("Resultado de recuperação incompleto no histórico.");
             if (recovery.Steps.Any(step => step is null || !targets.Contains(step.TargetIdentity) || step.Effects is null) ||
                 recovery.Conflicts.Any(conflict => !targets.Contains(conflict.TargetIdentity)) ||
                 recovery.Steps.Select(step => step.TargetIdentity).Distinct(StringComparer.Ordinal).Count() != recovery.Steps.Count)
@@ -138,49 +139,63 @@ public sealed partial class MemoryStore : IRecoveryHistoryReader
         catch (DirectoryNotFoundException) { return false; }
     }
 
-    private void CheckRecoveryPath(string path)
+    private void CheckRecoveryPath(string path, HashSet<string>? verified = null)
     {
         var full = Path.GetFullPath(path);
         if (!full.Equals(root, StringComparison.OrdinalIgnoreCase) &&
             !full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
             throw new InvalidDataException("Caminho de histórico fora da raiz; leitura recusada.");
+        var proven = verified is null ? null : new List<string>();
         for (var current = full; current is not null; current = Path.GetDirectoryName(current))
         {
-            if (RecoveryPathExists(current) && (File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0)
+            // Ancestors proven free of reparse points earlier in this same read pass are not queried again.
+            if (current != full && verified?.Contains(current) == true) break;
+            if (RecoveryAttributes(current) is { } attributes && (attributes & FileAttributes.ReparsePoint) != 0)
                 throw new InvalidDataException("Link ou ponto de redirecionamento no histórico; leitura recusada.");
+            if (current != full) proven?.Add(current);
         }
+        if (proven is not null) foreach (var directory in proven) verified!.Add(directory);
     }
 
-    private void CheckRecoveryPartition(string partition)
+    private static FileAttributes? RecoveryAttributes(string path)
+    {
+        try { return File.GetAttributes(path); }
+        catch (FileNotFoundException) { return null; }
+        catch (DirectoryNotFoundException) { return null; }
+    }
+
+    private void CheckRecoveryPartition(string partition, CancellationToken cancellationToken, HashSet<string> verified)
     {
         var directory = Path.Combine(root, "memory", partition);
-        CheckRecoveryPath(directory);
+        CheckRecoveryPath(directory, verified);
         if (!RecoveryPathExists(directory)) return;
         foreach (var operation in Directory.EnumerateDirectories(directory))
         {
-            CheckRecoveryPath(operation);
+            cancellationToken.ThrowIfCancellationRequested();
+            CheckRecoveryPath(operation, verified);
             foreach (var file in Directory.EnumerateFiles(operation, "*.md", SearchOption.TopDirectoryOnly))
-                CheckRecoveryPath(file);
+                CheckRecoveryPath(file, verified);
             var journal = Path.Combine(operation, "journal");
-            CheckRecoveryPath(journal);
+            CheckRecoveryPath(journal, verified);
             if (RecoveryPathExists(journal))
                 foreach (var file in Directory.EnumerateFiles(journal, "*.md", SearchOption.TopDirectoryOnly))
-                    CheckRecoveryPath(file);
+                    CheckRecoveryPath(file, verified);
         }
     }
 
     private void ReadRecoveryTransactions(MemoryStore partition, RecoveryModule module,
-        List<RecoveryHistorySource> sources, CancellationToken cancellationToken)
+        List<RecoveryHistorySource> sources, CancellationToken cancellationToken, HashSet<string> verified)
     {
         var warnings = new List<string>();
         var records = new List<TransactionRecord>();
         var status = RecoveryEvidenceStatus.Complete;
         try
         {
-            CheckRecoveryPartition(partition.TransactionPartition);
+            CheckRecoveryPartition(partition.TransactionPartition, cancellationToken, verified);
             records = partition.ReconcileTransactions(null, warnings, cancellationToken);
             for (var index = 0; index < records.Count; index++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var record = records[index];
                 var limitations = new List<string>(record.Limitations);
                 if (record.Backup is not null || record.BackupPath is not null)
@@ -190,7 +205,7 @@ public sealed partial class MemoryStore : IRecoveryHistoryReader
                         if (string.IsNullOrWhiteSpace(record.BackupPath))
                             throw new InvalidDataException("Caminho de backup ausente.");
                         var backupPath = partition.ResolveArtifactPath(record.BackupPath);
-                        CheckRecoveryPath(backupPath);
+                        CheckRecoveryPath(backupPath, verified);
                         var backup = partition.ReadTransactionBackup(backupPath).Backup;
                         if (backup.TransactionId != record.TransactionId || backup.PlanId != record.PlanId ||
                             backup.PlanHash != record.PlanHash || backup.OperationId != record.OperationId ||
@@ -205,11 +220,11 @@ public sealed partial class MemoryStore : IRecoveryHistoryReader
                 }
                 records[index] = record with { Limitations = limitations.Distinct().ToArray() };
                 CheckRecoveryProjection(partition.GetTransactionReportPath(record.TransactionId),
-                    TransactionReport.Render(record, partition.debloatJournal), warnings);
+                    TransactionReport.Render(record, partition.debloatJournal), warnings, verified);
             }
             var projection = Path.Combine(root, "memory", partition.debloatJournal ? "DEBLOAT.md" : "RECOVERY.md");
             if (records.Count > 0 || RecoveryPathExists(projection))
-                CheckRecoveryProjection(projection, TransactionReport.RenderIndex(records, partition.debloatJournal), warnings);
+                CheckRecoveryProjection(projection, TransactionReport.RenderIndex(records, partition.debloatJournal), warnings, verified);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception error) when (IsRecoveryReadError(error))
@@ -228,20 +243,23 @@ public sealed partial class MemoryStore : IRecoveryHistoryReader
         else sources.Add(new(module, status, records, [], [], warnings));
     }
 
-    private void ReadRecoveryRepairs(List<RecoveryHistorySource> sources, CancellationToken cancellationToken)
+    private void ReadRecoveryRepairs(List<RecoveryHistorySource> sources, CancellationToken cancellationToken, HashSet<string> verified)
     {
         var warnings = new List<string>();
         RepairHistory? history = null;
         var status = RecoveryEvidenceStatus.Complete;
         try
         {
-            CheckRecoveryPartition("repairs");
+            CheckRecoveryPartition("repairs", cancellationToken, verified);
             history = ReconcileRepairs(null, warnings, cancellationToken);
             foreach (var record in history.Records)
-                CheckRecoveryProjection(GetRepairReportPath(record.Id), RepairReport.Render(record), warnings);
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                CheckRecoveryProjection(GetRepairReportPath(record.Id), RepairReport.Render(record), warnings, verified);
+            }
             var projection = Path.Combine(root, "memory", "REPAIRS.md");
             if (history.Records.Count > 0 || history.UnfinishedIntents.Count > 0 || RecoveryPathExists(projection))
-                CheckRecoveryProjection(projection, RenderRepairProjection(history), warnings);
+                CheckRecoveryProjection(projection, RenderRepairProjection(history), warnings, verified);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception error) when (IsRecoveryReadError(error))
@@ -253,11 +271,11 @@ public sealed partial class MemoryStore : IRecoveryHistoryReader
         sources.Add(new(RecoveryModule.WindowsRepair, status, [], history?.Records ?? [], history?.UnfinishedIntents ?? [], warnings));
     }
 
-    private void CheckRecoveryProjection(string path, string expected, List<string> warnings)
+    private void CheckRecoveryProjection(string path, string expected, List<string> warnings, HashSet<string> verified)
     {
         try
         {
-            CheckRecoveryPath(path);
+            CheckRecoveryPath(path, verified);
             if (!RecoveryPathExists(path)) warnings.Add($"Projeção/relatório ausente: {RelativePath(path)}; fonte Markdown preservada.");
             else if (new FileInfo(path).Length > RecordEnvelope.MaximumRecordBytes ||
                 File.ReadAllText(path, Encoding.UTF8).Replace("\r\n", "\n") != expected.Replace("\r\n", "\n"))
@@ -267,11 +285,11 @@ public sealed partial class MemoryStore : IRecoveryHistoryReader
         { warnings.Add($"Projeção/relatório indisponível: {RelativePath(path)} ({error.GetType().Name}); fonte preservada."); }
     }
 
-    private void CheckRecoveryDatabase(List<RecoveryHistorySource> sources, CancellationToken cancellationToken)
+    private void CheckRecoveryDatabase(List<RecoveryHistorySource> sources, CancellationToken cancellationToken, HashSet<string> verified)
     {
         try
         {
-            CheckRecoveryPath(Database);
+            CheckRecoveryPath(Database, verified);
             if (!RecoveryPathExists(Database)) throw new IOException("Arquivo do índice SQLite ausente.");
             // This store uses rollback journaling. Do not let a historical WAL index create shared-memory artifacts.
             if (RecoveryPathExists(Database + "-wal") || RecoveryPathExists(Database + "-shm"))
@@ -297,6 +315,11 @@ public sealed partial class MemoryStore : IRecoveryHistoryReader
                     ? sources.Where(s => s.Module is RecoveryModule.Debloat or RecoveryModule.ControlledRemoval)
                         .SelectMany(s => s.Transactions).ToArray()
                     : source.Transactions;
+                // Keyed lookups preserve the previous first-match semantics without a linear scan per index row.
+                var transactionsById = new Dictionary<Guid, TransactionRecord>();
+                foreach (var item in transactions) transactionsById.TryAdd(item.TransactionId, item);
+                var repairsById = new Dictionary<Guid, RepairRecord>();
+                foreach (var item in source.Repairs) repairsById.TryAdd(item.Id, item);
                 var expected = source.Module == RecoveryModule.WindowsRepair
                     ? source.Repairs.Select(r => r.Id).ToHashSet()
                     : transactions.Select(r => r.TransactionId).ToHashSet();
@@ -308,18 +331,19 @@ public sealed partial class MemoryStore : IRecoveryHistoryReader
                 var divergent = false;
                 while (reader.Read())
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (!Guid.TryParse(reader.GetString(0), out var id))
                         throw new InvalidDataException("Índice SQLite contém identidade inválida.");
                     actual.Add(id);
                     if (source.Module == RecoveryModule.WindowsRepair)
                     {
-                        var repair = source.Repairs.FirstOrDefault(r => r.Id == id);
+                        repairsById.TryGetValue(id, out var repair);
                         divergent |= repair is null || reader.GetString(1) != repair.State.ToString() ||
                             reader.GetString(2) != RecordEnvelope.Hash(CanonicalJson(repair));
                     }
                     else
                     {
-                        var transaction = transactions.FirstOrDefault(r => r.TransactionId == id);
+                        transactionsById.TryGetValue(id, out var transaction);
                         divergent |= transaction is null || reader.GetString(1) != transaction.State.ToString() ||
                             reader.GetString(2) != transaction.PlanHash || reader.GetInt32(3) != transaction.Events.Count ||
                             (reader.GetInt32(4) != 0) != transaction.IsIndeterminate ||
@@ -332,13 +356,16 @@ public sealed partial class MemoryStore : IRecoveryHistoryReader
                     using var events = database.CreateCommand();
                     var eventTable = source.Module == RecoveryModule.Tweaks ? "TransactionEvents" : "DebloatTransactionEvents";
                     events.CommandText = $"SELECT TransactionId, Sequence, PayloadHash FROM {eventTable}";
+                    var eventsByKey = new Dictionary<(Guid, int), TransactionEventRecord>();
+                    foreach (var item in transactionsById.Values)
+                        foreach (var recorded in item.Events) eventsByKey.TryAdd((item.TransactionId, recorded.Sequence), recorded);
                     using var eventReader = events.ExecuteReader(); var count = 0;
                     while (eventReader.Read())
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         count++;
                         var transactionId = Guid.TryParse(eventReader.GetString(0), out var parsed) ? parsed : Guid.Empty;
-                        var entry = transactions.FirstOrDefault(t => t.TransactionId == transactionId)?.Events
-                            .FirstOrDefault(e => e.Sequence == eventReader.GetInt32(1));
+                        eventsByKey.TryGetValue((transactionId, eventReader.GetInt32(1)), out var entry);
                         divergent |= entry is null || eventReader.GetString(2) != RecordEnvelope.Hash(CanonicalJson(entry));
                     }
                     divergent |= count != transactions.Sum(t => t.Events.Count);

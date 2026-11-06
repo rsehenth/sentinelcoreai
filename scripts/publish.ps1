@@ -11,6 +11,8 @@ if (Test-Path -LiteralPath $output) {
     if (-not $Force) { throw "Destino ja existe: $output. Use -Force para substituir." }
     Remove-Item -LiteralPath $output -Recurse -Force
 }
+# Distribuicao: uma variavel de ambiente DefineConstants nao pode introduzir simbolos de execucao real fora dos -p: abaixo.
+if ($env:DefineConstants -match 'SENTINELCORE_REAL') { throw 'DefineConstants do ambiente contem simbolo de execucao real; publish recusado.' }
 $arguments = @('publish', (Join-Path $projectRoot 'src\SentinelCore.App\SentinelCore.App.csproj'), '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', '-o', $output, '-p:PublishTrimmed=false')
 # Build de distribuição: a execução real da T2A não é compilada, mesmo que o ambiente tente habilitá-la.
 $arguments += @('-p:SentinelCoreRealTweaks=false')

@@ -9,6 +9,38 @@ namespace SentinelCore.Tests;
 
 public sealed class DebloatRemovalFlowTests
 {
+    [Fact]
+    public async Task TwoReopenedSessionsCannotExecuteBlockedTarget()
+    {
+        using var scope = new DebloatRemovalTestScope();
+        var first = await scope.Prepare(DebloatRemovalScenario.Unverifiable);
+        var initial = await scope.Manager.ExecuteAsync(first, scope.Authorize(first));
+        Assert.True(initial.Receipt!.EffectMayHaveOccurred);
+        var a = scope.Create(new MemoryStore(scope.Root).CreateDebloatJournal());
+        var b = scope.Create(new MemoryStore(scope.Root).CreateDebloatJournal());
+        var pa = await a.PrepareAsync();
+        var pb = await b.PrepareAsync();
+        var ta = a.Authorize(pa, pa.Confirmation);
+        var tb = b.Authorize(pb, pb.Confirmation);
+        var results = await Task.WhenAll(a.ExecuteAsync(pa, ta), b.ExecuteAsync(pb, tb));
+        Assert.All(results, item =>
+        {
+            Assert.False(item.Succeeded);
+            Assert.Null(item.Receipt);
+            Assert.True(item.Transaction.Blockers.Contains(BlockerCode.IndeterminateState) ||
+                item.Transaction.Blockers.Contains(BlockerCode.TargetLocked) ||
+                item.Transaction.Blockers.Contains(BlockerCode.JournalUnavailable));
+        });
+        Assert.Equal(1, scope.Adapter.ExecutionCount);
+        var history = await scope.Create(new MemoryStore(scope.Root).CreateDebloatJournal()).LoadHistoryAsync();
+        Assert.Empty(history.Warnings);
+        Assert.True(Assert.Single(history.Items).Transaction.IsIndeterminate);
+        var c = scope.Create(new MemoryStore(scope.Root).CreateDebloatJournal());
+        var pc = await c.PrepareAsync();
+        var retry = await c.ExecuteAsync(pc, c.Authorize(pc, pc.Confirmation));
+        Assert.Contains(BlockerCode.IndeterminateState, retry.Transaction.Blockers);
+        Assert.Equal(1, scope.Adapter.ExecutionCount);
+    }
     [Theory]
     [InlineData(DebloatRemovalScenario.Success, DebloatRemovalState.VerifiedSynthetic, true)]
     [InlineData(DebloatRemovalScenario.AccessDenied, DebloatRemovalState.Failed, false)]
@@ -282,6 +314,66 @@ public sealed class DebloatRemovalFlowTests
         Assert.Equal(1L, command.ExecuteScalar());
         command.CommandText = "SELECT COUNT(*) FROM Transactions";
         Assert.Equal(0L, command.ExecuteScalar());
+    }
+
+    [Fact]
+    public async Task UnverifiedEffectRemainsBlockedAfterSqliteRebuild()
+    {
+        using var scope = new DebloatRemovalTestScope();
+        var first = await scope.Prepare(DebloatRemovalScenario.Unverifiable);
+        var result = await scope.Manager.ExecuteAsync(first, scope.Authorize(first));
+        Assert.True(result.Receipt!.EffectMayHaveOccurred);
+        Assert.False(result.Succeeded);
+        SqliteConnection.ClearAllPools();
+        var database = Path.Combine(scope.Root, "data", "sentinelcore.db");
+        File.Delete(database);
+        var reopened = scope.Create(new MemoryStore(scope.Root).CreateDebloatJournal());
+        var history = await reopened.LoadHistoryAsync();
+        Assert.True(Assert.Single(history.Items).Transaction.IsIndeterminate);
+        var next = await reopened.PrepareAsync();
+        var retry = await reopened.ExecuteAsync(next, reopened.Authorize(next, next.Confirmation));
+        Assert.Contains(BlockerCode.IndeterminateState, retry.Transaction.Blockers);
+        Assert.Equal(1, scope.Adapter.ExecutionCount);
+    }
+
+    [Fact]
+    public async Task CorruptSqliteRebuildRetainsUnverifiedEffectBlock()
+    {
+        using var scope = new DebloatRemovalTestScope();
+        var first = await scope.Prepare(DebloatRemovalScenario.Unverifiable);
+        await scope.Manager.ExecuteAsync(first, scope.Authorize(first));
+        SqliteConnection.ClearAllPools();
+        var database = Path.Combine(scope.Root, "data", "sentinelcore.db");
+        File.WriteAllText(database, "índice sintético corrompido");
+        var journal = new MemoryStore(scope.Root).CreateDebloatJournal();
+        var rebuilt = await journal.LoadTransactionsAsync();
+        Assert.NotEmpty(rebuilt.Warnings);
+        Assert.True(Assert.Single(rebuilt.Transactions).IsIndeterminate);
+        Assert.Single(Directory.GetFiles(Path.GetDirectoryName(database)!, "sentinelcore.db.corrupt-*"));
+        var manager = scope.Create(journal);
+        var next = await manager.PrepareAsync();
+        var retry = await manager.ExecuteAsync(next, manager.Authorize(next, next.Confirmation));
+        Assert.Contains(BlockerCode.IndeterminateState, retry.Transaction.Blockers);
+        Assert.Equal(1, scope.Adapter.ExecutionCount);
+    }
+
+    [Fact]
+    public async Task CorruptRemovalJournalBlocksTargetAndPreservesEvidence()
+    {
+        using var scope = new DebloatRemovalTestScope();
+        var first = await scope.Prepare(DebloatRemovalScenario.Unverifiable);
+        await scope.Manager.ExecuteAsync(first, scope.Authorize(first));
+        var directory = Path.Combine(scope.Root, "memory", "debloat", first.Simulation.Plan.TransactionId.ToString("D"), "journal");
+        var path = Directory.GetFiles(directory, "*-ExecutionCompleted.md").Single();
+        File.WriteAllText(path, "evento sintético truncado");
+        var manager = scope.Create(new MemoryStore(scope.Root).CreateDebloatJournal());
+        var history = await manager.LoadHistoryAsync();
+        Assert.NotEmpty(history.Warnings);
+        var next = await manager.PrepareAsync();
+        var retry = await manager.ExecuteAsync(next, manager.Authorize(next, next.Confirmation));
+        Assert.Contains(BlockerCode.JournalUnavailable, retry.Transaction.Blockers);
+        Assert.Equal(1, scope.Adapter.ExecutionCount);
+        Assert.Equal("evento sintético truncado", File.ReadAllText(path));
     }
 
     [Fact]

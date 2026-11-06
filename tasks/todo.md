@@ -1,5 +1,62 @@
 # Execução
 
+## Fechamento T4B — estado vigente (06/11/2026)
+
+- [x] T4B concluída no escopo sintético documentado; T4B.2 e T4B.3 concluídas conforme relatórios finais.
+- [x] Revisão final: matriz alinhada aos nove casos T4B.3 já aprovados; documentação de HKCU/probe e estados históricos corrigida.
+- [x] Exceções LF para scripts auditados; auxiliares restritos a fixtures temporárias próprias; harness 30 PASS e inspeção do publish sem violações. [Evidências](../docs/validation/2026-11-06-t4b-final-versioning-review.md).
+- [ ] Homologação operacional futura, com escopo e autorização próprios; nenhum executor real habilitado.
+
+Os checklists parciais abaixo preservam o estado de cada entrega; os relatórios finais T4B.2/T4B.3 os sucedem.
+
+## T4B.3 — consolidação final (06/11/2026, concluída no escopo sintético)
+
+- [x] Benchmarks 100/1.000/5.000 (baseline × otimizado em 100/1.000); otimizações justificadas; 10.000 não medidos (impedimento de tempo: geração ≈ 69 min > 45 min).
+- [x] Host WPF isolado com PC ocioso: 35 PASS; debounce da pesquisa; revisões A/B por subagentes distintos sem bloqueantes e achados tratados.
+- [x] Runner em lotes (`-BatchChars`), harness PowerShell com 30 sondas PASS, Debug e Release 312/312, publish regerado e inspecionado (0 violações).
+- [ ] Pendências opcionais: 10.000 operações, cache frio, grade com 5.000+ linhas, testes de reparse point/cancelamento no meio da leitura, harness Python.
+
+## T4B.2 — journal e concorrência (05/11/2026, parcial)
+
+- [x] Reproduzir e corrigir gravação após transição anterior inválida; regressão sintética Debug/Release.
+- [x] Conferir estaticamente os cinco gates e compilar a solução nas duas configurações.
+- [x] Implementar harness sintético e exercitar contenção, conflito, repetição e duas interrupções entre processos.
+- [x] Verificar bloqueios T3C após reconstrução SQLite ausente/corrompido e journal truncado.
+- [x] Revisões independentes A/B, locks por alvo e correções dos defeitos reproduzidos de integridade.
+- [ ] Comprovar leitura sobreposta à gravação real, interrupção dentro de AtomicWrite e concorrência T3C com barreira; ver `docs/validation/2026-11-05-t4b2-final-concurrency-progress.md`.
+- [ ] Manter T4B.2 parcial até cumprir os critérios em `docs/validation/2026-11-05-t4b2-journal-concurrency-progress.md`.
+
+## T4B.1-S — remediação do subconjunto (05/11/2026)
+
+- [x] Tornar explícitas as fontes de plataforma/privilégio e perfil; compilar Debug e Release.
+- [x] Revisar impacto nas 247 rotas, classificar as quatro provas novas e reavaliar os 19 casos.
+- [x] Atualizar entradas revisadas e executar as provas e 270 casos em ambas configurações.
+- [ ] Manter fora os casos não classificados e revisar os demais módulos em etapa autorizada.
+
+## T4B.1 — cobertura crítica (05/11/2026, parcial)
+
+- [x] Registrar incidente de leituras reais indiretas, retirar casos e reexecutar seleção em Debug/Release.
+- [x] Criar resumo por módulo e registrar classes ainda não classificadas.
+- [ ] Auditar chamadas transitivas e linhas de Theory dos grupos críticos; não presumir que fakes isolam todo o caminho.
+
+## T4B.1 — isolamento de testes (05/11/2026, parcial)
+
+- [x] Testar recusas do runner em harness sintético; fixar inventário completo de descoberta.
+- [x] Ampliar a seleção para 146 casos auditados, incluindo Safety, backup e recuperação.
+- [ ] Auditar os 1.364 casos ainda não classificados e as dependências dos demais módulos prioritários.
+- [x] Inventariar os 1.516 casos descobertos e criar matriz com categorias e pendências.
+- [x] Revisar 48 casos sintéticos, identificar sexto caso de integração e validar seleção em Debug/Release.
+- [ ] Revisar 1.462 casos não classificados e as chamadas transitivas; não executá-los até aprovação individual.
+- [ ] Suportar Theory com seleção segura e concluir testes negativos do runner e revisão das etapas anteriores ao filtro.
+
+## T4B — continuidade (05/11/2026, parcial)
+
+- [x] Preservar correção anterior de lacuna; reproduzir e corrigir gravação após nome de evento inválido.
+- [x] Adicionar seleção positiva dos testes auditados e registrar testes não executados.
+- [ ] Auditar e classificar os demais casos, ampliar cobertura, testar concorrência entre processos e falhas.
+- [ ] Medir Recovery Center, validar host WPF, gates, publish e concluir revisões independentes A/B.
+- [ ] Atualizar relatório e declarar conclusão somente após todos os critérios aplicáveis passarem.
+
 ## T4A — Recovery Center Consolidation (04/11/2026)
 
 - [x] Ler pedido, instruções, arquitetura/segurança/validação e relatórios T1/T2/R1/T3/T3B/T3C; consultar Graphify.
@@ -17,7 +74,7 @@
 - [x] Revisões independentes A segurança/recuperação e B persistência/apresentação; corrigir quatro P2 com regressões.
 - [x] Atualizar documentação e [relatório T4A](../docs/validation/2026-11-04-recovery-center-t4a.md).
 - [x] Nenhuma consulta Appx real, Registro/rollback real, remoção/reinstalação, reparo, VM, elevação, IA, commit ou push.
-- [ ] Validação real futura com escopo/autorização específicos. T4B não iniciada.
+- [ ] Validação real futura com escopo/autorização específicos. A T4B posterior foi concluída no escopo sintético documentado.
 
 **Veredito: T4A implementada e validada exclusivamente por testes sintéticos.** Não pronta para execução real.
 Os checklists datados seguintes preservam estados e proibições de entregas anteriores.

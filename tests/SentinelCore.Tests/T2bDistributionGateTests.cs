@@ -27,7 +27,7 @@ public sealed class T2bDistributionGateTests
     {
         var policy = new FakeHkcuPolicyProbe();
         var reader = new Windows11SystemProfileReader(policy, realExecutionEnabled: false,
-            T2bCatalog.OperationIds, buildOverride: 22631);
+            T2bCatalog.OperationIds, () => true, () => 22631, () => false);
 
         var profile = reader.Read();
 

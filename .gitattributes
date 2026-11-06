@@ -6,3 +6,15 @@
 *.json text eol=lf
 *.ps1 text eol=crlf
 *.sln text eol=crlf
+# O manifesto Synthetic fixa hashes dos bytes LF destes dois scripts.
+scripts/dotnet.ps1 text eol=lf
+tests/run-synthetic.ps1 text eol=lf
+# Preserva os bytes ja auditados; nao recalcular hashes para conversoes de checkout.
+Directory.Build.props text eol=lf
+NuGet.Config text eol=lf
+**/packages*.lock.json text eol=crlf
+src/SentinelCore.Application/AssemblyInfo.cs text eol=crlf
+src/SentinelCore.Domain/AssemblyInfo.cs text eol=crlf
+src/SentinelCore.Application/DebloatCatalogData.json text eol=crlf
+# Este arquivo auditado possui finais de linha mistos; manter seus bytes exatos.
+src/SentinelCore.Persistence/MemoryStore.cs -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

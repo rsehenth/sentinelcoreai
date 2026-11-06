@@ -11,6 +11,7 @@ namespace SentinelCore.Tests;
 public sealed class RepairToolPathTests
 {
     [Fact]
+    [Trait("Category", "WindowsIntegration")]
     public void PolicyRejectsWrongNameExtensionDirectoryAndScripts()
     {
         Assert.False(RepairToolPathPolicy.IsCanonicalToolPath(RepairTool.Sfc,
@@ -25,6 +26,7 @@ public sealed class RepairToolPathTests
     }
 
     [Fact]
+    [Trait("Category", "WindowsIntegration")]
     public void PolicyAcceptsOnlyTheExactExistingExecutableInSystem32()
     {
         foreach (var tool in Enum.GetValues<RepairTool>())
@@ -38,6 +40,7 @@ public sealed class RepairToolPathTests
     }
 
     [Fact]
+    [Trait("Category", "WindowsIntegration")]
     public void LocatorResolvesOnlySystem32AndNeverSearchesThePathVariable()
     {
         var locator = new WindowsRepairToolLocator();

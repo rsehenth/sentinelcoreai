@@ -1,5 +1,53 @@
 # SentinelCore AI — instruções do projeto
 
+## T4B.3 — consolidação final, CONCLUÍDA no escopo sintético (06/11/2026)
+
+- Relatório: `docs/validation/2026-11-05-t4b3-final-consolidation.md`. T4B.2 e T4B.3 concluídas no escopo sintético:
+  100/1.000/5.000 operações medidas; **10.000 não medidas** (impedimento de tempo); host WPF até ≈ 1.000 linhas. Não é homologação operacional.
+- Seleção vigente: 1.562 casos descobertos, **312 Synthetic**, 6 WindowsIntegration, 1.244 Unclassified (não executar).
+  O runner executa a seleção em lotes (limite de 32.767 caracteres da linha de comando); mantém-se fail-closed.
+  Atualizar o manifesto só com divergências revisadas; não regenerar hashes às cegas.
+- `RecordEnvelope.Probe` **existe no binário de produção** (`internal`, `AsyncLocal`, nulo por padrão). Não adicionar
+  `InternalsVisibleTo`, leitura de variável de ambiente/argumento/configuração nem carga dinâmica de assemblies em `src/`
+  (guardado por `T4b3DistributionAndProbeTests`). O publish não contém worker, runner, testes, fixtures nem assemblies `.Native`.
+- Não afirmar prova matemática/formal, durabilidade após falha do SO ou queda de energia, nem liberação imediata de handles:
+  `WriteThrough`/`Flush` pedem a gravação, não a garantem; SHA-256 não autentica; locks são cooperativos.
+- O executor HKCU (`HkcuRegistryOperationExecutor`) **está compilado** na distribuição; só o gate falso por construção e a composição com `DisabledOperationExecutor` impedem seu uso. Não escrever que o build "não compila a escrita real".
+- Fixtures grandes: gerar em sequência, blocos de 25 operações, prioridade baixa, uma carga pesada por vez; apagar ao final.
+- Ferramentas auxiliares (`scripts/RecoveryBenchmark`, `Inspect-Publish.ps1`, `test-synthetic-runner.ps1`) usam só fixtures
+  temporárias; não geram fixtures grandes em paralelo sem necessidade (consomem muito o PC).
+- Cinco gates fechados; nenhum executor real; T0 inalterada (153 NÃO VALIDADOS / 9 ALTO). Sem commit/push.
+
+## T4B.1-S — subconjunto revalidado (05/11/2026)
+
+- Seleção de 270 Synthetic revalidada em Debug/Release; seis WindowsIntegration e 1.244 Unclassified
+  permanecem fora. Ver `docs/validation/2026-11-05-t4b1s-isolation-validation.md`.
+- Não atualizar hashes indiscriminadamente nem executar casos não classificados. O manifesto não é sandbox;
+  a validação real e o restante da T4B continuam pendentes.
+
+## T4B.1 — incidente e cobertura crítica parcial (05/11/2026)
+
+- O runner executou nesta continuação casos indevidamente classificados como sintéticos que consultaram
+  privilégio do processo e diretório de perfil reais. Ver `docs/validation/2026-11-05-t4b1-critical-coverage.md`.
+- Estado posterior à exclusão: 247 Synthetic, 21 WindowsIntegration, 1.248 Unclassified. Não presumir
+  isolamento de fixtures com `Windows11SystemProfileReader` ou de `RepairOutputLimiter.Limit`.
+- Os resultados e contagens abaixo são históricos; não apresentam a rodada de 217/266 como exclusivamente sintética.
+
+## T4B.1 — isolamento parcial (05/11/2026)
+
+- Atualização posterior: 146 casos Synthetic, seis WindowsIntegration e 1.364 Unclassified; ver
+  `docs/validation/2026-11-05-t4b1-runner-and-coverage.md`. A contagem abaixo é histórica.
+- 48 casos auditados Synthetic; seis WindowsIntegration; 1.462 Unclassified. Não executar os não classificados.
+- Revisão de build/descoberta e testes negativos ainda incompleta; ver `docs/validation/2026-11-05-t4b1-isolation-progress.md`.
+
+## T4B — em andamento (05/11/2026)
+
+- T4B é parcial; a nota vigente e suas pendências estão em `docs/validation/2026-11-05-reliability-hardening-t4b-progress.md`.
+- `tests/run-synthetic.ps1` seleciona positivamente apenas testes auditados; os demais permanecem fora da execução.
+  Não converter a seleção em filtro negativo, nem atualizar hashes sem revisar os arquivos e dependências alterados.
+- A rodada T4A também incluiu um teste que lê informações do processo atual; não descrevê-la como prova de isolamento integral.
+- As afirmações abaixo de que T4B não foi iniciada são históricas. Limites de segurança e proibição de execução real permanecem.
+
 ## T4A — Central de Recuperação (04/11/2026)
 
 - Escopo T4A autorizado: agregação somente leitura e recuperação funcional exclusivamente sintética.
@@ -101,7 +149,8 @@ Escritas apenas neste repositório, build/testes, temporários necessários e di
   (0–3). Não há HKLM/HKCR/HKU, criação de chave, script, PowerShell, `reg.exe`, `.reg`, Appx, serviço, tarefa,
   DISM ou elevação.
 - **A execução real permanece desabilitada na distribuição (`RealDisabled`).** A separação é feita em tempo de
-  compilação: o build de distribuição (padrão) não compila a escrita real e `--enable-real-tweaks` não tem efeito,
+  compilação do gate: o executor HKCU permanece compilado, mas o gate falso e `DisabledOperationExecutor` bloqueiam seu uso;
+  `--enable-real-tweaks` não tem efeito no build de distribuição,
   mesmo por chamada interna. Somente builds experimentais de validação (`-p:SentinelCoreRealTweaks=true`) compilam
   o executor HKCU e aceitam o opt-in; esses builds são exclusivos para a futura validação real e nunca devem ser
   distribuídos. Não executar escrita real no computador de desenvolvimento.

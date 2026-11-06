@@ -16,6 +16,9 @@ public partial class RecoveryCenterView : UserControl
     private bool updating;
     private bool busy;
     private bool loaded;
+    private DateTime loadedAt;
+    // Typing in the search box re-filters after a short pause instead of rebinding the grid on every key.
+    private readonly System.Windows.Threading.DispatcherTimer searchDebounce = new() { Interval = TimeSpan.FromMilliseconds(250) };
 
     public RecoveryCenterView()
     {
@@ -30,6 +33,11 @@ public partial class RecoveryCenterView : UserControl
         BindBoolean(InterventionCombo, "Intervenção necessária", "Sem indicação de intervenção");
         BindText(TypeCombo, []);
         BindText(StateCombo, []);
+        searchDebounce.Tick += (_, _) =>
+        {
+            searchDebounce.Stop();
+            if (!busy && !updating) ApplyFilter((HistoryGrid.SelectedItem as HistoryRow)?.Operation);
+        };
         initialized = true;
         UpdateButtons();
     }
@@ -54,7 +62,12 @@ public partial class RecoveryCenterView : UserControl
         if (center is not null && !loaded && !busy) await RefreshAsync();
     }
 
-    private void OnUnloaded(object sender, RoutedEventArgs e) => readCancellation?.Cancel();
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        // A search typed less than 250 ms before leaving the page must not leave the grid on the previous filter.
+        if (searchDebounce.IsEnabled) { searchDebounce.Stop(); if (snapshot is not null && !busy) ApplyFilter((HistoryGrid.SelectedItem as HistoryRow)?.Operation); }
+        readCancellation?.Cancel();
+    }
     private async void OnRefresh(object sender, RoutedEventArgs e) => await RefreshAsync();
 
     public async Task RefreshAsync()
@@ -67,8 +80,11 @@ public partial class RecoveryCenterView : UserControl
         UpdateButtons();
         try
         {
-            snapshot = await center.LoadAsync(readCancellation.Token);
+            // Mapping and deduplication of large histories run off the UI thread; only the binding below uses the dispatcher.
+            var token = readCancellation.Token;
+            snapshot = await Task.Run(() => center.LoadAsync(token), token);
             loaded = true;
+            loadedAt = DateTime.Now;
             updating = true;
             BindText(TypeCombo, snapshot.Operations.Select(o => o.Type));
             BindText(StateCombo, snapshot.Operations.Select(o => o.State));
@@ -76,8 +92,8 @@ public partial class RecoveryCenterView : UserControl
             UpdateSummary();
             ApplyFilter(selected);
             StatusText.Text = snapshot.IsComplete
-                ? "Histórico carregado. Nenhuma operação de manutenção foi iniciada."
-                : "Leitura incompleta: examine os avisos. As contagens cobrem somente os registros válidos carregados.";
+                ? $"Histórico carregado às {DateTime.Now:HH:mm:ss} (horário local). Nenhuma operação de manutenção foi iniciada."
+                : $"Leitura incompleta às {DateTime.Now:HH:mm:ss} (horário local): examine os avisos. As contagens cobrem somente os registros válidos carregados.";
         }
         catch (OperationCanceledException)
         {
@@ -144,6 +160,8 @@ public partial class RecoveryCenterView : UserControl
     private void OnFilterChanged(object sender, RoutedEventArgs e)
     {
         if (!initialized || updating || busy) return;
+        if (ReferenceEquals(sender, SearchText)) { searchDebounce.Stop(); searchDebounce.Start(); return; }
+        searchDebounce.Stop();
         ApplyFilter((HistoryGrid.SelectedItem as HistoryRow)?.Operation);
     }
 
@@ -178,13 +196,14 @@ public partial class RecoveryCenterView : UserControl
             ? snapshot.IsComplete && snapshot.Operations.Count == 0
                 ? "Nenhuma operação registrada nas fontes carregadas."
                 : "Nenhum registro válido carregado corresponde aos filtros; fontes inacessíveis não são contadas como vazias."
-            : $"{rows.Length} de {snapshot.Operations.Count} registro(s) carregado(s). Horários no fuso local.";
+            : $"{rows.Length} de {snapshot.Operations.Count} registro(s) carregado(s). Horários no fuso local. Carga às {loadedAt:HH:mm:ss}.";
         ShowSelection();
     }
 
     private void OnClearFilters(object sender, RoutedEventArgs e)
     {
         if (busy) return;
+        searchDebounce.Stop();
         updating = true;
         SearchText.Clear();
         foreach (var combo in new[] { ModuleCombo, OutcomeCombo, OriginCombo, CapabilityCombo,

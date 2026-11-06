@@ -401,6 +401,7 @@ public sealed class QualityGateRemediationTests : IDisposable
     }
 
     [Fact]
+    [Trait("Category", "WindowsIntegration")]
     public void QG09_ProcessIoCountersDoNotUseProcessHandle()
     {
         var currentPid = Environment.ProcessId;

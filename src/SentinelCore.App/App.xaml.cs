@@ -77,7 +77,9 @@ public partial class App : System.Windows.Application
                 ? new HkcuRegistryOperationExecutor(registryAccess)
                 : new DisabledOperationExecutor();
             var tweakProfile = new Windows11SystemProfileReader(new HkcuPolicyProbe(),
-                realTweaksEnabled, T2bCatalog.OperationIds);
+                realTweaksEnabled, T2bCatalog.OperationIds, OperatingSystem.IsWindows,
+                () => OperatingSystem.IsWindows() ? Environment.OSVersion.Version.Build : 0,
+                () => Environment.IsPrivilegedProcess);
             var transactionLocks = new FileExclusiveLockFactory(dataRoot);
             var tweakEngine = new SafetyEngine(tweakCatalog, tweakProfile, tweakReader,
                 new HkcuProtectionProvider(), store, tweakExecutor, transactionLocks,
@@ -100,7 +102,8 @@ public partial class App : System.Windows.Application
             var repairPreflight = new RepairPreflightEngine(repairCatalog,
                 new WindowsRepairSystemProfileReader(), repairVolumes, new WindowsRepairToolLocator());
             var repairCenter = new RepairCenter(repairCatalog, repairPreflight,
-                new SyntheticRepairExecutor(), store);
+                new SyntheticRepairExecutor(), store,
+                () => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
             var repairManager = new RepairManager(repairCatalog, repairCenter, repairVolumes);
 
             MainWindow = new MainWindow(new AuditRunner(WindowsCollectors.CreateBasic()),
