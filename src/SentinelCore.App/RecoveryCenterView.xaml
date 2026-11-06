@@ -13,8 +13,12 @@
             <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
             <Setter Property="Padding" Value="12"/>
         </Style>
+        <Style x:Key="RecoveryCell" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=Text}"/>
+        </Style>
         <Style x:Key="RecoveryFilter" TargetType="StackPanel">
-            <Setter Property="Width" Value="198"/>
+            <Setter Property="Width" Value="180"/>
             <Setter Property="Margin" Value="0,0,12,12"/>
         </Style>
         <Style TargetType="DataGrid">
@@ -61,10 +65,14 @@
         <StackPanel Margin="32,28,32,24">
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                <StackPanel>
-                    <TextBlock Text="Central de Recuperação" Style="{DynamicResource PageTitle}"/>
-                    <TextBlock Text="Histórico, consequências e possibilidades de recuperação dos módulos locais." Style="{DynamicResource PageSubtitle}"/>
-                </StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border Style="{DynamicResource PageIcon}"><Viewbox Width="23" Height="23"><Canvas Width="24" Height="24"><Path Data="{DynamicResource IconHistory}" Stroke="{DynamicResource Accent}" StrokeThickness="1.9" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Canvas></Viewbox></Border>
+                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                        <TextBlock Text="Central de Recuperação" Style="{DynamicResource PageTitle}"/>
+                        <TextBlock Text="Histórico, consequências e possibilidades de recuperação dos módulos locais." Style="{DynamicResource PageSubtitle}"/>
+                    </StackPanel>
+                </Grid>
                 <Button x:Name="RefreshButton" Grid.Column="1" Content="Atualizar histórico" Tag="{DynamicResource IconRefresh}" Click="OnRefresh" Margin="16,0,0,0" VerticalAlignment="Top" AutomationProperties.AutomationId="RecoveryRefresh"/>
             </Grid>
             <Border Style="{DynamicResource Card}" Padding="16" Margin="0,18,0,0">
@@ -75,15 +83,15 @@
                 </StackPanel>
             </Border>
 
-            <TextBlock x:Name="SummaryText" Text="Históricos ainda não carregados. Contagens indisponíveis." Margin="0,18,0,10" AutomationProperties.AutomationId="RecoverySummary" AutomationProperties.LiveSetting="Polite"/>
+            <TextBlock x:Name="SummaryText" Text="Históricos ainda não carregados. Contagens indisponíveis." Margin="0,16,0,8" Foreground="{DynamicResource Muted}" AutomationProperties.AutomationId="RecoverySummary" AutomationProperties.LiveSetting="Polite"/>
             <ItemsControl x:Name="SummaryCards" AutomationProperties.AutomationId="RecoveryCounters">
-                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="4"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate><DataTemplate>
-                    <Border Style="{DynamicResource Card}" Width="196" Padding="14" Margin="0,0,10,10">
+                    <Border Style="{DynamicResource Card}" Padding="14,10" Margin="0,0,10,10">
                         <StackPanel>
                             <TextBlock Text="{Binding Title}" Style="{DynamicResource Caption}"/>
-                            <TextBlock Text="{Binding Value}" FontSize="21" FontWeight="SemiBold" Margin="0,6,0,0"/>
-                            <TextBlock Text="{Binding Detail}" Style="{DynamicResource Caption}" Margin="0,6,0,0"/>
+                            <TextBlock Text="{Binding Value}" FontSize="18" FontWeight="SemiBold" Margin="0,4,0,0"/>
+                            <TextBlock Text="{Binding Detail}" Style="{DynamicResource Caption}" FontSize="12" Margin="0,4,0,0"/>
                         </StackPanel>
                     </Border>
                 </DataTemplate></ItemsControl.ItemTemplate>
@@ -92,7 +100,7 @@
             <Border x:Name="WarningsPanel" Visibility="Collapsed" Background="{DynamicResource WarnSoft}" BorderBrush="{DynamicResource WarnLine}" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,4,0,16">
                 <StackPanel>
                     <TextBlock Text="Histórico incompleto ou com limitações" Foreground="{DynamicResource Warn}" FontWeight="SemiBold"/>
-                    <TextBox x:Name="WarningsText" Style="{StaticResource RecoveryReadout}" MaxHeight="180" Margin="0,8,0,0" AutomationProperties.AutomationId="RecoveryWarnings"/>
+                    <TextBox x:Name="WarningsText" AutomationProperties.Name="Avisos da Central de Recuperação" Style="{StaticResource RecoveryReadout}" MaxHeight="180" Margin="0,8,0,0" AutomationProperties.AutomationId="RecoveryWarnings"/>
                 </StackPanel>
             </Border>
             <TextBlock Text="Localizar operações" Style="{DynamicResource PaneTitle}" Margin="0,8,0,8"/>
@@ -117,16 +125,16 @@
             </Expander>
             <Button x:Name="ClearFiltersButton" Content="Limpar filtros" Click="OnClearFilters" HorizontalAlignment="Left" Style="{DynamicResource GhostButton}" Margin="0,0,0,10"/>
             <TextBlock x:Name="HistorySummary" Text="Nenhuma fonte carregada." Style="{DynamicResource Caption}" Margin="0,0,0,8" AutomationProperties.AutomationId="RecoveryHistorySummary"/>
-            <DataGrid x:Name="HistoryGrid" Height="270" SelectionChanged="OnSelectionChanged" AutomationProperties.AutomationId="RecoveryHistory" AutomationProperties.Name="Histórico unificado de operações">
+            <DataGrid x:Name="HistoryGrid" Height="300" HorizontalScrollBarVisibility="Auto" SelectionChanged="OnSelectionChanged" AutomationProperties.AutomationId="RecoveryHistory" AutomationProperties.Name="Histórico unificado de operações">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Data local" Binding="{Binding LocalDate}" SortMemberPath="Operation.AtUtc" Width="140"/>
-                    <DataGridTextColumn Header="Módulo" Binding="{Binding Module}" Width="145"/>
-                    <DataGridTextColumn Header="Origem" Binding="{Binding Origin}" Width="145"/>
-                    <DataGridTextColumn Header="Operação" Binding="{Binding Operation.OperationId}" Width="180"/>
-                    <DataGridTextColumn Header="Alvo" Binding="{Binding Operation.Target}" Width="220"/>
-                    <DataGridTextColumn Header="Estado" Binding="{Binding Operation.State}" Width="160"/>
-                    <DataGridTextColumn Header="Resultado" Binding="{Binding Outcome}" Width="160"/>
-                    <DataGridTextColumn Header="Recuperação" Binding="{Binding Capability}" Width="220"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Data local" Binding="{Binding LocalDate}" SortMemberPath="Operation.AtUtc" Width="1.1*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Módulo" Binding="{Binding Module}" Width="1*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Origem" Binding="{Binding Origin}" Width="1*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Operação" Binding="{Binding Operation.OperationId}" Width="1.3*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Alvo" Binding="{Binding Operation.Target}" Width="1.5*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Estado" Binding="{Binding StateText}" Width="1.1*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Resultado" Binding="{Binding Outcome}" Width="1.1*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Recuperação" Binding="{Binding Capability}" Width="1.4*" MinWidth="84"/>
                 </DataGrid.Columns>
             </DataGrid>
 
@@ -134,10 +142,15 @@
                 <StackPanel>
                     <TextBlock x:Name="DetailsTitle" Text="Detalhes da operação" FontSize="17" FontWeight="SemiBold"/>
                     <TextBlock Text="Identificação, estado, consequências, proteções, recuperação e próximas ações. Informação ausente permanece indisponível." Style="{DynamicResource Caption}" Margin="0,5,0,10"/>
-                    <TextBox x:Name="DetailsText" Style="{StaticResource RecoveryReadout}" Height="300" Text="Selecione uma operação do histórico." AutomationProperties.AutomationId="RecoveryDetails"/>
-                    <TextBlock Text="Eventos persistidos" Style="{DynamicResource PaneTitle}" Margin="0,18,0,6"/>
-                    <TextBlock Text="Somente eventos existentes, em ordem temporal. Uma intenção não comprova início de execução." Style="{DynamicResource Caption}" Margin="0,0,0,8"/>
-                    <TextBox x:Name="TimelineText" Style="{StaticResource RecoveryReadout}" Height="200" Text="Nenhum evento selecionado." AutomationProperties.AutomationId="RecoveryTimeline"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="3*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
+                        <TextBox x:Name="DetailsText" Style="{StaticResource RecoveryReadout}" Height="280" Text="Selecione uma operação do histórico." AutomationProperties.AutomationId="RecoveryDetails" AutomationProperties.Name="Detalhes da operação selecionada"/>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Eventos persistidos" Style="{DynamicResource PaneTitle}" Margin="0,0,0,4"/>
+                            <TextBlock Text="Somente eventos existentes, em ordem temporal. Uma intenção não comprova início de execução." Style="{DynamicResource Caption}" Margin="0,0,0,8"/>
+                            <TextBox x:Name="TimelineText" Style="{StaticResource RecoveryReadout}" Height="212" Text="Nenhum evento selecionado." AutomationProperties.AutomationId="RecoveryTimeline" AutomationProperties.Name="Eventos persistidos da operação"/>
+                        </StackPanel>
+                    </Grid>
                     <TextBlock Text="Localização do relatório" Style="{DynamicResource Caption}" Margin="0,14,0,5"/>
                     <TextBox x:Name="ReportPathText" Style="{StaticResource RecoveryReadout}" AutomationProperties.Name="Localização do relatório, somente leitura"/>
                 </StackPanel>

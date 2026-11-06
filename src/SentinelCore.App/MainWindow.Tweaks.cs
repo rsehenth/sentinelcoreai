@@ -204,7 +204,7 @@ public partial class MainWindow
     private async void OnTweakDetails(object sender, RoutedEventArgs e)
     {
         if (tweaks is null || tweaksBusy) return;
-        if (sender is not FrameworkElement { Tag: string operationId }) return;
+        if (sender is not FrameworkElement { DataContext: TweakCardRow { OperationId: var operationId } }) return;
         tweaksBusy = true;
         UpdateTweakButtons();
         try
@@ -230,7 +230,7 @@ public partial class MainWindow
         tweakPreview = null;
         TweakDetailsTitle.Text = simulation.Operation.DisplayName;
         TweakDetailsMeta.Text = $"Operação {simulation.Operation.Id} v{simulation.Operation.Version} · " +
-            $"risco {simulation.Operation.Risk} · {simulation.Operation.Scope}";
+            $"risco {UiText.Risk(simulation.Operation.Risk)} · {UiText.Scope(simulation.Operation.Scope)}";
         TweakDetailsText.Text = BuildTweakPlanText(simulation);
         TweakConfirmationText.Text = string.Empty;
         TweakConfirmationHint.Text = simulation.CanExecute && tweaks is { RealExecutionEnabled: true }
@@ -311,7 +311,7 @@ public partial class MainWindow
             TweakRecoveryHint.Text = preview.CanRecover
                 ? "Digite exatamente: " + TweakManager.BuildRecoveryConfirmationText(transactionId)
                 : "Recuperação bloqueada; conflitos não são sobrescritos.";
-            TweakRecoveryStatusText.Text = preview.Reason ?? preview.Outcome.ToString();
+            TweakRecoveryStatusText.Text = preview.Reason ?? UiText.Outcome(preview.Outcome);
         }
         catch (Exception error)
         {
@@ -353,7 +353,7 @@ public partial class MainWindow
         try
         {
             var result = await tweaks.RollbackAsync(transactionId, new RecoveryOptions(typedConfirmation));
-            var status = $"Recuperação: {result.Outcome} · integral: {(result.FullyRecovered ? "sim" : "não")}" +
+            var status = $"Recuperação: {UiText.Outcome(result.Outcome)} · integral: {(result.FullyRecovered ? "sim" : "não")}" +
                 (result.Error is null ? string.Empty : " · " + result.Error);
             await ReloadTweaksAsync(transactionId, status, ignoreBusy: true);
             TweakRecoveryStatusText.Text = status;
@@ -404,7 +404,7 @@ public partial class MainWindow
         var plan = simulation.Plan;
         var text = new StringBuilder();
         text.AppendLine(operation.DisplayName);
-        text.AppendLine($"Operação: {operation.Id} v{operation.Version} · risco {operation.Risk} · {operation.Scope}");
+        text.AppendLine($"Operação: {operation.Id} v{operation.Version} · risco {UiText.Risk(operation.Risk)} · {UiText.Scope(operation.Scope)}");
         text.AppendLine($"Hash do plano: {plan.PlanHash[..Math.Min(16, plan.PlanHash.Length)]}…");
         text.AppendLine($"Estado observado: {plan.CreatedAtUtc:O}");
         text.AppendLine();
@@ -457,7 +457,7 @@ public partial class MainWindow
         var text = new StringBuilder();
         text.AppendLine($"Transação: {transaction.TransactionId:D}");
         text.AppendLine($"Operação: {transaction.OperationId} v{transaction.OperationVersion}");
-        text.AppendLine($"Estado: {transaction.State} · sucesso verificado: {(transaction.Succeeded ? "sim" : "não")}" +
+        text.AppendLine($"Estado: {UiText.State(transaction.State)} · sucesso verificado: {(transaction.Succeeded ? "sim" : "não")}" +
             $" · indeterminado: {(transaction.IsIndeterminate ? "sim" : "não")}");
         text.AppendLine($"Criado: {transaction.CreatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss zzz}");
         text.AppendLine($"Atualizado: {transaction.UpdatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss zzz}");
@@ -476,7 +476,7 @@ public partial class MainWindow
         text.AppendLine($"Backup: {(transaction.Backup is null ? "indisponível" : transaction.Backup.ContentHash[..16] + "…")}");
         text.AppendLine($"Verificação: {(transaction.Verification is null ? "não executada" :
             transaction.Verification.Passed ? "aprovada" : "divergente")}");
-        text.AppendLine($"Recuperação: {(transaction.Recovery is null ? "não tentada" : transaction.Recovery.Outcome.ToString())}");
+        text.AppendLine($"Recuperação: {(transaction.Recovery is null ? "não tentada" : UiText.Outcome(transaction.Recovery.Outcome))}");
         if (transaction.Limitations.Count > 0)
         {
             text.AppendLine();
@@ -491,14 +491,14 @@ public partial class MainWindow
         var text = new StringBuilder(BuildTransactionText(transaction));
         text.AppendLine();
         text.AppendLine("Prévia de recuperação");
-        text.AppendLine($"Resultado: {preview.Outcome} · recuperável: {(preview.CanRecover ? "sim" : "não")}");
+        text.AppendLine($"Resultado: {UiText.Outcome(preview.Outcome)} · recuperável: {(preview.CanRecover ? "sim" : "não")}");
         if (!string.IsNullOrWhiteSpace(preview.Reason)) text.AppendLine($"Motivo: {preview.Reason}");
         if (preview.Conflicts.Count > 0)
         {
             text.AppendLine();
             text.AppendLine("Conflitos (não sobrescritos)");
             foreach (var conflict in preview.Conflicts)
-                text.AppendLine($"• {conflict.TargetIdentity}: {conflict.Kind} — {conflict.Description}");
+                text.AppendLine($"• {conflict.TargetIdentity}: {UiText.Conflict(conflict.Kind)} — {conflict.Description}");
         }
         if (preview.CurrentStates.Count > 0)
         {
@@ -522,9 +522,9 @@ public partial class MainWindow
         public string DisplayName => View.DisplayName;
         public string Category => View.Category;
         public string Description => View.Description;
-        public string CurrentSummary => "Estado atual: " + View.CurrentState;
-        public string DesiredSummary => "Estado pretendido: " + View.DesiredState;
-        public string RiskSummary => "Risco: " + View.Risk;
+        public string CurrentSummary => "Estado atual: " + UiText.Observed(View.CurrentState);
+        public string DesiredSummary => "Estado pretendido: " + UiText.Observed(View.DesiredState);
+        public string RiskSummary => "Risco: " + UiText.Risk(View.Risk);
         public string Compatibility => View.Compatibility;
         public string ProtectionsSummary => "Proteções: " + string.Join(" · ", View.Protections);
         public string RecoverySummary => "Recuperação: estado observado, com detecção de conflito.";
@@ -537,8 +537,8 @@ public partial class MainWindow
     private sealed record TweakHistoryRow(TransactionRecord Transaction, string OperationName)
     {
         public string DateText => Transaction.UpdatedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss");
-        public string StateText => $"{Transaction.State} · verificado: " +
+        public string StateText => $"{UiText.State(Transaction.State)} · verificado: " +
             $"{(Transaction.Succeeded ? "sim" : "não")} · recuperação: " +
-            $"{(Transaction.Recovery is null ? "não tentada" : Transaction.Recovery.Outcome.ToString())}";
+            $"{(Transaction.Recovery is null ? "não tentada" : UiText.Outcome(Transaction.Recovery.Outcome))}";
     }
 }

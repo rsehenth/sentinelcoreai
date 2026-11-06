@@ -48,7 +48,7 @@ public partial class MainWindow
     {
         var loaded = await eventStore.LoadInvestigationsAsync();
         eventInvestigations = loaded.Investigations;
-        if (loaded.Warnings.Count > 0) ShowWarning(string.Join("\n", loaded.Warnings));
+        SetIntegrity("Eventos", loaded.Warnings);
         RefreshEventHistoryList();
         var target = selectId is { } id ? eventInvestigations.FirstOrDefault(item => item.Id == id) : null;
         target ??= unsavedEvent;
@@ -298,7 +298,7 @@ public partial class MainWindow
         eventBusy = true; eventSaving = false;
         EventRunButton.IsEnabled = false; RunButton.IsEnabled = false;
         eventCancellation = new CancellationTokenSource();
-        WarningBanner.Visibility = Visibility.Collapsed;
+        ClearRunWarnings();
         EventProgressBar.Maximum = 2; EventProgressBar.Value = 0;
         UpdateEventButtons(); UpdateHardwareButtons();
         var saved = false;

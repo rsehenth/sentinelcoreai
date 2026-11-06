@@ -88,7 +88,7 @@ public partial class RecoveryCenterView : UserControl
             loadedAt = DateTime.Now;
             updating = true;
             BindText(TypeCombo, snapshot.Operations.Select(o => o.Type));
-            BindText(StateCombo, snapshot.Operations.Select(o => o.State));
+            BindText(StateCombo, snapshot.Operations.Select(o => o.State), UiText.Recorded);
             updating = false;
             UpdateSummary();
             ApplyFilter(selected);
@@ -135,7 +135,7 @@ public partial class RecoveryCenterView : UserControl
     {
         if (snapshot is null) return;
         var summary = RecoveryCenter.Summarize(snapshot);
-        var detail = summary.IsComplete ? "nos históricos carregados" : "somente nos registros carregados";
+        var detail = summary.IsComplete ? "nos históricos carregados" : "só registros legíveis";
         string Count(int value) => !summary.IsComplete && value == 0 ? "Não determinado" : value.ToString(CultureInfo.CurrentCulture);
         SummaryCards.ItemsSource = new[]
         {
@@ -308,7 +308,7 @@ public partial class RecoveryCenterView : UserControl
         try
         {
             var result = await center.RecoverAsync(operation!, confirmation);
-            resultText = $"Recuperação sintética: {result.Outcome}. Integral: {(result.FullyRecovered ? "sim" : "não")}. {result.Error}";
+            resultText = $"Recuperação sintética: {UiText.Outcome(result.Outcome)}. Integral: {(result.FullyRecovered ? "sim" : "não")}. {result.Error}";
         }
         catch (Exception error)
         {
@@ -332,11 +332,11 @@ public partial class RecoveryCenterView : UserControl
         combo.SelectedIndex = 0;
     }
 
-    private static void BindText(ComboBox combo, IEnumerable<string> values)
+    private static void BindText(ComboBox combo, IEnumerable<string> values, Func<string, string>? label = null)
     {
         var selected = (combo.SelectedItem as TextChoice)?.Value;
         var choices = new[] { new TextChoice(null, "Todos") }.Concat(values.Distinct(StringComparer.Ordinal)
-            .OrderBy(s => s, StringComparer.CurrentCulture).Select(s => new TextChoice(s, s))).ToArray();
+            .OrderBy(s => s, StringComparer.CurrentCulture).Select(s => new TextChoice(s, label?.Invoke(s) ?? s))).ToArray();
         combo.ItemsSource = choices;
         combo.SelectedItem = choices.FirstOrDefault(c => c.Value == selected) ?? choices[0];
     }
@@ -369,5 +369,6 @@ public partial class RecoveryCenterView : UserControl
         public string Origin => RecoveryCenterPresentation.Label(Operation.Origin);
         public string Outcome => RecoveryCenterPresentation.Label(Operation.Outcome);
         public string Capability => RecoveryCenterPresentation.Label(Operation.Capability);
+        public string StateText => UiText.Recorded(Operation.State);
     }
 }

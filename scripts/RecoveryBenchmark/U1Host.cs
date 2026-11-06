@@ -45,6 +45,7 @@ internal sealed class U1Host
         XNamespace p = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
         app.Resources = (ResourceDictionary)XamlReader.Parse(new XElement(p + "ResourceDictionary",
             new XAttribute(XNamespace.Xmlns + "x", "http://schemas.microsoft.com/winfx/2006/xaml"),
+            new XAttribute(XNamespace.Xmlns + "local", "clr-namespace:SentinelCore.App;assembly=" + typeof(MainWindow).Assembly.GetName().Name),
             xml.Root!.Element(p + "Application.Resources")!.Nodes()).ToString());
         app.DispatcherUnhandledException += (_, e) => { host.Check("dispatcher", false, e.Exception.ToString()); e.Handled = true; };
         app.Startup += async (_, _) =>

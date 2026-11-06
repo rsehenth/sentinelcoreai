@@ -1,5 +1,17 @@
 # Execução
 
+## U2 — refinamento visual e UX (06/11/2026)
+
+- [x] Shell: menu agrupado/recolhível, rodapé global, mínimo 960×520, avisos de integridade separados.
+- [x] Dashboard e componentes compartilhados (`PageIcon`, `FieldLine`, `CheckBox`, `Expander`, estados vazios).
+- [x] Cabeçalhos faltantes, Central reorganizada, rótulos em português só na apresentação.
+- [x] 13 Facts novos classificados Synthetic; 326/326 Debug e Release; hosts U1 (39) e U2 (136); evidências anteriores reconferidas sem repetir a suíte.
+- [x] Sete páginas restantes inspecionadas em 960×520/1097×594, sem novo defeito relevante; publish final inspecionado: 421 arquivos, 152.820.973 bytes, zero violações.
+- [ ] DPI nativo, leitor de tela, teclado físico e alto contraste: não validados. Busca de grupos em Eventos corrigida nas correções finais (seção 19 do relatório).
+- [x] Revisão final para versionamento; commit e push normal para origin/master autorizados pelo pedido U2 FINAL REVIEW & VERSIONING. Resultado Git na entrega final; U3 não iniciada.
+
+[Relatório U2](../docs/validation/2026-11-06-u2-visual-ux-refinement.md).
+
 ## U1 — integração funcional e WPF (06/11/2026)
 
 - [x] Inventariar 13 páginas e fluxos; preservar WPF, tema e cinco gates.

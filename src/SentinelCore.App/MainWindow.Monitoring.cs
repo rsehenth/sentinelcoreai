@@ -81,7 +81,7 @@ public partial class MainWindow
         var snapshot = await monitoringStore.LoadMonitoringSessionsAsync();
         monitoringSessions = snapshot.Sessions;
         monitoringSegments = snapshot.Segments;
-        if (snapshot.Warnings.Count > 0) ShowWarning(string.Join("\n", snapshot.Warnings));
+        SetIntegrity("Monitoramento", snapshot.Warnings);
         RefreshMonitoringHistory();
 
         var target = selectId is { } id
@@ -334,7 +334,7 @@ public partial class MainWindow
         monitoringBusy = true;
         monitoringSaving = false;
         monitoringCancellation = new CancellationTokenSource();
-        WarningBanner.Visibility = Visibility.Collapsed;
+        ClearRunWarnings();
         monitoringDuration = request.Duration;
         monitoringStopwatch.Restart();
         MonitoringProgress.Minimum = 0;

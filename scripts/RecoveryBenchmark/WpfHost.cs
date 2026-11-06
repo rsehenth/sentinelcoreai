@@ -43,6 +43,7 @@ internal sealed class WpfHost
         XNamespace presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
         var dictionary = new XElement(presentation + "ResourceDictionary",
             new XAttribute(XNamespace.Xmlns + "x", "http://schemas.microsoft.com/winfx/2006/xaml"),
+            new XAttribute(XNamespace.Xmlns + "local", "clr-namespace:SentinelCore.App;assembly=" + typeof(MainWindow).Assembly.GetName().Name),
             xml.Root!.Element(presentation + "Application.Resources")!.Nodes());
         app.Resources = (ResourceDictionary)XamlReader.Parse(dictionary.ToString());
         var unhandled = 0;

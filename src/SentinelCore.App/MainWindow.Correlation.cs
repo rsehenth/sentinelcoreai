@@ -56,7 +56,7 @@ public partial class MainWindow
     {
         var snapshot = await correlationStore.LoadCorrelationInvestigationsAsync();
         correlationInvestigations = snapshot.Investigations;
-        if (snapshot.Warnings.Count > 0) ShowWarning(string.Join("\n", snapshot.Warnings));
+        SetIntegrity("Correlação", snapshot.Warnings);
         RefreshCorrelationHistoryList();
 
         var target = selectId is { } id
@@ -298,7 +298,7 @@ public partial class MainWindow
         correlationBusy = true;
         correlationSaving = false;
         correlationCancellation = new CancellationTokenSource();
-        WarningBanner.Visibility = Visibility.Collapsed;
+        ClearRunWarnings();
         CorrelationProgress.Minimum = 0;
         CorrelationProgress.Maximum = 3;
         CorrelationProgress.Value = 0;

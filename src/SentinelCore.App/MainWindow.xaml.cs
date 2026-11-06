@@ -109,6 +109,9 @@ public partial class MainWindow : Window
         };
         SetHardwareCategories(null);
         UpdateHardwareButtons();
+        // 1320×860 DIP não cabe na área útil de 1080p a 175–200%; o mínimo declarado (960×520) continua valendo.
+        Width = Math.Min(Width, SystemParameters.WorkArea.Width); Height = Math.Min(Height, SystemParameters.WorkArea.Height);
+        SizeChanged += OnShellSizeChanged;
         freshnessTimer.Tick += (_, _) => UpdateSummary();
         freshnessTimer.Start();
         Closed += (_, _) => freshnessTimer.Stop();
@@ -166,6 +169,13 @@ public partial class MainWindow : Window
                 var count = activeTabs.Items.Count;
                 activeTabs.SelectedIndex = (activeTabs.SelectedIndex + step + count) % count;
             }
+            return;
+        }
+
+        if (e.Key == Key.B)
+        {
+            OnToggleSidebar(sender, e);
+            e.Handled = true;
             return;
         }
 
@@ -232,7 +242,7 @@ public partial class MainWindow : Window
         var snapshot = await store.LoadAsync();
         history = snapshot.Audits;
         HistoryList.ItemsSource = history.Select(audit => new HistoryRow(audit)).ToArray();
-        if (snapshot.Warnings.Count > 0) ShowWarning(string.Join("\n", snapshot.Warnings));
+        SetIntegrity("Auditorias", snapshot.Warnings);
         UpdateSummary();
         if (history.FirstOrDefault() is { } latest)
         {
@@ -250,7 +260,7 @@ public partial class MainWindow : Window
         RunButton.IsEnabled = false;
         CancelButton.IsEnabled = true;
         ReportButton.IsEnabled = false;
-        WarningBanner.Visibility = Visibility.Collapsed;
+        ClearRunWarnings();
         cancellation = new CancellationTokenSource();
         AuditProgressBar.Value = 0;
         UpdateHardwareButtons();
@@ -494,7 +504,7 @@ public partial class MainWindow : Window
     {
         var snapshot = await hardwareStore.LoadSnapshotsAsync();
         hardwareSnapshots = snapshot.Snapshots;
-        if (snapshot.Warnings.Count > 0) ShowWarning(string.Join("\n", snapshot.Warnings));
+        SetIntegrity("Hardware", snapshot.Warnings);
         RefreshHardwareSnapshotList();
 
         var target = selectId is { } id
@@ -782,7 +792,7 @@ public partial class MainWindow : Window
         hardwareBusy = true;
         hardwareSaving = false;
         hardwareCancellation = new CancellationTokenSource();
-        WarningBanner.Visibility = Visibility.Collapsed;
+        ClearRunWarnings();
         HardwareProgressBar.Maximum = 1;
         HardwareProgressBar.Value = 0;
         RunButton.IsEnabled = false;
@@ -1036,10 +1046,67 @@ public partial class MainWindow : Window
         return text.ToString();
     }
 
+    // Avisos de integridade (por origem) persistem até a próxima carga bem-sucedida da mesma origem;
+    // avisos da execução atual são descartados quando uma nova execução começa. Nenhum substitui o outro.
+    private readonly Dictionary<string, string[]> integrityWarnings = [];
+    private readonly List<string> runWarnings = [];
+
+    private void SetIntegrity(string source, IEnumerable<string> warnings)
+    {
+        var lines = warnings.ToArray();
+        if (lines.Length == 0) integrityWarnings.Remove(source); else integrityWarnings[source] = lines;
+        RenderWarnings();
+    }
+
     private void ShowWarning(string text)
     {
-        StorageWarnings.Text = text;
-        WarningBanner.Visibility = Visibility.Visible;
+        if (!runWarnings.Contains(text)) runWarnings.Add(text);
+        RenderWarnings();
+    }
+
+    private void ClearRunWarnings()
+    {
+        runWarnings.Clear();
+        RenderWarnings();
+    }
+
+    private void RenderWarnings()
+    {
+        var lines = integrityWarnings.SelectMany(p => p.Value.Select(w => $"Histórico incompleto — {p.Key}: {w}"))
+            .Concat(runWarnings).ToArray();
+        StorageWarnings.Text = string.Join("\n", lines);
+        WarningBanner.Visibility = lines.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private bool sidebarUserChoice;
+    private const double SidebarAutoCollapseWidth = 1240, SidebarForcedCollapseWidth = 1120;
+
+    private void OnToggleSidebar(object sender, RoutedEventArgs e)
+    {
+        if (ActualWidth < SidebarForcedCollapseWidth) return; // o conteúdo precisa dos 184 px; o botão fica desabilitado
+        sidebarUserChoice = true;
+        SetSidebarCollapsed(!Nav.GetCollapsed(NavList));
+    }
+
+    // Abaixo de 1240 px o menu recolhe sozinho; abaixo de 1120 px ele não pode expandir (as páginas de três colunas
+    // não cabem). Entre os dois limites a escolha manual prevalece sobre a automática.
+    private void OnShellSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (!e.WidthChanged) return;
+        var narrow = e.NewSize.Width < SidebarForcedCollapseWidth;
+        SidebarToggle.IsEnabled = !narrow;
+        SidebarToggle.ToolTip = narrow ? "Amplie a janela (1120 px ou mais) para expandir o menu" : "Recolher ou expandir o menu (Ctrl+B)";
+        if (narrow || !sidebarUserChoice) SetSidebarCollapsed(e.NewSize.Width < SidebarAutoCollapseWidth);
+    }
+
+    private void SetSidebarCollapsed(bool collapsed)
+    {
+        Nav.SetCollapsed(NavList, collapsed);
+        SidebarColumn.Width = new GridLength(collapsed ? 64 : 248);
+        BrandMark.Visibility = BrandText.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
+        Grid.SetColumnSpan(SidebarToggle, collapsed ? 3 : 1);
+        SidebarToggle.HorizontalAlignment = collapsed ? HorizontalAlignment.Center : HorizontalAlignment.Right;
+        NavList.Margin = new Thickness(0, collapsed ? 4 : 0, 0, 0);
     }
 
     private void ShowFailure(string message, Exception error)

@@ -18,3 +18,9 @@ src/SentinelCore.Domain/AssemblyInfo.cs text eol=crlf
 src/SentinelCore.Application/DebloatCatalogData.json text eol=crlf
 # Este arquivo auditado possui finais de linha mistos; manter seus bytes exatos.
 src/SentinelCore.Persistence/MemoryStore.cs -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+# U2: preservar os bytes CRLF revisados e executados, fixados no manifesto Synthetic.
+src/SentinelCore.App/MainWindow.Repairs.cs text eol=crlf
+src/SentinelCore.App/MainWindow.Tweaks.cs text eol=crlf
+src/SentinelCore.App/MainWindow.xaml.cs text eol=crlf
+src/SentinelCore.App/RecoveryCenterView.xaml.cs text eol=crlf
+src/SentinelCore.App/UiText.cs text eol=crlf

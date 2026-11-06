@@ -1,5 +1,12 @@
 # SentinelCore AI
 
+**U2 — refinamento visual e UX (06/11/2026).** Menu lateral agrupado e recolhível (sem rolagem a 1120×720; recolhe sozinho abaixo de
+1240 px), rodapé global com o aviso de execução real bloqueada, Dashboard com 12 atalhos, avisos de integridade que não são mais
+substituídos, tema/estados vazios/rótulos em português e Central de Recuperação reorganizada. **326 Synthetic em Debug e Release**;
+hosts WPF isolados: 39 (U1) e 136 (U2) verificações. Cinco gates fechados; nada real do Windows executado.
+DPI e acessibilidade validados só em parte (simulação de DPI, sem leitor de tela nem teclado físico).
+[Relatório U2 e limites](docs/validation/2026-11-06-u2-visual-ux-refinement.md). Não é homologação operacional.
+
 **U1 — integração funcional e experiência WPF (06/11/2026).** Navegação, atalhos, carga inicial, ordenação por data,
 retorno à Central e mensagens de histórico incompleto corrigidos. **313 Synthetic em Debug e Release**;
 host isolado com **39 verificações em três rodadas consecutivas**. Cinco gates fechados. Pico anterior de 133,8 s

@@ -1,5 +1,18 @@
 {
     "synthetic":  [
+                      "SentinelCore.Tests.U2VisualContractTests.EmptyListsSayNothingWasLoadedInsteadOfClaimingAbsence",
+                      "SentinelCore.Tests.U2VisualContractTests.ShellKeepsThirteenGroupedPagesWithNamesForTheCollapsedMenu",
+                      "SentinelCore.Tests.U2VisualContractTests.ShellCodeBehindKeepsShortcutsAndLimitsTheSidebarOnNarrowWindows",
+                      "SentinelCore.Tests.U2VisualContractTests.DashboardOffersEachOtherPageExactlyOnceAndKeepsAuditActions",
+                      "SentinelCore.Tests.U2VisualContractTests.StatusBarKeepsTheBlockedExecutionNoticeVisibleOnEveryPage",
+                      "SentinelCore.Tests.U2VisualContractTests.PageHeadersShareTheIconStylesInsteadOfCopiedColors",
+                      "SentinelCore.Tests.U2VisualContractTests.IntegrityWarningsAreSeparatedFromRunWarningsAndNeverReplacedSilently",
+                      "SentinelCore.Tests.U2VisualContractTests.PresentationLabelsCoverEveryEnumValueWithoutChangingPersistedNames",
+                      "SentinelCore.Tests.U2VisualContractTests.ThemeTokensKeepReadableContrastAndInteractiveOutlines",
+                      "SentinelCore.Tests.U2VisualContractTests.InteractiveControlTemplatesKeepAKeyboardFocusState",
+                      "SentinelCore.Tests.U2VisualContractTests.EventSearchIsNotSharingARowWithTheCategoryFilterAndWideRowsWrapInsteadOfClipping",
+                      "SentinelCore.Tests.U2VisualContractTests.FullHeightPagesScrollInsteadOfCrushingTheirListsAndTheMinimumFitsA1080pScreenAt200Percent",
+                      "SentinelCore.Tests.U2VisualContractTests.RecoveryViewKeepsBlockedRecoveryStatesAndTheTextualHistory",
                       "SentinelCore.Tests.U1NavigationContractTests.EveryNavigationEntryMatchesItsPageAndDashboardTarget",
                       "SentinelCore.Tests.SafetyPersistenceTests.JournalRoundTripsPlanBackupAndVerification",
                       "SentinelCore.Tests.SafetyPersistenceTests.SameEventAppendIsIdempotent",
@@ -324,6 +337,18 @@
                            ],
     "inputs":  [
                    {
+                       "path":  "src/SentinelCore.App/Nav.cs",
+                       "sha256":  "2EB270ED3ED4A23D1BD5F7059328DE29D78BB305BC58597CE8F0E87B6374C538"
+                   },
+                   {
+                       "path":  "src/SentinelCore.App/UiText.cs",
+                       "sha256":  "3E44F1CCA4929A8A286E55AFF3AD169CE754E1478E8464D4EE93FB286079F0C8"
+                   },
+                   {
+                       "path":  "tests/SentinelCore.Tests/U2VisualContractTests.cs",
+                       "sha256":  "AFEA59A43DF95550FF930DA863F04F3E550F1C2225BA0E19E601DB19F0BE2FA2"
+                   },
+                   {
                        "path":  "tests/SentinelCore.Tests/U1NavigationContractTests.cs",
                        "sha256":  "35A2790F8217C82C0344BF41F3716808E390AC5F47CA0483E855FC18BEFD2E1A"
                    },
@@ -357,39 +382,39 @@
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Correlation.cs",
-                       "sha256":  "7163BA18E234717BB8F1A6D3CB6097A8B8479B164A632CF6314ABC630EDBCC65"
+                       "sha256":  "8EA16F5F50399D21D766766C6096F1416559B029E42F321AC17B24394901DB65"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Events.cs",
-                       "sha256":  "32609F5473E3F28ADF869222D647E5CB4FBA9E4CDC3A8BA491EC5FE27DA23C1A"
+                       "sha256":  "C016B8C8CC0ECE4BD1713EF2F2658F3EBF04333EB7C97B5C23AD887FE979F6A7"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Graphics.cs",
-                       "sha256":  "B71C8100B6CCA9C97C509127FF9A690DCB181497764107F06644C010916674C3"
+                       "sha256":  "3D6384915394D939969C15B0B7C2E385298DCB011DEF0B77F294D90FDB803C15"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Monitoring.cs",
-                       "sha256":  "E132049B01B91F654C669B5ECE49DDECAFB60D03782AFE134C50B12CC53C0DF6"
+                       "sha256":  "8DA55E977EF24F875EF9A20FABA038704D2415E792BB2B429EE754D35A845047"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Network.cs",
-                       "sha256":  "BA428A9A23D865FB70F4EEB9F3B6646E817B52A46990FC69CF4EF9DC79F474ED"
+                       "sha256":  "1E1F2ECF23D4A3807BAFA3A052944F320C9AD1BD4966D2443AB67BD4A7CD7A3F"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Performance.cs",
-                       "sha256":  "6052BD240170C1005B73EFF4C3302681F31E0C40A3B7C7AA61223729486F701F"
+                       "sha256":  "42501CDC9B6D617442E5C304B4CE3A12F3374882EC2CC70C131ED5DB55CD9503"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Repairs.cs",
-                       "sha256":  "1943DE8B6F588D86B6BD4526AD130FB90AD9C5E967F4DB2E70888891C4458D43"
+                       "sha256":  "FAE40AAE09FBB8AE6824F20F23478E5E0A4E4F14B1D5520A1E386B7ACF9EB88F"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Tweaks.cs",
-                       "sha256":  "4A8F8DDCAE444EB60079A9D0AC73FF5529E1B99196CA5FBFB80B36D43DB14B14"
+                       "sha256":  "8A0019E4E8FB712F3326E86270D70373B7B8687652C35FF65BADCF0E360CE64C"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.xaml.cs",
-                       "sha256":  "FE22F3687AEE86B09FC965EB8A091C13D922701E0CD0946FE9EBAE10E8E86AE4"
+                       "sha256":  "2045322ADC58DB6F622FC27F5AB5EE8B22F47D66926034518AF0D20BDAEF06BA"
                    },
                    {
                        "path":  "src/SentinelCore.App/packages.lock.json",
@@ -401,7 +426,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.App/RecoveryCenterView.xaml.cs",
-                       "sha256":  "3F69DA8636566C93A19E5E575C9A80D0E29D978272F4DF36DC143830B1385D63"
+                       "sha256":  "9D6F69B399FAE6B2F5DA5DF11DA2857DABEF6EE81339F415C87C4BE3794C88F9"
                    },
                    {
                        "path":  "src/SentinelCore.App/SentinelCore.App.csproj",
@@ -1596,6 +1621,19 @@
 
                            ],
     "discoveredCases":  [
+                      "SentinelCore.Tests.U2VisualContractTests.EmptyListsSayNothingWasLoadedInsteadOfClaimingAbsence",
+                      "SentinelCore.Tests.U2VisualContractTests.ShellKeepsThirteenGroupedPagesWithNamesForTheCollapsedMenu",
+                      "SentinelCore.Tests.U2VisualContractTests.ShellCodeBehindKeepsShortcutsAndLimitsTheSidebarOnNarrowWindows",
+                      "SentinelCore.Tests.U2VisualContractTests.DashboardOffersEachOtherPageExactlyOnceAndKeepsAuditActions",
+                      "SentinelCore.Tests.U2VisualContractTests.StatusBarKeepsTheBlockedExecutionNoticeVisibleOnEveryPage",
+                      "SentinelCore.Tests.U2VisualContractTests.PageHeadersShareTheIconStylesInsteadOfCopiedColors",
+                      "SentinelCore.Tests.U2VisualContractTests.IntegrityWarningsAreSeparatedFromRunWarningsAndNeverReplacedSilently",
+                      "SentinelCore.Tests.U2VisualContractTests.PresentationLabelsCoverEveryEnumValueWithoutChangingPersistedNames",
+                      "SentinelCore.Tests.U2VisualContractTests.ThemeTokensKeepReadableContrastAndInteractiveOutlines",
+                      "SentinelCore.Tests.U2VisualContractTests.InteractiveControlTemplatesKeepAKeyboardFocusState",
+                      "SentinelCore.Tests.U2VisualContractTests.EventSearchIsNotSharingARowWithTheCategoryFilterAndWideRowsWrapInsteadOfClipping",
+                      "SentinelCore.Tests.U2VisualContractTests.FullHeightPagesScrollInsteadOfCrushingTheirListsAndTheMinimumFitsA1080pScreenAt200Percent",
+                      "SentinelCore.Tests.U2VisualContractTests.RecoveryViewKeepsBlockedRecoveryStatesAndTheTextualHistory",
                       "SentinelCore.Tests.U1NavigationContractTests.EveryNavigationEntryMatchesItsPageAndDashboardTarget",
                             "SentinelCore.Tests.AuditRunnerTests.AllFailedIsFailed",
                             "SentinelCore.Tests.AuditRunnerTests.CancellationDuringCollectionReturnsRecord",

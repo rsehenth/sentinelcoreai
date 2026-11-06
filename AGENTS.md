@@ -1,5 +1,23 @@
 # SentinelCore AI — instruções do projeto
 
+## U2 — refinamento visual e UX (06/11/2026)
+
+- Relatório: `docs/validation/2026-11-06-u2-visual-ux-refinement.md`; matriz `2026-11-06-u2-test-matrix.csv`.
+  Seleção vigente: 1.576 descobertos, **326 Synthetic**, seis WindowsIntegration e 1.244 Unclassified não executados.
+  Correções finais (mínimo 960×520, busca de Eventos, rolagem das páginas): ver seção 19; revisão final/publish na seção 20.
+  Baseline `f7cb4e6`; o pedido U2 FINAL REVIEW & VERSIONING autoriza commit e push normal para origin/master após revisão sem bloqueantes.
+  Publish final: 421 arquivos, 152.820.973 bytes, zero violações; não executado. U3 não iniciada; sem homologação operacional.
+- Apresentação apenas: sem mudança em Domain/Application/Persistence, gates, esquema 12, journals ou executores.
+  Rótulos em português ficam em `UiText.cs` (App); nunca traduzir enums persistidos, códigos ou identificadores.
+- Menu: `Nav.Group`/`Nav.Collapsed` (`Nav.cs`) exigem `xmlns:local` em `App.xaml`; os hosts em `scripts/RecoveryBenchmark`
+  declaram o mesmo prefixo ao reconstruir os recursos. Atalhos `Ctrl+1…9` e `Ctrl+B`; abaixo de 1120 px o menu não expande.
+- Avisos: integridade por origem (`SetIntegrity`) persiste até a recarga da mesma origem; `ShowWarning` é da execução atual.
+  Não voltar a escrever direto em `StorageWarnings`/`WarningBanner`.
+- Não usar `Tag` de botão para dados (reservada ao ícone). Listas vazias dizem "carregado(a)", nunca "inexistente".
+- `run-synthetic.ps1` compara nomes acentuados lendo o manifesto em ANSI: sem console em Windows-1252 ele recusa (fail-closed).
+  Atualizar hashes só dos arquivos revisados (`artifacts/validation/u2/tools/manifest.py --apply --allow …`).
+- DPI foi simulado (`SetRootDpi`) e acessibilidade verificada só por sondas estáticas; não afirmar conformidade WCAG.
+
 ## U1 — integração funcional e WPF (06/11/2026)
 
 - Relatório: `docs/validation/2026-11-06-u1-functional-integration.md`; matriz sintética própria U1.

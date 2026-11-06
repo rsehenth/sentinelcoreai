@@ -41,7 +41,7 @@ public partial class MainWindow
     {
         var loaded = await performanceStore.LoadSessionsAsync();
         performanceSessions = loaded.Sessions;
-        if (loaded.Warnings.Count > 0) ShowWarning(string.Join("\n", loaded.Warnings));
+        SetIntegrity("Desempenho", loaded.Warnings);
         RefreshPerformanceHistoryList();
         var target = selectId is { } id
             ? performanceSessions.FirstOrDefault(session => session.Id == id)
@@ -282,7 +282,7 @@ public partial class MainWindow
         performanceCancellation = new CancellationTokenSource();
         PerformanceRunButton.Content = "Iniciar sessão";
         PerformanceProgress.Minimum = 0; PerformanceProgress.Maximum = 1; PerformanceProgress.Value = 0;
-        WarningBanner.Visibility = Visibility.Collapsed;
+        ClearRunWarnings();
         PerformanceQualityBanner.Visibility = Visibility.Collapsed;
         PerformanceQualityText.Text = string.Empty;
         RunButton.IsEnabled = false;

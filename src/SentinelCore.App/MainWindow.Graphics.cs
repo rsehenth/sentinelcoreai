@@ -43,7 +43,7 @@ public partial class MainWindow
     {
         var snapshot = await graphicsStore.LoadGraphicsInvestigationsAsync();
         graphicsInvestigations = snapshot.Investigations;
-        if (snapshot.Warnings.Count > 0) ShowWarning(string.Join("\n", snapshot.Warnings));
+        SetIntegrity("Gráficos & GPU", snapshot.Warnings);
         RefreshGraphicsHistoryList();
 
         var target = selectId is { } id
@@ -277,7 +277,7 @@ public partial class MainWindow
         GraphicsProgress.Minimum = 0;
         GraphicsProgress.Maximum = 1;
         GraphicsProgress.Value = 0;
-        WarningBanner.Visibility = Visibility.Collapsed;
+        ClearRunWarnings();
         UpdateGraphicsButtons();
         UpdatePerformanceButtons();
         UpdateNetworkButtons();

@@ -44,7 +44,7 @@ public partial class MainWindow
     {
         var snapshot = await networkStore.LoadNetworkSessionsAsync();
         networkSessions = snapshot.Sessions;
-        if (snapshot.Warnings.Count > 0) ShowWarning(string.Join("\n", snapshot.Warnings));
+        SetIntegrity("Rede", snapshot.Warnings);
         RefreshNetworkHistoryList();
 
         var target = selectId is { } id
@@ -260,7 +260,7 @@ public partial class MainWindow
         NetworkProgress.Minimum = 0;
         NetworkProgress.Maximum = 1;
         NetworkProgress.Value = 0;
-        WarningBanner.Visibility = Visibility.Collapsed;
+        ClearRunWarnings();
         UpdateNetworkButtons();
         UpdatePerformanceButtons();
         UpdateHardwareButtons();

@@ -145,8 +145,7 @@ public partial class MainWindow
                 ? "Histórico incompleto: nenhuma intenção válida sem registro final carregada. O total não foi determinado; examine os avisos."
                 : "Nenhuma intenção sem registro final."
             : $"{repairHistory.UnfinishedIntents.Count} intenção(ões) sem registro final; tratadas como interrompidas.";
-        if (repairHistory.Warnings.Count > 0)
-            ShowWarning(string.Join("\n", repairHistory.Warnings));
+        SetIntegrity("Reparos", repairHistory.Warnings);
         if (status is not null) RepairsStatusText.Text = status;
         UpdateRepairButtons();
     }
@@ -183,7 +182,7 @@ public partial class MainWindow
     private async void OnRepairDetails(object sender, RoutedEventArgs e)
     {
         if (repairs is null || repairsBusy) return;
-        if (sender is not FrameworkElement { Tag: string operationId }) return;
+        if (sender is not FrameworkElement { DataContext: RepairCardRow { OperationId: var operationId } }) return;
         var view = repairViews.FirstOrDefault(item => item.OperationId == operationId);
         if (view is null) return;
         string? volumeId = null;
