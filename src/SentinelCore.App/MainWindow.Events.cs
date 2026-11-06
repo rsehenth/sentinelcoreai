@@ -449,12 +449,8 @@ public partial class MainWindow
 
     private void UpdateEventStorageIdentity()
     {
-        var identity = WindowsStorageIdentity.Resolve(MemoryStore.DefaultRoot);
-        EventStorageIdentityText.Text = identity.PhysicalPath is null
-            ? $"Dados: {identity.LogicalPath} · caminho físico indisponível ({identity.Limitation})"
-            : identity.Redirected
-                ? $"Dados lógicos: {identity.LogicalPath} · físico: {identity.PhysicalPath}"
-                : $"Dados locais: {identity.LogicalPath}";
+        var directory = Path.GetDirectoryName(eventStore.GetEventReportPath(Guid.Empty));
+        EventStorageIdentityText.Text = $"Relatórios de eventos: {directory} · caminho configurado; disponibilidade não verificada.";
     }
 
     private void UpdateEventButtons()
@@ -479,7 +475,7 @@ public partial class MainWindow
 
     private void ShowEventFailure(string message, Exception error)
     {
-        App.LogFailure(error);
+        logFailure(error);
         EventStatusText.Text = message + ".";
         ShowWarning($"{message}. {error.GetType().Name}: {error.Message}");
     }

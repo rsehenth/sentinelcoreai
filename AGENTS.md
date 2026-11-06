@@ -1,5 +1,20 @@
 # SentinelCore AI — instruções do projeto
 
+## U1 — integração funcional e WPF (06/11/2026)
+
+- Relatório: `docs/validation/2026-11-06-u1-functional-integration.md`; matriz sintética própria U1.
+- Seleção vigente: 1.563 descobertos, **313 Synthetic**, seis WindowsIntegration e 1.244 Unclassified não executados.
+  A contagem de 312 nas seções T4B abaixo é histórica. Cinco gates e T0 preservados.
+- Fechamento U1: `docs/validation/2026-11-06-u1-final-versioning-review.md`. O pedido de revisão final autoriza
+  commit e push normal no branch existente; a implementação anterior foi entregue sem commit/push. U2 não iniciada.
+- Central é composta ao selecionar sua página; Debloat somente após a primeira carga de Tweaks, na página ainda selecionada.
+  Não restaurar carga antecipada concorrente: o store.lock é fail-closed e pode recusar leituras/cargas em conflito.
+- Host U1 injeta logger e armazenamento temporários; qualquer erro interno do shell deve falhar a rodada.
+  Rodadas iniciais atingiram App.LogFailure e podem ter gravado application.log na pasta padrão: não afirmar isolamento integral
+  dessas rodadas, não ler/apagar logs reais como limpeza. Não houve coletor ou manutenção Windows executados.
+- 133.802,52 ms pertencem à **leitura crua** anterior à validação/locks. Reprodução pequena não repetiu o pico;
+  causa externa continua indeterminada. Não afirmar correção do outlier, cache frio validado ou homologação operacional.
+
 ## T4B.3 — consolidação final, CONCLUÍDA no escopo sintético (06/11/2026)
 
 - Relatório: `docs/validation/2026-11-05-t4b3-final-consolidation.md`. T4B.2 e T4B.3 concluídas no escopo sintético:

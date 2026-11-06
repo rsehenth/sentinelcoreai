@@ -76,6 +76,7 @@ public partial class RecoveryCenterView : UserControl
         var selected = (HistoryGrid.SelectedItem as HistoryRow)?.Operation;
         busy = true;
         readCancellation = new CancellationTokenSource();
+        var interrupted = false;
         StatusText.Text = "Lendo as fontes duráveis de histórico…";
         UpdateButtons();
         try
@@ -97,6 +98,7 @@ public partial class RecoveryCenterView : UserControl
         }
         catch (OperationCanceledException)
         {
+            interrupted = readCancellation.IsCancellationRequested;
             InvalidateHistory("Leitura interrompida. O histórico não foi determinado.");
         }
         catch (Exception error)
@@ -110,6 +112,8 @@ public partial class RecoveryCenterView : UserControl
             updating = false;
             busy = false;
             UpdateButtons();
+            // Loaded can run before the previous read has observed Unloaded's cancellation.
+            if (interrupted && IsLoaded) _ = RefreshAsync();
         }
     }
 

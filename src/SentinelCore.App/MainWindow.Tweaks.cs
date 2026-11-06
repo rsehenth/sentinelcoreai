@@ -53,12 +53,18 @@ public partial class MainWindow
         UpdateTweakButtons();
     }
 
-    private void OnTweaksPageSelectionChanged(object sender, SelectionChangedEventArgs e)
+    private async void OnTweaksPageSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!ReferenceEquals(Pages.SelectedItem, TweaksTab)) return;
+        if (!ReferenceEquals(e.OriginalSource, Pages) || !ReferenceEquals(Pages.SelectedItem, TweaksTab)) return;
         ScrollTweaksToTop();
-        if (tweaksLoaded || tweaksBusy) return;
-        _ = ReloadTweaksAsync();
+        if (tweaksBusy) return;
+        if (!tweaksLoaded) await ReloadTweaksAsync();
+        // Both modules share store.lock; finish the initial Tweaks read before starting Debloat.
+        if (ReferenceEquals(Pages.SelectedItem, TweaksTab) && !debloatComposed && debloatManager is not null)
+        {
+            debloatComposed = true;
+            DebloatSection.Initialize(debloatManager);
+        }
     }
 
     private void ScrollTweaksToTop()

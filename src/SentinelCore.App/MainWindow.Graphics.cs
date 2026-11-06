@@ -443,7 +443,7 @@ public partial class MainWindow
 
     private void ShowGraphicsFailure(string message, Exception error)
     {
-        App.LogFailure(error);
+        logFailure(error);
         GraphicsStatusText.Text = message + ".";
         ShowWarning($"{message}. {error.GetType().Name}: {error.Message}");
     }

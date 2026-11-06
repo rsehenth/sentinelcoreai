@@ -1,5 +1,13 @@
 # SentinelCore AI
 
+**U1 — integração funcional e experiência WPF (06/11/2026).** Navegação, atalhos, carga inicial, ordenação por data,
+retorno à Central e mensagens de histórico incompleto corrigidos. **313 Synthetic em Debug e Release**;
+host isolado com **39 verificações em três rodadas consecutivas**. Cinco gates fechados. Pico anterior de 133,8 s
+delimitado à leitura crua e não reproduzido na amostra pequena; causa permanece indeterminada.
+[Relatório U1, incidente inicial de logging, evidências e limites](docs/validation/2026-11-06-u1-functional-integration.md).
+Não é homologação operacional. As seções datadas abaixo preservam o histórico T4B.
+[Revisão final para versionamento U1](docs/validation/2026-11-06-u1-final-versioning-review.md).
+
 **T4B.3 e T4B — concluídas no escopo sintético documentado (06/11/2026).** Central de Recuperação medida com 100, 1.000 e 5.000 operações sintéticas
 (leitura de 1.000 operações: 25 s → 5 s; 5.000 operações: ≈ 22 s com cache quente; cancelamento < 1 ms); 10.000 operações **não** medidas
 (impedimento de tempo documentado). Host WPF isolado com 35 verificações PASS, publish inspecionado (sem worker, runner, testes ou

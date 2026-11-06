@@ -119,7 +119,7 @@
             <TextBlock x:Name="HistorySummary" Text="Nenhuma fonte carregada." Style="{DynamicResource Caption}" Margin="0,0,0,8" AutomationProperties.AutomationId="RecoveryHistorySummary"/>
             <DataGrid x:Name="HistoryGrid" Height="270" SelectionChanged="OnSelectionChanged" AutomationProperties.AutomationId="RecoveryHistory" AutomationProperties.Name="Histórico unificado de operações">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Data local" Binding="{Binding LocalDate}" Width="140"/>
+                    <DataGridTextColumn Header="Data local" Binding="{Binding LocalDate}" SortMemberPath="Operation.AtUtc" Width="140"/>
                     <DataGridTextColumn Header="Módulo" Binding="{Binding Module}" Width="145"/>
                     <DataGridTextColumn Header="Origem" Binding="{Binding Origin}" Width="145"/>
                     <DataGridTextColumn Header="Operação" Binding="{Binding Operation.OperationId}" Width="180"/>

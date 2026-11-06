@@ -442,7 +442,7 @@ public partial class MainWindow
 
     private void ShowPerformanceFailure(string message, Exception error)
     {
-        App.LogFailure(error);
+        logFailure(error);
         PerformanceStatusText.Text = message + ".";
         ShowWarning($"{message}. {error.GetType().Name}: {error.Message}");
     }

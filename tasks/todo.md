@@ -1,5 +1,26 @@
 # Execução
 
+## U1 — integração funcional e WPF (06/11/2026)
+
+- [x] Inventariar 13 páginas e fluxos; preservar WPF, tema e cinco gates.
+- [x] Corrigir atalhos, seleção propagada, ordenação de data, retorno após cancelamento e caminho injetado.
+- [x] Adiar composição da Central e ordenar primeira carga de Tweaks/Debloat; indicar carga inicial.
+- [x] Corrigir ausência enganosa em históricos parciais Debloat/R1; explicitar execução real bloqueada.
+- [x] Registrar incidente do logger inicial e isolar o host; falhar em qualquer erro de shell.
+- [x] Revisar/incluir um Fact novo; 313 Synthetic Debug/Release; host 39 verificações em três rodadas.
+- [x] Investigar leitura crua de 133.802,52 ms com amostra pequena; pico não reproduzido, causa indeterminada.
+- [x] Publicar em saída isolada sem iniciar o executável; inspeção com 421 arquivos e zero violações.
+- [ ] Limpar a raiz temporária U1: revisão automática recusou exclusão (`blocked by policy`); caminho/evidência no relatório.
+- [ ] Refinamentos visuais/DPI/acessibilidade e uniformização de avisos listados no relatório; não iniciados automaticamente.
+- [ ] Cache frio/causa externa do pico original continuam sem evidência conclusiva; nenhum ensaio pesado autorizado por inferência.
+
+- [x] Revisão final de diff, hashes, matriz/TRX, host, publish, gates e escopo do índice; sem repetir testes ou benchmarks.
+
+[Relatório U1](../docs/validation/2026-11-06-u1-functional-integration.md).
+[Fechamento para versionamento autorizado](../docs/validation/2026-11-06-u1-final-versioning-review.md).
+A implementação anterior foi entregue sem commit/push; o resultado do versionamento segue na resposta final da revisão.
+Homologação operacional pendente; U2 não iniciada.
+
 ## Fechamento T4B — estado vigente (06/11/2026)
 
 - [x] T4B concluída no escopo sintético documentado; T4B.2 e T4B.3 concluídas conforme relatórios finais.

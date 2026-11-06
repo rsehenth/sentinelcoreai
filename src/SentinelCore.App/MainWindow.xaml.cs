@@ -32,6 +32,11 @@ public partial class MainWindow : Window
     private readonly IGraphicsInvestigationStore graphicsStore;
     private readonly ICorrelationInvestigationStore correlationStore;
     private readonly IMonitoringSessionStore monitoringStore;
+    private readonly Action<Exception> logFailure;
+    private readonly RecoveryCenter? recoveryCenter;
+    private readonly DebloatManager? debloatManager;
+    private bool recoveryComposed;
+    private bool debloatComposed;
     private readonly FreshnessEngine freshness = new();
     private readonly DispatcherTimer freshnessTimer = new() { Interval = TimeSpan.FromMinutes(1) };
     private CancellationTokenSource? cancellation;
@@ -61,8 +66,9 @@ public partial class MainWindow : Window
         IEventInvestigationStore eventStore, IPerformanceSessionStore performanceStore,
         INetworkSessionStore networkStore, IGraphicsInvestigationStore graphicsStore,
         ICorrelationInvestigationStore correlationStore, IMonitoringSessionStore monitoringStore,
-        DebloatManager? debloat = null, RecoveryCenter? recovery = null)
+        DebloatManager? debloat = null, RecoveryCenter? recovery = null, Action<Exception>? failureLogger = null)
     {
+        logFailure = failureLogger ?? App.LogFailure;
         InitializeComponent();
         this.runner = runner;
         this.hardwareRunner = hardwareRunner;
@@ -91,8 +97,10 @@ public partial class MainWindow : Window
         InitializeMonitoring();
         InitializeTweaks();
         InitializeRepairs();
-        if (recovery is not null) RecoverySection.Initialize(recovery);
-        if (debloat is not null) DebloatSection.Initialize(debloat);
+        recoveryCenter = recovery;
+        debloatManager = debloat;
+        Pages.SelectionChanged += OnRecoveryPageSelectionChanged;
+        if (tweaks is null && debloat is not null) Pages.SelectionChanged += OnTweaksPageSelectionChanged;
         DebloatSection.BecameIdle += (_, _) =>
         {
             if (!debloatClosingAfterSave) return;
@@ -117,6 +125,14 @@ public partial class MainWindow : Window
         });
     }
 
+    private void OnRecoveryPageSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!ReferenceEquals(e.OriginalSource, Pages) || !ReferenceEquals(Pages.SelectedItem, RecoveryTab) ||
+            recoveryComposed || recoveryCenter is not { } recovery) return;
+        recoveryComposed = true;
+        RecoverySection.Initialize(recovery);
+    }
+
     private void OnNavigate(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string tag } && int.TryParse(tag, out var index) &&
@@ -128,7 +144,7 @@ public partial class MainWindow : Window
 
     private void OnWindowKeyDown(object sender, KeyEventArgs e)
     {
-        if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) return;
+        if (!NavList.IsEnabled || !Keyboard.Modifiers.HasFlag(ModifierKeys.Control)) return;
 
         if (e.Key == Key.Tab)
         {
@@ -153,7 +169,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var index = e.Key - Key.D1;
+        var index = NavigationShortcutIndex(e.Key);
         if (index >= 0 && index < NavList.Items.Count)
         {
             NavList.SelectedIndex = index;
@@ -161,9 +177,16 @@ public partial class MainWindow : Window
         }
     }
 
+    private static int NavigationShortcutIndex(Key key) =>
+        key is >= Key.D1 and <= Key.D9 ? key - Key.D1 : -1;
+
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        NavList.IsEnabled = false;
+        Pages.IsEnabled = false;
         RunButton.IsEnabled = false;
+        var previousStatus = ExecutionStatus.Text;
+        ExecutionStatus.Text = "Carregando históricos locais…";
         UpdateHardwareButtons();
         try
         {
@@ -196,7 +219,10 @@ public partial class MainWindow : Window
         }
         finally
         {
+            NavList.IsEnabled = true;
+            Pages.IsEnabled = true;
             RunButton.IsEnabled = true;
+            if (ExecutionStatus.Text == "Carregando históricos locais…") ExecutionStatus.Text = previousStatus;
             UpdateHardwareButtons();
         }
     }
@@ -1018,7 +1044,7 @@ public partial class MainWindow : Window
 
     private void ShowFailure(string message, Exception error)
     {
-        App.LogFailure(error);
+        logFailure(error);
         ExecutionStatus.Text = message + ".";
         ShowWarning($"{message}. {error.GetType().Name}: {error.Message}");
     }

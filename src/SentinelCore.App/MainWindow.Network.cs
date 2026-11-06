@@ -450,7 +450,7 @@ public partial class MainWindow
 
     private void ShowNetworkFailure(string message, Exception error)
     {
-        App.LogFailure(error);
+        logFailure(error);
         NetworkStatusText.Text = message + ".";
         ShowWarning($"{message}. {error.GetType().Name}: {error.Message}");
     }

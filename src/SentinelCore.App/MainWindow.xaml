@@ -53,9 +53,9 @@
                             <Viewbox Width="15" Height="15" Margin="0,0,8,0">
                                 <Canvas Width="24" Height="24"><Path Data="{StaticResource IconLock}" Stroke="{StaticResource Success}" StrokeThickness="2" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Canvas>
                             </Viewbox>
-                            <TextBlock Text="Diagnóstico e tweaks controlados" FontWeight="SemiBold" FontSize="13"/>
+                            <TextBlock Text="Diagnóstico local" FontWeight="SemiBold" FontSize="13"/>
                         </StackPanel>
-                        <TextBlock Text="Diagnóstico somente leitura. Tweaks exigem plano, autorização, backup e verificação; nada é enviado." Style="{StaticResource Caption}" Margin="0,6,0,0"/>
+                        <TextBlock Text="Diagnóstico somente leitura. Execução real de tweaks, reparos, remoção e recuperação bloqueada nesta distribuição. Nada é enviado." Style="{StaticResource Caption}" Margin="0,6,0,0"/>
                         <TextBlock x:Name="VersionText" Text="v0.3.0  •  Local e offline" Foreground="{StaticResource Subtle}" FontSize="12" Margin="0,8,0,0"/>
                     </StackPanel>
                 </Border>
@@ -1397,7 +1397,7 @@
                 </TabItem>
 
                 <!-- ───── Correlação de evidências ───── -->
-                <TabItem Header="Correlação de evidências">
+                <TabItem Header="Correlação">
                     <Grid Margin="32,28,32,20">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>

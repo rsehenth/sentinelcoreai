@@ -1,5 +1,6 @@
-﻿{
+{
     "synthetic":  [
+                      "SentinelCore.Tests.U1NavigationContractTests.EveryNavigationEntryMatchesItsPageAndDashboardTarget",
                       "SentinelCore.Tests.SafetyPersistenceTests.JournalRoundTripsPlanBackupAndVerification",
                       "SentinelCore.Tests.SafetyPersistenceTests.SameEventAppendIsIdempotent",
                       "SentinelCore.Tests.SafetyPersistenceTests.SameSequenceWithDifferentContentIsRejected",
@@ -323,6 +324,10 @@
                            ],
     "inputs":  [
                    {
+                       "path":  "tests/SentinelCore.Tests/U1NavigationContractTests.cs",
+                       "sha256":  "35A2790F8217C82C0344BF41F3716808E390AC5F47CA0483E855FC18BEFD2E1A"
+                   },
+                   {
                        "path":  "Directory.Build.props",
                        "sha256":  "2D921DCC6F2C72B7CB441D07E424BBD124DB429234895EF92103706F67F8B215"
                    },
@@ -348,43 +353,43 @@
                    },
                    {
                        "path":  "src/SentinelCore.App/DebloatView.xaml.cs",
-                       "sha256":  "71FD9880F6563FEE23E7E938AB7BA8C3279A8E0A656553DBBDF8963DD22E1011"
+                       "sha256":  "15C09174A9A75C6A3E7A9483BDAE1BA00C532F258CE2BB77C80DAEC99FB6D539"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Correlation.cs",
-                       "sha256":  "34DA0124B7A5DC7BC4226CC4C9629EC98A38E1A4FAEC1CA989FC0EB74F34FD15"
+                       "sha256":  "7163BA18E234717BB8F1A6D3CB6097A8B8479B164A632CF6314ABC630EDBCC65"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Events.cs",
-                       "sha256":  "0D439FEE51D5BC47C69CAC9E62D5D07D228BCBD8C16AAD63A95DEFC5B3DDA8AF"
+                       "sha256":  "32609F5473E3F28ADF869222D647E5CB4FBA9E4CDC3A8BA491EC5FE27DA23C1A"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Graphics.cs",
-                       "sha256":  "87013F7CF2D3ED52D30420D055E15B378383BDACC880729DED9D17DC0A386155"
+                       "sha256":  "B71C8100B6CCA9C97C509127FF9A690DCB181497764107F06644C010916674C3"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Monitoring.cs",
-                       "sha256":  "4F4CDE191D2ADAEF6227DE8CB21FAEE138D9BE875A19BCF09CA127A96D40A21B"
+                       "sha256":  "E132049B01B91F654C669B5ECE49DDECAFB60D03782AFE134C50B12CC53C0DF6"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Network.cs",
-                       "sha256":  "D90105124BDBC672A9B918AECC6DC536066555DCEBF5493B61A34B033EC6A115"
+                       "sha256":  "BA428A9A23D865FB70F4EEB9F3B6646E817B52A46990FC69CF4EF9DC79F474ED"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Performance.cs",
-                       "sha256":  "73EEC133D8EDE50CA26A7F6EEBE0F1675E28252962458C25D8EA6C711D420613"
+                       "sha256":  "6052BD240170C1005B73EFF4C3302681F31E0C40A3B7C7AA61223729486F701F"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Repairs.cs",
-                       "sha256":  "99D24A952F84731FF346A63F259362CEF031A846FE5DB21CC955879E2CE75F55"
+                       "sha256":  "1943DE8B6F588D86B6BD4526AD130FB90AD9C5E967F4DB2E70888891C4458D43"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Tweaks.cs",
-                       "sha256":  "DC16E160E22BC25E76D653F30588D61E9A5C4DF1BC6357BA460CE818FAF2E852"
+                       "sha256":  "4A8F8DDCAE444EB60079A9D0AC73FF5529E1B99196CA5FBFB80B36D43DB14B14"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.xaml.cs",
-                       "sha256":  "328446E191E50A85CA28960444A850184779E831B7C75CD1F903C6E3B49C8EDF"
+                       "sha256":  "FE22F3687AEE86B09FC965EB8A091C13D922701E0CD0946FE9EBAE10E8E86AE4"
                    },
                    {
                        "path":  "src/SentinelCore.App/packages.lock.json",
@@ -396,7 +401,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.App/RecoveryCenterView.xaml.cs",
-                       "sha256":  "1DBEF88CB72ACD8C2A3D600296DFDC6062DA64A513498585536EC8D9693A3D14"
+                       "sha256":  "3F69DA8636566C93A19E5E575C9A80D0E29D978272F4DF36DC143830B1385D63"
                    },
                    {
                        "path":  "src/SentinelCore.App/SentinelCore.App.csproj",
@@ -1591,6 +1596,7 @@
 
                            ],
     "discoveredCases":  [
+                      "SentinelCore.Tests.U1NavigationContractTests.EveryNavigationEntryMatchesItsPageAndDashboardTarget",
                             "SentinelCore.Tests.AuditRunnerTests.AllFailedIsFailed",
                             "SentinelCore.Tests.AuditRunnerTests.CancellationDuringCollectionReturnsRecord",
                             "SentinelCore.Tests.AuditRunnerTests.CancelledBeforeStartPreservesEveryCollector",

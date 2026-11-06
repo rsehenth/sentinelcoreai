@@ -622,7 +622,7 @@ public partial class MainWindow
 
     private void ShowMonitoringFailure(string message, Exception error)
     {
-        App.LogFailure(error);
+        logFailure(error);
         MonitoringStatusText.Text = message + ".";
         ShowWarning($"{message}. {error.GetType().Name}: {error.Message}");
     }

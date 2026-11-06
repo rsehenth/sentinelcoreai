@@ -558,7 +558,7 @@ public partial class MainWindow
 
     private void ShowCorrelationFailure(string message, Exception error)
     {
-        App.LogFailure(error);
+        logFailure(error);
         CorrelationStatusText.Text = message + ".";
         ShowWarning($"{message}. {error.GetType().Name}: {error.Message}");
     }

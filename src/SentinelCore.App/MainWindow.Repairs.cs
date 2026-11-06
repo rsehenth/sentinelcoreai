@@ -54,7 +54,7 @@ public partial class MainWindow
 
     private void OnRepairsPageSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (!ReferenceEquals(Pages.SelectedItem, RepairsTab)) return;
+        if (!ReferenceEquals(e.OriginalSource, Pages) || !ReferenceEquals(Pages.SelectedItem, RepairsTab)) return;
         ScrollRepairsToTop();
         if (repairsLoaded || repairsBusy) return;
         _ = ReloadRepairsAsync();
@@ -141,7 +141,9 @@ public partial class MainWindow
         repairsUpdatingHistory = false;
 
         RepairsUnfinishedText.Text = repairHistory.UnfinishedIntents.Count == 0
-            ? "Nenhuma intenção sem registro final."
+            ? repairHistory.Warnings.Count > 0
+                ? "Histórico incompleto: nenhuma intenção válida sem registro final carregada. O total não foi determinado; examine os avisos."
+                : "Nenhuma intenção sem registro final."
             : $"{repairHistory.UnfinishedIntents.Count} intenção(ões) sem registro final; tratadas como interrompidas.";
         if (repairHistory.Warnings.Count > 0)
             ShowWarning(string.Join("\n", repairHistory.Warnings));

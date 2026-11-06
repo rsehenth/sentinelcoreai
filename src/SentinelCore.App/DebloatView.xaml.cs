@@ -102,9 +102,11 @@ public partial class DebloatView : UserControl
         var rows = records.OrderByDescending(item => item.AtUtc).Select(item => new HistoryRow(item)).ToArray();
         HistoryList.ItemsSource = rows;
         HistoryList.SelectedItem = rows.FirstOrDefault(row => row.Item.Id == selectedId);
-        HistorySummary.Text = rows.Length == 0
-            ? "Nenhuma simulação persistida. Registros futuros aparecerão aqui após a execução."
-            : $"{rows.Length} registro(s) sintético(s). Horários exibidos no fuso local.";
+        HistorySummary.Text = warnings.Count > 0
+            ? $"Histórico incompleto: {rows.Length} registro(s) válido(s) carregado(s). O total não foi determinado; examine os avisos."
+            : rows.Length == 0
+                ? "Nenhuma simulação persistida. Registros futuros aparecerão aqui após a execução."
+                : $"{rows.Length} registro(s) sintético(s). Horários exibidos no fuso local.";
         HistoryWarnings.Text = string.Join(Environment.NewLine, warnings);
     }
 

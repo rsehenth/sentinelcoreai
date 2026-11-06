@@ -10,7 +10,12 @@ internal static class Program
     [STAThread]
     private static int Main(string[] args)
     {
-        try { return args.FirstOrDefault() == "wpf" ? WpfHost.Run(args.Skip(1).ToArray()) : MainAsync(args).GetAwaiter().GetResult(); }
+        try { return args.FirstOrDefault() switch
+        {
+            "wpf" => WpfHost.Run(args.Skip(1).ToArray()),
+            "u1" => U1Host.Run(args.Skip(1).ToArray()),
+            _ => MainAsync(args).GetAwaiter().GetResult()
+        }; }
         catch (Exception error) when (error is IOException or ArgumentException or UnauthorizedAccessException)
         { Console.Error.WriteLine(error.Message); return 2; }
     }
@@ -19,6 +24,7 @@ internal static class Program
     {
         switch (args.FirstOrDefault())
         {
+            case "diagnose": return await HistoryDiagnosis.RunAsync(FixturePaths.Existing(args[1]));
             case "self-check": return FixturePaths.SelfCheck();
             case "init": FixturePaths.Create(args[1]); return 0;
             case "chunk": // chunk <root> <count> <seed>: generate one valid synthetic history through the synthetic engines
