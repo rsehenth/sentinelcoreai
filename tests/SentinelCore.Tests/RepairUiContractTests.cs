@@ -113,7 +113,8 @@ public sealed class RepairUiContractTests
         var source = AppSource("MainWindow.xaml.cs");
         var loaded = source[source.IndexOf("private async void OnLoaded", StringComparison.Ordinal)..
             source.IndexOf("private async Task ReloadAsync", StringComparison.Ordinal)];
-        Assert.Contains("ReloadRepairsAsync()", loaded);
+        // V2: a abertura lê só o histórico do store; o preflight aguarda a página Reparos (ver StartupIsolationTests).
+        Assert.Contains("ReloadRepairHistoryAsync()", loaded);
         Assert.DoesNotContain("ExecuteAsync", loaded);
         Assert.DoesNotContain("Authorize(", loaded);
     }

@@ -1,5 +1,16 @@
 # SentinelCore AI — instruções do projeto
 
+## V2 — isolamento da inicialização (07/11/2026)
+
+- Relatório: `docs/validation/2026-11-07-v2-startup-isolation.md`; matriz `2026-11-07-v2-test-matrix.csv`.
+  Seleção vigente: 1.598 descobertos, **348 Synthetic**, seis WindowsIntegration e 1.244 Unclassified não executados. Gates e T0 intactos.
+- `--data-root` é validado por `DataRootArgument.Resolve` (Persistence) antes de qualquer composição: inválido/duplicado/relativo/UNC/unidade/proibido/
+  raiz padrão/link ou junção → falha fechada, sem log e sem diretório. `App.LogFailure` só grava depois que a raiz foi aceita (`ApplicationLog`);
+  argumento inválido nunca recua para `%LOCALAPPDATA%\SentinelCoreAI`; sem argumento, a raiz padrão continua em uso. Não reintroduzir `static dataRoot = DefaultRoot` nem log antes da validação.
+- `MainWindow.OnLoaded` lê só o histórico de Reparos do store; o preflight (volumes, System32, elevação) ocorre ao abrir a página Reparos ou em Atualizar.
+- `RealValidation`/`GraphicsValidation` continuam apontando para a raiz padrão real e **não estão autorizados** para a primeira validação.
+  Não afirmar homologação operacional nem ausência de efeitos colaterais; a V2 é preparação sintética + inspeção estática.
+
 ## U3 — consolidação funcional (06/11/2026)
 
 - Relatório: `docs/validation/2026-11-06-u3-functional-consolidation.md`; matriz `2026-11-06-u3-test-matrix.csv`.

@@ -224,7 +224,8 @@ public partial class MainWindow : Window
             try { await ReloadMonitoringAsync(); }
             catch (Exception error) { ShowMonitoringFailure("Não foi possível recuperar as sessões de monitoramento", error); }
 
-            try { await ReloadRepairsAsync(); }
+            // Só o histórico do store; o preflight (volumes, System32) ocorre ao abrir a página Reparos ou em Atualizar.
+            try { await ReloadRepairHistoryAsync(); }
             catch (Exception error) { ShowFailure("Não foi possível recuperar o histórico de reparos", error); }
         }
         finally

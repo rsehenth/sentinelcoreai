@@ -1,5 +1,21 @@
 # Execução
 
+## V2 — isolamento da inicialização (07/11/2026)
+
+- [x] `--data-root` fail-closed (`DataRootArgument`), `ApplicationLog` sem recuo à raiz padrão, preflight de Reparos fora de `OnLoaded`.
+- [x] 12 Facts novos; 348/348 Synthetic Debug e Release; builds 0/0; host `u3` 81 PASS; publish 421 arquivos, zero violações; gates fechados.
+- [ ] NÃO INICIADO: validação operacional real e IA. Link simbólico real não exercitado (privilégio); `App.OnStartup` real nunca executado.
+
+[Relatório V2](../docs/validation/2026-11-07-v2-startup-isolation.md) · [matriz](../docs/validation/2026-11-07-v2-test-matrix.csv).
+
+## V1 — preparação para validação operacional (07/11/2026)
+
+- [x] Inspeção estática, mapa de inicialização, inventário A/B, fichas e critérios de autorização (somente documentação; `src/` e gates intactos).
+- [ ] NÃO INICIADO: qualquer validação real (níveis A, B-real e C) e classificação dos 1.244 Unclassified. A V2 adiou o preflight de `OnLoaded`.
+- [ ] Decisão do usuário pendente: escopo da primeira rodada (sugestão: V1-A00 e V1-A01 em raiz descartável). IA não iniciada.
+
+[Relatório V1](../docs/validation/2026-11-07-v1-operational-readiness.md) · [matriz](../docs/validation/2026-11-07-v1-operational-matrix.csv).
+
 ## U3 — consolidação funcional e prontidão sintética (06/11/2026)
 
 - [x] Seis jornadas: 10 Facts (`U3JourneyTests`, matriz própria) e host `u3` (81 PASS em 3 rodadas); sem alteração em `src/`.

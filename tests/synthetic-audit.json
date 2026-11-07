@@ -1,5 +1,17 @@
 {
     "synthetic":  [
+                      "SentinelCore.Tests.StartupIsolationTests.ValidDataRootSelectsOnlyTheIntendedRootWithoutCreatingAnything",
+                      "SentinelCore.Tests.StartupIsolationTests.InvalidExplicitDataRootFailsClosedWithoutFallbackOrDirectories",
+                      "SentinelCore.Tests.StartupIsolationTests.MissingDuplicateRootAndForbiddenLocationsFailClosed",
+                      "SentinelCore.Tests.StartupIsolationTests.DataRootCollidingWithAFileOrBelowAFileIsRejected",
+                      "SentinelCore.Tests.StartupIsolationTests.DataRootThatIsOrSitsBelowAReparsePointIsRejected",
+                      "SentinelCore.Tests.StartupIsolationTests.DataRootBehindARealSymbolicLinkIsRejectedWhenTheEnvironmentAllowsCreatingOne",
+                      "SentinelCore.Tests.StartupIsolationTests.ApplicationLogWritesOnlyUnderItsAuthorizedRootAndNothingWithoutOne",
+                      "SentinelCore.Tests.StartupIsolationTests.StartupSourceNeverLogsOrUsesTheDefaultRootWhileDataRootIsUnvalidated",
+                      "SentinelCore.Tests.StartupIsolationTests.CompositionOnlyTouchesTheChosenRootAndSyntheticStartupLoadsStayInsideIt",
+                      "SentinelCore.Tests.StartupIsolationTests.RepairCompositionAndStartupHistoryLoadNeverRunThePreflight",
+                      "SentinelCore.Tests.StartupIsolationTests.StartupLoadsRepairHistoryOnlyAndPreflightWaitsForThePageOrRefresh",
+                      "SentinelCore.Tests.StartupIsolationTests.FiveBuildGatesRemainClosed",
                       "SentinelCore.Tests.U3JourneyTests.FreshStoreOpensEveryHistoryEmptyAndNeverClaimsACompleteRecoveryHistory",
                       "SentinelCore.Tests.U3JourneyTests.DiagnosticHistoryPersistsAndReopensWithoutInventingMissingEvidence",
                       "SentinelCore.Tests.U3JourneyTests.InvestigationJourneyCorrelatesPersistedSourcesWithoutAssertingCausality",
@@ -347,6 +359,18 @@
                            ],
     "inputs":  [
                    {
+                       "path":  "src/SentinelCore.Persistence/ApplicationLog.cs",
+                       "sha256":  "C7EF68E6772D4EC248A5B89ED58F360F0EA87A0DD4B1DF3DF4C8CD28BC7645E3"
+                   },
+                   {
+                       "path":  "src/SentinelCore.Persistence/DataRootArgument.cs",
+                       "sha256":  "A640491B668536271C01A7B861189CFD066E13EDB5AB971E5CBFF2ECAEE3F38F"
+                   },
+                   {
+                       "path":  "tests/SentinelCore.Tests/StartupIsolationTests.cs",
+                       "sha256":  "266459F4A3266E3E6F6D574359645A118CBA242B7F503FC226C4E87026A4F9FE"
+                   },
+                   {
                        "path":  "tests/SentinelCore.Tests/U3JourneyTests.cs",
                        "sha256":  "4C3F821F693D166E67A3E37EAC390CE943637B4E4C353E82B55A1EF33FA5BF29"
                    },
@@ -384,7 +408,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.App/App.xaml.cs",
-                       "sha256":  "F7EBB1E89592B9103251C1545F3B4A3C91F3A4930A75B829BD8EEA83C33CD7A3"
+                       "sha256":  "7DCF2CD8DA69F88BE50DF7E54C57092EEC8549E8CF9F7C7FEFBB0FA0E170201B"
                    },
                    {
                        "path":  "src/SentinelCore.App/DebloatRemovalView.xaml.cs",
@@ -420,7 +444,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Repairs.cs",
-                       "sha256":  "FAE40AAE09FBB8AE6824F20F23478E5E0A4E4F14B1D5520A1E386B7ACF9EB88F"
+                       "sha256":  "BECF1C0CB26C37EE4B69A4100B1653983CED486D6FA59EC17CB6230CBB490693"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Tweaks.cs",
@@ -428,7 +452,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.xaml.cs",
-                       "sha256":  "2045322ADC58DB6F622FC27F5AB5EE8B22F47D66926034518AF0D20BDAEF06BA"
+                       "sha256":  "5C98A5C29D914C24CE32998320B3D29882DDCE514DC7204402AAB6F87125F256"
                    },
                    {
                        "path":  "src/SentinelCore.App/packages.lock.json",
@@ -1480,7 +1504,7 @@
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/RepairUiContractTests.cs",
-                       "sha256":  "44C58DFC2FE20955F87A1AB42593353CDC69E36990F52CAF4B0039A2D978CCD6"
+                       "sha256":  "62894A76A548AB896922B958BBAD8E58935F223B4DE08472A8EBEED8E3965238"
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/SafetyArchitectureTests.cs",
@@ -1635,6 +1659,18 @@
 
                            ],
     "discoveredCases":  [
+                      "SentinelCore.Tests.StartupIsolationTests.ValidDataRootSelectsOnlyTheIntendedRootWithoutCreatingAnything",
+                      "SentinelCore.Tests.StartupIsolationTests.InvalidExplicitDataRootFailsClosedWithoutFallbackOrDirectories",
+                      "SentinelCore.Tests.StartupIsolationTests.MissingDuplicateRootAndForbiddenLocationsFailClosed",
+                      "SentinelCore.Tests.StartupIsolationTests.DataRootCollidingWithAFileOrBelowAFileIsRejected",
+                      "SentinelCore.Tests.StartupIsolationTests.DataRootThatIsOrSitsBelowAReparsePointIsRejected",
+                      "SentinelCore.Tests.StartupIsolationTests.DataRootBehindARealSymbolicLinkIsRejectedWhenTheEnvironmentAllowsCreatingOne",
+                      "SentinelCore.Tests.StartupIsolationTests.ApplicationLogWritesOnlyUnderItsAuthorizedRootAndNothingWithoutOne",
+                      "SentinelCore.Tests.StartupIsolationTests.StartupSourceNeverLogsOrUsesTheDefaultRootWhileDataRootIsUnvalidated",
+                      "SentinelCore.Tests.StartupIsolationTests.CompositionOnlyTouchesTheChosenRootAndSyntheticStartupLoadsStayInsideIt",
+                      "SentinelCore.Tests.StartupIsolationTests.RepairCompositionAndStartupHistoryLoadNeverRunThePreflight",
+                      "SentinelCore.Tests.StartupIsolationTests.StartupLoadsRepairHistoryOnlyAndPreflightWaitsForThePageOrRefresh",
+                      "SentinelCore.Tests.StartupIsolationTests.FiveBuildGatesRemainClosed",
                       "SentinelCore.Tests.U3JourneyTests.FreshStoreOpensEveryHistoryEmptyAndNeverClaimsACompleteRecoveryHistory",
                       "SentinelCore.Tests.U3JourneyTests.DiagnosticHistoryPersistsAndReopensWithoutInventingMissingEvidence",
                       "SentinelCore.Tests.U3JourneyTests.InvestigationJourneyCorrelatesPersistedSourcesWithoutAssertingCausality",

@@ -48,6 +48,8 @@ public partial class MainWindow
         RepairsScenarioCombo.ItemsSource = RepairPresentation.Scenarios
             .Select(option => new RepairScenarioRow(option, option.Label)).ToArray();
         RepairsScenarioCombo.SelectedIndex = 0;
+        RepairsVolumeText.Text = "Volumes ainda não lidos; a leitura ocorre ao abrir esta página ou em Atualizar.";
+        RepairsStatusText.Text = "Catálogo e volumes ainda não lidos. Nenhuma ferramenta foi executada.";
         Pages.SelectionChanged += OnRepairsPageSelectionChanged;
         UpdateRepairButtons();
     }

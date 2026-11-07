@@ -50,7 +50,7 @@ internal sealed class U3Host
         app.DispatcherUnhandledException += (_, e) => { host.Check("dispatcher", false, e.Exception.ToString()); e.Handled = true; };
         app.Startup += async (_, _) =>
         {
-            try { await host.RunAll(); }
+            try { if (args.Length > 2 && args[2] == "repair-preflight") await host.CheckRepairPreflight(); else await host.RunAll(); }
             catch (Exception error) { host.Check("host", false, error.ToString()); }
             File.WriteAllLines(Path.Combine(host.work, "u3-checks.txt"), host.checks);
             foreach (var line in host.checks) Console.WriteLine(line);
@@ -98,7 +98,7 @@ internal sealed class U3Host
     }
 
     // ---- composition: the same shell composition as U1/U2, with real correlation and a synthetic monitor ----
-    private MainWindow Open(string root, bool syntheticMonitor = false, IRecoveryHistoryReader? reader = null)
+    private MainWindow Open(string root, bool syntheticMonitor = false, IRecoveryHistoryReader? reader = null, RepairCounters? counters = null)
     {
         var store = new MemoryStore(root);
         var locks = new FileExclusiveLockFactory(root);
@@ -110,7 +110,10 @@ internal sealed class U3Host
         var recovery = new RecoveryService(store, targets, executor, locks, catalog: catalog, syntheticOnly: true);
         var tweaks = new TweakManager(catalog, engine, recovery, store, TweakExecutionMode.RealDisabled);
         var repairCatalog = RepairCatalog.CreateDefault();
-        var repairs = new RepairManager(repairCatalog, RepairParts(store, repairCatalog, out var volumes), volumes);
+        var center = counters is null ? RepairParts(store, repairCatalog, out _) :
+            new RepairCenter(repairCatalog, new RepairPreflightEngine(repairCatalog, counters, counters, counters),
+                new SyntheticRepairExecutor(), store, () => @"C:\U3-FIXTURE");
+        var repairs = new RepairManager(repairCatalog, center, counters ?? (IRepairVolumeProvider)new FixtureVolumes());
         var debloatCatalog = DebloatCatalog.CreateDefault();
         var inventory = SyntheticDebloatInventory.Create(debloatCatalog.All);
         var debloat = new DebloatManager(debloatCatalog, inventory, new SyntheticDebloatRuntimeFactory(inventory), store.CreateDebloatJournal(), locks);
@@ -140,6 +143,31 @@ internal sealed class U3Host
     {
         shell.Show(); await Idle();
         await Wait(() => C<ListBox>(shell, "NavList").IsEnabled && C<Button>(shell, "RunButton").IsEnabled, "shell pronto");
+    }
+
+    private sealed class RepairCounters : IRepairSystemProfileReader, IRepairVolumeProvider, IRepairToolLocator
+    {
+        public int Profiles, Volumes, Tools;
+        public RepairSystemProfile Read() { Profiles++; return new FixtureProfile().Read(); }
+        public Task<IReadOnlyList<RepairVolume>> GetVolumesAsync(CancellationToken cancellationToken = default)
+        { Volumes++; return new FixtureVolumes().GetVolumesAsync(cancellationToken); }
+        public RepairToolLocation Resolve(RepairTool tool) { Tools++; return new FixtureTools().Resolve(tool); }
+    }
+
+    private async Task CheckRepairPreflight()
+    {
+        var counters = new RepairCounters();
+        var shell = Open(Path.Combine(work, "repair-preflight"), counters: counters);
+        await Ready(shell);
+        Check("startup-no-preflight", (counters.Profiles, counters.Volumes, counters.Tools) == (0, 0, 0));
+        await GoTo(shell, 11);
+        Check("first-entry-preflight", counters.Profiles > 0 && counters.Volumes > 0 && counters.Tools > 0 &&
+            Count(shell, "RepairsCardsHost") > 0);
+        var before = (counters.Profiles, counters.Volumes, counters.Tools);
+        Click(C<Button>(shell, "RepairsRefreshButton"));
+        await Wait(() => C<Button>(shell, "RepairsRefreshButton").IsEnabled, "atualização de Reparos");
+        Check("refresh-preflight", counters.Profiles > before.Profiles && counters.Volumes > before.Volumes && counters.Tools > before.Tools);
+        await CloseShell(shell, "repair-preflight");
     }
     private static async Task GoTo(MainWindow shell, int page)
     {
