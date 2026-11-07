@@ -1,5 +1,14 @@
 # SentinelCore AI — instruções do projeto
 
+## U3 — consolidação funcional (06/11/2026)
+
+- Relatório: `docs/validation/2026-11-06-u3-functional-consolidation.md`; matriz `2026-11-06-u3-test-matrix.csv`.
+  Seleção vigente: 1.586 descobertos, **336 Synthetic**, seis WindowsIntegration e 1.244 Unclassified não executados.
+- Sem mudança em `src/`. Host `u3` (`scripts/RecoveryBenchmark/U3Host.cs`) usa só raiz temporária e fonte de monitoramento sintética.
+  `MonitoringSessionRunner` não grava o registro final: quem chama (a UI) o faz; sem ele a sessão é recuperada como interrompida.
+  CheckBox do monitoramento reage a `Click`. Não afirmar homologação operacional nem prontidão para execução real.
+  Versionada na revisão final U3 (commit `test: validate integrated SentinelCore journeys`, push normal); próxima fase não iniciada.
+
 ## U2 — refinamento visual e UX (06/11/2026)
 
 - Relatório: `docs/validation/2026-11-06-u2-visual-ux-refinement.md`; matriz `2026-11-06-u2-test-matrix.csv`.

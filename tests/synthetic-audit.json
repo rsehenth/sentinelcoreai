@@ -1,5 +1,15 @@
 {
     "synthetic":  [
+                      "SentinelCore.Tests.U3JourneyTests.FreshStoreOpensEveryHistoryEmptyAndNeverClaimsACompleteRecoveryHistory",
+                      "SentinelCore.Tests.U3JourneyTests.DiagnosticHistoryPersistsAndReopensWithoutInventingMissingEvidence",
+                      "SentinelCore.Tests.U3JourneyTests.InvestigationJourneyCorrelatesPersistedSourcesWithoutAssertingCausality",
+                      "SentinelCore.Tests.U3JourneyTests.CorrelationWithMissingSourcesStatesTheGapInsteadOfCompleteCoverage",
+                      "SentinelCore.Tests.U3JourneyTests.MonitoringJourneyPersistsIncidentCancellationAndForwardsToCorrelationWithoutEvidenceInvention",
+                      "SentinelCore.Tests.U3JourneyTests.MonitoringSessionRefusedWithoutAuthorizationLeavesTheStoreUntouched",
+                      "SentinelCore.Tests.U3JourneyTests.TweakJourneyThroughTheDistributionCompositionNeverReachesAWriteAndFiveGatesStayClosed",
+                      "SentinelCore.Tests.U3JourneyTests.RepairAndRecoveryJourneyKeepsSuccessFailureAndInterruptionDistinct",
+                      "SentinelCore.Tests.U3JourneyTests.BusyStoreIsUnavailableNotEmptyAndRecoversAfterTheLockIsReleased",
+                      "SentinelCore.Tests.U3JourneyTests.CorruptedAndCancelledReadsPreserveWarningsAndNeverFabricateSuccess",
                       "SentinelCore.Tests.U2VisualContractTests.EmptyListsSayNothingWasLoadedInsteadOfClaimingAbsence",
                       "SentinelCore.Tests.U2VisualContractTests.ShellKeepsThirteenGroupedPagesWithNamesForTheCollapsedMenu",
                       "SentinelCore.Tests.U2VisualContractTests.ShellCodeBehindKeepsShortcutsAndLimitsTheSidebarOnNarrowWindows",
@@ -336,6 +346,10 @@
                                "SentinelCore.Tests.RepairToolPathTests.PolicyRejectsWrongNameExtensionDirectoryAndScripts"
                            ],
     "inputs":  [
+                   {
+                       "path":  "tests/SentinelCore.Tests/U3JourneyTests.cs",
+                       "sha256":  "4C3F821F693D166E67A3E37EAC390CE943637B4E4C353E82B55A1EF33FA5BF29"
+                   },
                    {
                        "path":  "src/SentinelCore.App/Nav.cs",
                        "sha256":  "2EB270ED3ED4A23D1BD5F7059328DE29D78BB305BC58597CE8F0E87B6374C538"
@@ -1621,6 +1635,16 @@
 
                            ],
     "discoveredCases":  [
+                      "SentinelCore.Tests.U3JourneyTests.FreshStoreOpensEveryHistoryEmptyAndNeverClaimsACompleteRecoveryHistory",
+                      "SentinelCore.Tests.U3JourneyTests.DiagnosticHistoryPersistsAndReopensWithoutInventingMissingEvidence",
+                      "SentinelCore.Tests.U3JourneyTests.InvestigationJourneyCorrelatesPersistedSourcesWithoutAssertingCausality",
+                      "SentinelCore.Tests.U3JourneyTests.CorrelationWithMissingSourcesStatesTheGapInsteadOfCompleteCoverage",
+                      "SentinelCore.Tests.U3JourneyTests.MonitoringJourneyPersistsIncidentCancellationAndForwardsToCorrelationWithoutEvidenceInvention",
+                      "SentinelCore.Tests.U3JourneyTests.MonitoringSessionRefusedWithoutAuthorizationLeavesTheStoreUntouched",
+                      "SentinelCore.Tests.U3JourneyTests.TweakJourneyThroughTheDistributionCompositionNeverReachesAWriteAndFiveGatesStayClosed",
+                      "SentinelCore.Tests.U3JourneyTests.RepairAndRecoveryJourneyKeepsSuccessFailureAndInterruptionDistinct",
+                      "SentinelCore.Tests.U3JourneyTests.BusyStoreIsUnavailableNotEmptyAndRecoversAfterTheLockIsReleased",
+                      "SentinelCore.Tests.U3JourneyTests.CorruptedAndCancelledReadsPreserveWarningsAndNeverFabricateSuccess",
                       "SentinelCore.Tests.U2VisualContractTests.EmptyListsSayNothingWasLoadedInsteadOfClaimingAbsence",
                       "SentinelCore.Tests.U2VisualContractTests.ShellKeepsThirteenGroupedPagesWithNamesForTheCollapsedMenu",
                       "SentinelCore.Tests.U2VisualContractTests.ShellCodeBehindKeepsShortcutsAndLimitsTheSidebarOnNarrowWindows",

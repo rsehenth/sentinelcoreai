@@ -15,6 +15,7 @@ internal static class Program
             "wpf" => WpfHost.Run(args.Skip(1).ToArray()),
             "u1" => U1Host.Run(args.Skip(1).ToArray()),
             "u2" => U2Host.Run(args.Skip(1).ToArray()),
+            "u3" => U3Host.Run(args.Skip(1).ToArray()),
             _ => MainAsync(args).GetAwaiter().GetResult()
         }; }
         catch (Exception error) when (error is IOException or ArgumentException or UnauthorizedAccessException)

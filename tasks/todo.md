@@ -1,5 +1,14 @@
 # Execução
 
+## U3 — consolidação funcional e prontidão sintética (06/11/2026)
+
+- [x] Seis jornadas: 10 Facts (`U3JourneyTests`, matriz própria) e host `u3` (81 PASS em 3 rodadas); sem alteração em `src/`.
+- [x] 336/336 Synthetic Debug e Release; builds 0/0; hosts U1 (39) e U2 (136) sem regressão; publish 421 arquivos, zero violações.
+- [ ] NÃO VALIDADO: execução real, homologação, WindowsIntegration, Unclassified, páginas de diagnóstico com dados ricos no host, 10.000 operações.
+- [ ] Limpeza das raízes temporárias do host (≈ 12) pendente; U3 versionada na revisão final. Próxima fase não iniciada.
+
+[Relatório U3](../docs/validation/2026-11-06-u3-functional-consolidation.md).
+
 ## U2 — refinamento visual e UX (06/11/2026)
 
 - [x] Shell: menu agrupado/recolhível, rodapé global, mínimo 960×520, avisos de integridade separados.

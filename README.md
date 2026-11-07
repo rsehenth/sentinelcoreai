@@ -1,5 +1,10 @@
 # SentinelCore AI
 
+**U3 — consolidação funcional (06/11/2026).** Seis jornadas integradas exercitadas com dados artificiais: 10 Facts novos,
+**336 Synthetic em Debug e Release**, host WPF U3 com 81 verificações (3 rodadas), hosts U1/U2 sem regressão (39/136). Nenhum defeito
+de produto comprovado; `src/` inalterado. Cinco gates fechados; nada real executado. Prontidão sintética para uma futura validação
+operacional separada. [Relatório U3](docs/validation/2026-11-06-u3-functional-consolidation.md). Não é homologação operacional.
+
 **U2 — refinamento visual e UX (06/11/2026).** Menu lateral agrupado e recolhível (sem rolagem a 1120×720; recolhe sozinho abaixo de
 1240 px), rodapé global com o aviso de execução real bloqueada, Dashboard com 12 atalhos, avisos de integridade que não são mais
 substituídos, tema/estados vazios/rótulos em português e Central de Recuperação reorganizada. **326 Synthetic em Debug e Release**;
