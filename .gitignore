@@ -99,5 +99,9 @@ graphify-out/
 .chat/
 .playwright-mcp/
 
+# --- Documentação interna (mantida no disco, fora do repositório público) ---
+docs/
+
 # --- Arquivos avulsos sem relação com o produto ---
 /turmas-1440.png
+/pdl-*.png
