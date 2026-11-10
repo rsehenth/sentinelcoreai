@@ -12,6 +12,7 @@ using SentinelCore.Application;
 using SentinelCore.Domain;
 using SentinelCore.Infrastructure.Windows;
 using SentinelCore.Persistence;
+using SentinelCore.App.Localization;
 
 namespace SentinelCore.App;
 
@@ -74,6 +75,7 @@ public partial class MainWindow : Window
         logFailure = failureLogger ?? App.LogFailure;
         this.operations = operations ?? new ProductOperationCoordinator();
         InitializeComponent();
+        LanguageRow.SelectedIndex = Localizer.Current == AppLanguage.Portuguese ? 1 : 0;
         this.runner = runner;
         FullAuditOption.IsEnabled = runner.SupportsFull;
         this.hardwareRunner = hardwareRunner;
@@ -93,7 +95,7 @@ public partial class MainWindow : Window
         this.graphicsStore = graphicsStore;
         this.correlationStore = correlationStore;
         this.monitoringStore = monitoringStore;
-        VersionText.Text = $"v{SoftwareInfo.Version}  •  Local e offline";
+        VersionText.Text = Loc.F($"v{SoftwareInfo.Version}  •  Local e offline");
         InitializeEvents();
         InitializePerformance();
         InitializeNetwork();
@@ -220,46 +222,68 @@ public partial class MainWindow : Window
         Pages.IsEnabled = false;
         RunButton.IsEnabled = false;
         var previousStatus = ExecutionStatus.Text;
-        ExecutionStatus.Text = "Carregando históricos locais…";
+        ExecutionStatus.Text = Loc.T("Carregando históricos locais…");
         UpdateHardwareButtons();
         try
         {
-            try { await ReloadAsync(); }
-            catch (Exception error) { ShowFailure("Não foi possível recuperar a memória local", error); }
-
-            try { await ReloadHardwareAsync(); }
-            catch (Exception error) { ShowHardwareFailure("Não foi possível recuperar os inventários de hardware", error); }
-
-            try { await ReloadEventsAsync(); }
-            catch (Exception error) { ShowEventFailure("Não foi possível recuperar as investigações de eventos", error); }
-
-            try { await ReloadPerformanceAsync(); }
-            catch (Exception error) { ShowPerformanceFailure("Não foi possível recuperar as sessões de desempenho", error); }
-
-            try { await ReloadNetworksAsync(); }
-            catch (Exception error) { ShowNetworkFailure("Não foi possível recuperar as sessões de rede", error); }
-
-            try { await ReloadGraphicsAsync(); }
-            catch (Exception error) { ShowGraphicsFailure("Não foi possível recuperar as investigações gráficas", error); }
-
-            try { await ReloadCorrelationAsync(); }
-            catch (Exception error) { ShowCorrelationFailure("Não foi possível recuperar as investigações de correlação", error); }
-
-            try { await ReloadMonitoringAsync(); }
-            catch (Exception error) { ShowMonitoringFailure("Não foi possível recuperar as sessões de monitoramento", error); }
-
-            // Só o histórico do store; o preflight (volumes, System32) ocorre ao abrir a página Reparos ou em Atualizar.
-            try { await ReloadRepairHistoryAsync(); }
-            catch (Exception error) { ShowFailure("Não foi possível recuperar o histórico de reparos", error); }
+            await ReloadHistoriesAsync();
         }
         finally
         {
             NavList.IsEnabled = true;
             Pages.IsEnabled = true;
             RunButton.IsEnabled = true;
-            if (ExecutionStatus.Text == "Carregando históricos locais…") ExecutionStatus.Text = previousStatus;
+            if (ExecutionStatus.Text == Loc.T("Carregando históricos locais…")) ExecutionStatus.Text = previousStatus;
             UpdateHardwareButtons();
         }
+    }
+
+    // A troca de idioma reaplica os textos montados pelo code-behind repetindo as leituras locais.
+    private async Task ReloadHistoriesAsync()
+    {
+        try { await ReloadAsync(); }
+        catch (Exception error) { ShowFailure(Loc.T("Não foi possível recuperar a memória local"), error); }
+
+        try { await ReloadHardwareAsync(); }
+        catch (Exception error) { ShowHardwareFailure(Loc.T("Não foi possível recuperar os inventários de hardware"), error); }
+
+        try { await ReloadEventsAsync(); }
+        catch (Exception error) { ShowEventFailure(Loc.T("Não foi possível recuperar as investigações de eventos"), error); }
+
+        try { await ReloadPerformanceAsync(); }
+        catch (Exception error) { ShowPerformanceFailure(Loc.T("Não foi possível recuperar as sessões de desempenho"), error); }
+
+        try { await ReloadNetworksAsync(); }
+        catch (Exception error) { ShowNetworkFailure(Loc.T("Não foi possível recuperar as sessões de rede"), error); }
+
+        try { await ReloadGraphicsAsync(); }
+        catch (Exception error) { ShowGraphicsFailure(Loc.T("Não foi possível recuperar as investigações gráficas"), error); }
+
+        try { await ReloadCorrelationAsync(); }
+        catch (Exception error) { ShowCorrelationFailure(Loc.T("Não foi possível recuperar as investigações de correlação"), error); }
+
+        try { await ReloadMonitoringAsync(); }
+        catch (Exception error) { ShowMonitoringFailure(Loc.T("Não foi possível recuperar as sessões de monitoramento"), error); }
+
+        // Só o histórico do store; o preflight (volumes, System32) ocorre ao abrir a página Reparos ou em Atualizar.
+        try { await ReloadRepairHistoryAsync(); }
+        catch (Exception error) { ShowFailure(Loc.T("Não foi possível recuperar o histórico de reparos"), error); }
+    }
+
+    private void OnLanguageChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded || LanguageRow.SelectedIndex < 0) return;
+        var language = LanguageRow.SelectedIndex == 1 ? AppLanguage.Portuguese : AppLanguage.English;
+        if (language == Localizer.Current) return;
+        Localizer.Change(language);
+        _ = ReloadTextsAsync();
+    }
+
+    private async Task ReloadTextsAsync()
+    {
+        using var operation = TryBeginProductOperation();
+        if (operation is null) return;
+        await ReloadHistoriesAsync();
     }
 
     private async Task ReloadAsync(Guid? selectId = null, bool readOnly = false)
@@ -275,7 +299,7 @@ public partial class MainWindow : Window
             var target = history.FirstOrDefault(audit => audit.Id == selectId) ?? latest;
             DisplayLatest(target);
             SelectAuditHistory(target.Id);
-            ExecutionStatus.Text = $"{history.Count} auditoria(s) recuperada(s) da memória local. Última tentativa: {Status(latest.Status)}.";
+            ExecutionStatus.Text = Loc.F($"{history.Count} auditoria(s) recuperada(s) da memória local. Última tentativa: {Status(latest.Status)}.");
         }
     }
 
@@ -287,7 +311,7 @@ public partial class MainWindow : Window
             return;
         if (tweaksBusy || repairsBusy || DebloatSection.IsBusy || RecoverySection.IsBusy)
         {
-            ExecutionStatus.Text = "Aguarde a operação em andamento antes de iniciar a auditoria.";
+            ExecutionStatus.Text = Loc.T("Aguarde a operação em andamento antes de iniciar a auditoria.");
             return;
         }
 
@@ -299,7 +323,7 @@ public partial class MainWindow : Window
                   "rede sem endereços, gráficos e uma sessão de 5 min de monitoramento local de eventos, CPU/memória, rede e gráficos. " +
                   "Ao confirmar, você autoriza essa sessão. O monitoramento termina ao final da sessão ou ao cancelar."
                 : "A auditoria básica lê informações do Windows, CPU, memória, placa-mãe, gráficos, discos e volumes.";
-            if (MessageBox.Show(this, scope + "\n\nIniciar a coleta e salvar os resultados neste computador?",
+            if (MessageBox.Show(this, scope + Loc.T("\n\nIniciar a coleta e salvar os resultados neste computador?"),
                     AuditName(kind), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes)
                 return;
         }
@@ -321,10 +345,10 @@ public partial class MainWindow : Window
                 AuditProgressBar.IsIndeterminate = true;
                 var rows = new ObservableCollection<CollectorRow>();
                 CollectorList.ItemsSource = rows;
-                CollectorDetails.Text = "Os resultados aparecem à medida que as etapas são processadas.";
+                CollectorDetails.Text = Loc.T("Os resultados aparecem à medida que as etapas são processadas.");
                 AuditEvidenceActions.Visibility = Visibility.Collapsed;
-                ResultHeading.Text = $"{AuditName(kind)} · Em andamento";
-                ExecutionStatus.Text = LastCheck.Text = "Preparando a auditoria…";
+                ResultHeading.Text = Loc.F($"{AuditName(kind)} · Em andamento");
+                ExecutionStatus.Text = LastCheck.Text = Loc.T("Preparando a auditoria…");
                 NavList.SelectedIndex = Pages.Items.IndexOf(AuditResultsTab);
 
                 var progress = new Progress<AuditProgress>(update =>
@@ -337,7 +361,7 @@ public partial class MainWindow : Window
                     {
                         collectionFinished = true;
                         CancelButton.IsEnabled = CancelAuditResultsButton.IsEnabled = false;
-                        ExecutionStatus.Text = LastCheck.Text = "Salvando a auditoria na memória local…";
+                        ExecutionStatus.Text = LastCheck.Text = Loc.T("Salvando a auditoria na memória local…");
                         return;
                     }
                     if (update.Result is { } result)
@@ -363,13 +387,13 @@ public partial class MainWindow : Window
             AuditProgressBar.IsIndeterminate = false;
             AuditProgressBar.Maximum = audit.PlannedSteps ?? Math.Max(1, audit.Results.Count);
             AuditProgressBar.Value = audit.Results.Count;
-            ExecutionStatus.Text = saved ? "Atualizando históricos locais…" : "Salvando resultado e atualizando memória…";
+            ExecutionStatus.Text = saved ? Loc.T("Atualizando históricos locais…") : Loc.T("Salvando resultado e atualizando memória…");
             if (!saved) await store.SaveAsync(audit);
             unsaved = null;
             saved = true;
             await ReloadAsync(audit.Id);
             await ReloadAuditEvidenceAsync(audit);
-            ExecutionStatus.Text = $"{AuditName(audit.Kind)} · {Status(audit.Status)}. Histórico e relatório salvos localmente.";
+            ExecutionStatus.Text = Loc.F($"{AuditName(audit.Kind)} · {Status(audit.Status)}. Histórico e relatório salvos localmente.");
         }
         catch (Exception error)
         {
@@ -381,13 +405,13 @@ public partial class MainWindow : Window
             }
             else if (!saved && unsaved is null)
             {
-                ResultHeading.Text = $"{AuditName(kind)} · Falhou";
-                LastCheck.Text = "A execução não pôde ser confirmada. Consulte o aviso da auditoria.";
+                ResultHeading.Text = Loc.F($"{AuditName(kind)} · Falhou");
+                LastCheck.Text = Loc.T("A execução não pôde ser confirmada. Consulte o aviso da auditoria.");
             }
             ShowFailure(unsaved is not null
-                ? "Falha de gravação. O resultado permanece nesta janela; tente salvar novamente"
-                : saved ? "Auditoria salva, mas a apresentação do histórico não foi atualizada"
-                : "Não foi possível iniciar ou concluir a auditoria", error);
+                ? Loc.T("Falha de gravação. O resultado permanece nesta janela; tente salvar novamente")
+                : saved ? Loc.T("Auditoria salva, mas a apresentação do histórico não foi atualizada")
+                : Loc.T("Não foi possível iniciar ou concluir a auditoria"), error);
         }
         finally
         {
@@ -395,7 +419,7 @@ public partial class MainWindow : Window
             RecoverySection.InvalidateAuditHistory();
             cancellation?.Dispose();
             cancellation = null;
-            RunButton.Content = unsaved is not null ? "Tentar salvar auditoria" : "Iniciar auditoria";
+            RunButton.Content = unsaved is not null ? Loc.T("Tentar salvar auditoria") : Loc.T("Iniciar auditoria");
             AuditProgressBar.IsIndeterminate = false;
             CancelButton.IsEnabled = CancelAuditResultsButton.IsEnabled = false;
             ReportButton.IsEnabled = unsaved is null && reportAudit is not null &&
@@ -417,7 +441,7 @@ public partial class MainWindow : Window
     {
         cancellation?.Cancel();
         CancelButton.IsEnabled = CancelAuditResultsButton.IsEnabled = false;
-        ExecutionStatus.Text = LastCheck.Text = "Cancelamento solicitado. Aguardando a consulta em andamento…";
+        ExecutionStatus.Text = LastCheck.Text = Loc.T("Cancelamento solicitado. Aguardando a consulta em andamento…");
     }
 
     private void SetAuditControls(bool available)
@@ -453,14 +477,14 @@ public partial class MainWindow : Window
             }
         }
         if (unavailable.Count > 0)
-            ShowWarning($"Históricos de módulos não puderam ser atualizados: {string.Join(", ", unavailable)}.");
+            ShowWarning(Loc.F($"Históricos de módulos não puderam ser atualizados: {string.Join(", ", unavailable)}."));
     }
 
     private void DisplayLatest(AuditRecord audit)
     {
         reportAudit = audit;
-        ResultHeading.Text = $"{AuditName(audit.Kind)} · {Status(audit.Status)}";
-        LastCheck.Text = $"{Local(audit.StartedUtc)} a {Local(audit.CompletedUtc)} · {audit.Duration.TotalSeconds:F1} s · ID {audit.Id:D}\n" +
+        ResultHeading.Text = Loc.F($"{AuditName(audit.Kind)} · {Status(audit.Status)}");
+        LastCheck.Text = Loc.F($"{Local(audit.StartedUtc)} a {Local(audit.CompletedUtc)} · {audit.Duration.TotalSeconds:F1} s · ID {audit.Id:D}\n") +
             AuditSummary(audit);
         CollectorList.ItemsSource = audit.Results.Select(r => new CollectorRow(r)).ToArray();
         CollectorList.SelectedIndex = audit.Results.Count > 0 ? 0 : -1;
@@ -473,9 +497,9 @@ public partial class MainWindow : Window
         var full = freshness.Evaluate(history, AuditKind.Full);
         BasicState.Text = FreshnessText(basic.State);
         FullState.Text = FreshnessText(full.State);
-        BasicDate.Text = "Último sucesso: " + (basic.LastSuccessUtc is { } last ? Local(last) : "nunca");
+        BasicDate.Text = Loc.T("Último sucesso: ") + (basic.LastSuccessUtc is { } last ? Local(last) : Loc.T("nunca"));
         if (basic.ExpiresUtc is { } expires) BasicDate.Text += "\nValidade: " + Local(expires);
-        FullDate.Text = "Último sucesso: " + (full.LastSuccessUtc is { } fullLast ? Local(fullLast) : "nunca");
+        FullDate.Text = Loc.T("Último sucesso: ") + (full.LastSuccessUtc is { } fullLast ? Local(fullLast) : Loc.T("nunca"));
         if (full.ExpiresUtc is { } fullExpires) FullDate.Text += "\nValidade: " + Local(fullExpires);
         if (full.LatestAttemptStatus is { } fullAttempt && fullAttempt != DiagnosticStatus.Completed)
             FullDate.Text += "\nÚltima tentativa: " + Status(fullAttempt);
@@ -488,14 +512,14 @@ public partial class MainWindow : Window
         var os = latestWithData?.Results.Select(r => r.Data?.OperatingSystem).FirstOrDefault(x => x is not null);
         var ram = latestWithData?.Results.Select(r => r.Data?.Memory).FirstOrDefault(x => x is not null);
         var cpu = latestWithData?.Results.SelectMany(r => r.Data?.Processors ?? []).FirstOrDefault();
-        ComputerSummary.Text = os?.Name ?? "Windows · nome indisponível";
-        ComputerDetail.Text = $"{cpu?.Model ?? "CPU indisponível"}\nRAM instalada: {Units.GiB(ram?.InstalledBytes)}";
+        ComputerSummary.Text = os?.Name ?? Loc.T("Windows · nome indisponível");
+        ComputerDetail.Text = Loc.F($"{cpu?.Model ?? "CPU indisponível"}\nRAM instalada: {Units.GiB(ram?.InstalledBytes)}");
     }
 
     private void OnCollectorSelected(object sender, SelectionChangedEventArgs e)
     {
         var result = (CollectorList.SelectedItem as CollectorRow)?.Result;
-        CollectorDetails.Text = result is null ? "Nenhum resultado selecionado." : CollectorText(result);
+        CollectorDetails.Text = result is null ? Loc.T("Nenhum resultado selecionado.") : CollectorText(result);
         AuditEvidenceActions.Visibility = result?.Evidence is null ? Visibility.Collapsed : Visibility.Visible;
         AuditEvidenceStatus.Text = string.Empty;
     }
@@ -505,9 +529,9 @@ public partial class MainWindow : Window
         OpenAuditResultsButton.IsEnabled = !busy && HistoryList.SelectedItem is HistoryRow;
         if (HistoryList.SelectedItem is not HistoryRow row) return;
         reportAudit = row.Audit;
-        HistoryDetails.Text = $"ID {row.Audit.Id:D}\n{Local(row.Audit.StartedUtc)} a {Local(row.Audit.CompletedUtc)}\n" +
-            $"{AuditName(row.Audit.Kind)} · {Status(row.Audit.Status)} · versão {row.Audit.SoftwareVersion}\n{AuditSummary(row.Audit)}\n\n" +
-            string.Join("\n\n", row.Audit.Results.Select(CollectorText));
+        HistoryDetails.Text = Loc.F($"ID {row.Audit.Id:D}\n{Local(row.Audit.StartedUtc)} a {Local(row.Audit.CompletedUtc)}\n") +
+            Loc.F($"{AuditName(row.Audit.Kind)} · {Status(row.Audit.Status)} · versão {row.Audit.SoftwareVersion}\n{AuditSummary(row.Audit)}\n\n") +
+            string.Join(Loc.T("\n\n"), row.Audit.Results.Select(CollectorText));
         ReportButton.IsEnabled = !busy && File.Exists(store.GetReportPath(row.Audit.Id));
     }
 
@@ -526,12 +550,12 @@ public partial class MainWindow : Window
         try { await ReloadAsync(id, readOnly: true); }
         catch (Exception error)
         {
-            ShowFailure("Não foi possível atualizar a origem da auditoria", error);
+            ShowFailure(Loc.T("Não foi possível atualizar a origem da auditoria"), error);
             return;
         }
         if (!history.Any(audit => audit.Id == id))
         {
-            ShowWarning("Auditoria indisponível no histórico carregado.");
+            ShowWarning(Loc.T("Auditoria indisponível no histórico carregado."));
             return;
         }
         NavList.SelectedIndex = Pages.Items.IndexOf(HistoryTab);
@@ -563,7 +587,7 @@ public partial class MainWindow : Window
         }
         catch (Exception error)
         {
-            ShowFailure("Não foi possível abrir a localização do relatório", error);
+            ShowFailure(Loc.T("Não foi possível abrir a localização do relatório"), error);
         }
         finally
         {
@@ -591,7 +615,7 @@ public partial class MainWindow : Window
         {
             e.Cancel = true;
             operationClosingAfterSave = true;
-            TweakStatusText.Text = "Encerrando: aguarde a operação de tweak ou recuperação e o journal durável.";
+            TweakStatusText.Text = Loc.T("Encerrando: aguarde a operação de tweak ou recuperação e o journal durável.");
             return;
         }
 
@@ -602,8 +626,8 @@ public partial class MainWindow : Window
             repairClosingAfterSave = true;
             repairCancellation?.Cancel();
             RepairsStatusText.Text = repairCommitted
-                ? "Encerrando após o resultado do broker e a gravação do registro de reparo."
-                : "Encerrando após a gravação do registro de reparo. A interrupção real de uma ferramenta oficial não é garantida.";
+                ? Loc.T("Encerrando após o resultado do broker e a gravação do registro de reparo.")
+                : Loc.T("Encerrando após a gravação do registro de reparo. A interrupção real de uma ferramenta oficial não é garantida.");
             return;
         }
 
@@ -614,57 +638,57 @@ public partial class MainWindow : Window
             {
                 closingAfterSave = true;
                 cancellation?.Cancel();
-                ExecutionStatus.Text = "Encerrando: aguarde o cancelamento e a gravação segura do histórico.";
+                ExecutionStatus.Text = Loc.T("Encerrando: aguarde o cancelamento e a gravação segura do histórico.");
             }
 
             if (hardwareBusy)
             {
                 hardwareClosingAfterSave = true;
                 hardwareCancellation?.Cancel();
-                HardwareStatusText.Text = "Encerrando: aguarde o cancelamento e a gravação segura do inventário.";
+                HardwareStatusText.Text = Loc.T("Encerrando: aguarde o cancelamento e a gravação segura do inventário.");
             }
 
             if (eventBusy)
             {
                 eventClosingAfterSave = true;
                 eventCancellation?.Cancel();
-                EventStatusText.Text = "Encerrando: aguarde o cancelamento e a gravação segura da investigação.";
+                EventStatusText.Text = Loc.T("Encerrando: aguarde o cancelamento e a gravação segura da investigação.");
             }
 
             if (performanceBusy)
             {
                 performanceClosingAfterSave = true;
                 performanceCancellation?.Cancel();
-                PerformanceStatusText.Text = "Encerrando: aguarde o cancelamento e a gravação segura da sessão de desempenho.";
+                PerformanceStatusText.Text = Loc.T("Encerrando: aguarde o cancelamento e a gravação segura da sessão de desempenho.");
             }
 
             if (networkBusy)
             {
                 networkClosingAfterSave = true;
                 networkCancellation?.Cancel();
-                NetworkStatusText.Text = "Encerrando: aguarde o cancelamento e a gravação segura da sessão de rede.";
+                NetworkStatusText.Text = Loc.T("Encerrando: aguarde o cancelamento e a gravação segura da sessão de rede.");
             }
 
             if (graphicsBusy)
             {
                 graphicsClosingAfterSave = true;
                 graphicsCancellation?.Cancel();
-                GraphicsStatusText.Text = "Encerrando: aguarde o cancelamento e a gravação segura da investigação gráfica.";
+                GraphicsStatusText.Text = Loc.T("Encerrando: aguarde o cancelamento e a gravação segura da investigação gráfica.");
             }
 
             if (correlationBusy)
             {
                 correlationClosingAfterSave = true;
                 correlationCancellation?.Cancel();
-                CorrelationStatusText.Text = "Encerrando: aguarde o cancelamento e a gravação segura da correlação.";
+                CorrelationStatusText.Text = Loc.T("Encerrando: aguarde o cancelamento e a gravação segura da correlação.");
             }
 
             if (monitoringBusy)
             {
                 monitoringClosingAfterSave = true;
                 monitoringCancellation?.Cancel();
-                MonitoringStatusText.Text = "Encerrando: aguarde o último checkpoint e a gravação segura da sessão " +
-                    "de monitoramento. Nenhuma observação continua após o fechamento.";
+                MonitoringStatusText.Text = Loc.T("Encerrando: aguarde o último checkpoint e a gravação segura da sessão ") +
+                    Loc.T("de monitoramento. Nenhuma observação continua após o fechamento.");
             }
 
             return;
@@ -692,7 +716,7 @@ public partial class MainWindow : Window
             if (unsavedCorrelation is not null) pending.Add("há uma correlação sem confirmação de gravação");
             if (unsavedMonitoring is not null) pending.Add("há uma sessão de monitoramento sem confirmação de gravação");
             if (repairPersistenceFailed) pending.Add("há um reparo sem confirmação de gravação; use Tentar salvar registro");
-            ShowWarning($"{string.Join("; ", pending)}. Use os botões de nova tentativa antes de fechar.");
+            ShowWarning(Loc.F($"{string.Join("; ", pending)}. Use os botões de nova tentativa antes de fechar."));
         }
     }
 
@@ -740,15 +764,15 @@ public partial class MainWindow : Window
         selectedHardware = snapshot;
         var persisted = hardwareSnapshots.Any(s => s.Id == snapshot.Id) &&
             File.Exists(hardwareStore.GetHardwareReportPath(snapshot.Id));
-        HardwareSnapshotInfo.Text = $"Snapshot de {Local(snapshot.CompletedUtc)} · {HardwareReport.StatusName(snapshot.Status)} · " +
-            $"{snapshot.Duration.TotalSeconds:F1} s · ID {snapshot.Id:D}" +
-            (persisted ? string.Empty : " · não confirmado na memória local");
+        HardwareSnapshotInfo.Text = Loc.F($"Snapshot de {Local(snapshot.CompletedUtc)} · {HardwareReport.StatusName(snapshot.Status)} · ") +
+            Loc.F($"{snapshot.Duration.TotalSeconds:F1} s · ID {snapshot.Id:D}") +
+            (persisted ? string.Empty : Loc.T(" · não confirmado na memória local"));
 
         var totalItems = snapshot.Results.Sum(r => r.Items.Count);
         var completedCollectors = snapshot.Results.Count(r => r.Status == HardwareCollectionStatus.Completed);
         var totalLimitations = snapshot.Results.Sum(r => r.Limitations.Count);
-        HardwareSummaryText.Text = $"{totalItems} item(ns) · {completedCollectors}/{snapshot.Results.Count} coletores concluídos · " +
-            $"{totalLimitations} limitação(ões) de coleta";
+        HardwareSummaryText.Text = Loc.F($"{totalItems} item(ns) · {completedCollectors}/{snapshot.Results.Count} coletores concluídos · ") +
+            Loc.F($"{totalLimitations} limitação(ões) de coleta");
 
         updatingHardware = true;
         HardwareSearch.Text = string.Empty;
@@ -770,11 +794,11 @@ public partial class MainWindow : Window
         HardwareSearchHint.Visibility = Visibility.Visible;
         updatingHardware = false;
         SetHardwareCategories(null);
-        HardwareSnapshotInfo.Text = "Nenhum snapshot de hardware coletado.";
-        HardwareSummaryText.Text = "Use 'Coletar hardware' para criar o primeiro inventário local.";
-        HardwareListHeading.Text = "Itens";
-        HardwareDetailsHeading.Text = "Visão geral";
-        HardwareDetails.Text = "Nenhum inventário disponível. A coleta é somente de leitura.";
+        HardwareSnapshotInfo.Text = Loc.T("Nenhum snapshot de hardware coletado.");
+        HardwareSummaryText.Text = Loc.T("Use 'Coletar hardware' para criar o primeiro inventário local.");
+        HardwareListHeading.Text = Loc.T("Itens");
+        HardwareDetailsHeading.Text = Loc.T("Visão geral");
+        HardwareDetails.Text = Loc.T("Nenhum inventário disponível. A coleta é somente de leitura.");
         UpdateHardwareButtons();
     }
 
@@ -805,7 +829,7 @@ public partial class MainWindow : Window
             updatingHardware = true;
             HardwareItemList.ItemsSource = null;
             updatingHardware = false;
-            HardwareListHeading.Text = "Itens";
+            HardwareListHeading.Text = Loc.T("Itens");
             return;
         }
 
@@ -825,8 +849,8 @@ public partial class MainWindow : Window
         updatingHardware = false;
 
         HardwareListHeading.Text = hardwareCategory is { } category
-            ? $"{HardwareReport.CategoryName(category)} · {items.Length}"
-            : $"Todos os itens · {items.Length}";
+            ? Loc.F($"{HardwareReport.CategoryName(category)} · {items.Length}")
+            : Loc.F($"Todos os itens · {items.Length}");
 
         if (hardwareCategory is null && query.Length == 0)
             ShowSnapshotOverview(selectedHardware);
@@ -844,34 +868,34 @@ public partial class MainWindow : Window
 
         var text = new StringBuilder();
         if (unsavedHardware?.Id == snapshot.Id)
-            text.AppendLine("Este snapshot ainda não foi confirmado na memória local.");
-        text.AppendLine($"Status: {HardwareReport.StatusName(snapshot.Status)}");
-        text.AppendLine($"ID local: {snapshot.Id:D}");
-        text.AppendLine($"Software: {snapshot.SoftwareVersion} · formato {snapshot.FormatVersion} · esquema {snapshot.SchemaVersion}");
-        text.AppendLine($"Início: {Local(snapshot.StartedUtc)}");
-        text.AppendLine($"Conclusão: {Local(snapshot.CompletedUtc)} · duração {snapshot.Duration.TotalSeconds:F2} s");
-        text.AppendLine($"Itens observados: {total} · presentes {byPresence.GetValueOrDefault(DevicePresence.Present)} · " +
-            $"virtuais {byPresence.GetValueOrDefault(DevicePresence.Virtual)} · desconectados {byPresence.GetValueOrDefault(DevicePresence.Disconnected)} · " +
-            $"indeterminados {byPresence.GetValueOrDefault(DevicePresence.Unknown)}");
+            text.AppendLine(Loc.T("Este snapshot ainda não foi confirmado na memória local."));
+        text.AppendLine(Loc.F($"Status: {HardwareReport.StatusName(snapshot.Status)}"));
+        text.AppendLine(Loc.F($"ID local: {snapshot.Id:D}"));
+        text.AppendLine(Loc.F($"Software: {snapshot.SoftwareVersion} · formato {snapshot.FormatVersion} · esquema {snapshot.SchemaVersion}"));
+        text.AppendLine(Loc.F($"Início: {Local(snapshot.StartedUtc)}"));
+        text.AppendLine(Loc.F($"Conclusão: {Local(snapshot.CompletedUtc)} · duração {snapshot.Duration.TotalSeconds:F2} s"));
+        text.AppendLine(Loc.F($"Itens observados: {total} · presentes {byPresence.GetValueOrDefault(DevicePresence.Present)} · ") +
+            Loc.F($"virtuais {byPresence.GetValueOrDefault(DevicePresence.Virtual)} · desconectados {byPresence.GetValueOrDefault(DevicePresence.Disconnected)} · ") +
+            Loc.F($"indeterminados {byPresence.GetValueOrDefault(DevicePresence.Unknown)}"));
         text.AppendLine();
-        text.AppendLine("Coletores");
+        text.AppendLine(Loc.T("Coletores"));
         foreach (var result in snapshot.Results.OrderBy(r => r.Category))
         {
-            text.AppendLine($"• {HardwareReport.CategoryName(result.Category)}: {HardwareReport.StatusName(result.Status)} · " +
-                $"{result.Items.Count} item(ns) · {result.Duration.TotalSeconds:F2} s");
-            text.AppendLine($"  Fonte: {result.Source} · coletor {result.CollectorVersion}");
+            text.AppendLine(Loc.F($"• {HardwareReport.CategoryName(result.Category)}: {HardwareReport.StatusName(result.Status)} · ") +
+                Loc.F($"{result.Items.Count} item(ns) · {result.Duration.TotalSeconds:F2} s"));
+            text.AppendLine(Loc.F($"  Fonte: {result.Source} · coletor {result.CollectorVersion}"));
             foreach (var limitation in result.Limitations)
-                text.AppendLine($"  Limitação: {limitation}");
+                text.AppendLine(Loc.F($"  Limitação: {limitation}"));
         }
 
         text.AppendLine();
-        text.AppendLine("Interpretação");
-        text.AppendLine("• Inventário somente de leitura, obtido de interfaces locais do Windows.");
-        text.AppendLine("• Campos indisponíveis permanecem nulos; nenhum valor é estimado.");
-        text.AppendLine("• Estado OK/Healthy é reportado pelo Windows e não garante integridade física.");
-        text.AppendLine("• Categoria parcial, cancelada ou com falha não permite concluir remoção de dispositivos.");
+        text.AppendLine(Loc.T("Interpretação"));
+        text.AppendLine(Loc.T("• Inventário somente de leitura, obtido de interfaces locais do Windows."));
+        text.AppendLine(Loc.T("• Campos indisponíveis permanecem nulos; nenhum valor é estimado."));
+        text.AppendLine(Loc.T("• Estado OK/Healthy é reportado pelo Windows e não garante integridade física."));
+        text.AppendLine(Loc.T("• Categoria parcial, cancelada ou com falha não permite concluir remoção de dispositivos."));
 
-        HardwareDetailsHeading.Text = "Visão geral";
+        HardwareDetailsHeading.Text = Loc.T("Visão geral");
         HardwareDetails.Text = text.ToString();
     }
 
@@ -884,97 +908,97 @@ public partial class MainWindow : Window
             var results = snapshot.Results.Where(r => r.Category == category).ToArray();
             if (results.Length == 0)
             {
-                text.AppendLine("Categoria ausente neste snapshot; ausência não é conclusiva.");
+                text.AppendLine(Loc.T("Categoria ausente neste snapshot; ausência não é conclusiva."));
             }
             else
             {
                 foreach (var result in results)
                 {
-                    text.AppendLine($"Coletor: {HardwareReport.StatusName(result.Status)} · {result.Items.Count} item(ns)");
-                    text.AppendLine($"Fonte: {result.Source}");
+                    text.AppendLine(Loc.F($"Coletor: {HardwareReport.StatusName(result.Status)} · {result.Items.Count} item(ns)"));
+                    text.AppendLine(Loc.F($"Fonte: {result.Source}"));
                     foreach (var limitation in result.Limitations)
-                        text.AppendLine($"Limitação: {limitation}");
+                        text.AppendLine(Loc.F($"Limitação: {limitation}"));
                 }
             }
         }
         else
         {
-            text.AppendLine("Todos os itens");
+            text.AppendLine(Loc.T("Todos os itens"));
         }
 
-        if (query.Length > 0) text.AppendLine($"Busca: \"{query}\"");
-        text.AppendLine($"{count} item(ns) no filtro atual.");
+        if (query.Length > 0) text.AppendLine(Loc.F($"Busca: \"{query}\""));
+        text.AppendLine(Loc.F($"{count} item(ns) no filtro atual."));
         text.AppendLine(count > 0
-            ? "Selecione um item para ver identidade, driver, propriedades e limitações."
-            : "Nenhum item corresponde. Campos ausentes não são estimados.");
+            ? Loc.T("Selecione um item para ver identidade, driver, propriedades e limitações.")
+            : Loc.T("Nenhum item corresponde. Campos ausentes não são estimados."));
 
         HardwareDetailsHeading.Text = hardwareCategory is { } selectedCategory
             ? HardwareReport.CategoryName(selectedCategory)
-            : "Visão do filtro";
+            : Loc.T("Visão do filtro");
         HardwareDetails.Text = text.ToString();
     }
 
     private void ShowHardwareItem(HardwareItem item)
     {
         var text = new StringBuilder();
-        text.AppendLine($"{HardwareReport.CategoryName(item.Category)} · {item.Kind}");
-        text.AppendLine($"Identidade técnica (hash local): {item.StableId}");
-        text.AppendLine($"Presença: {PresenceName(item.Presence)}");
-        text.AppendLine($"Fabricante: {Display(item.Manufacturer)}");
-        text.AppendLine($"Modelo: {Display(item.Model)}");
-        text.AppendLine($"Hardware ID: {Display(item.HardwareId)}");
-        text.AppendLine($"Estado reportado pelo Windows: {Display(item.WindowsState)}");
-        text.AppendLine($"Firmware: {Display(item.FirmwareVersion)}");
+        text.AppendLine(Loc.F($"{HardwareReport.CategoryName(item.Category)} · {item.Kind}"));
+        text.AppendLine(Loc.F($"Identidade técnica (hash local): {item.StableId}"));
+        text.AppendLine(Loc.F($"Presença: {PresenceName(item.Presence)}"));
+        text.AppendLine(Loc.F($"Fabricante: {Display(item.Manufacturer)}"));
+        text.AppendLine(Loc.F($"Modelo: {Display(item.Model)}"));
+        text.AppendLine(Loc.F($"Hardware ID: {Display(item.HardwareId)}"));
+        text.AppendLine(Loc.F($"Estado reportado pelo Windows: {Display(item.WindowsState)}"));
+        text.AppendLine(Loc.F($"Firmware: {Display(item.FirmwareVersion)}"));
         text.AppendLine();
-        text.AppendLine("Driver associado");
+        text.AppendLine(Loc.T("Driver associado"));
         if (HasDriverData(item))
         {
-            text.AppendLine($"Provedor: {Display(item.DriverProvider)}");
-            text.AppendLine($"Versão: {Display(item.DriverVersion)}");
-            text.AppendLine($"Data (UTC): {(item.DriverDateUtc is { } d ? d.ToUniversalTime().ToString("yyyy-MM-dd") : "Indisponível")}");
-            text.AppendLine($"Classe: {Display(item.DriverClass)}");
-            text.AppendLine($"INF: {Display(item.DriverInfName)}");
+            text.AppendLine(Loc.F($"Provedor: {Display(item.DriverProvider)}"));
+            text.AppendLine(Loc.F($"Versão: {Display(item.DriverVersion)}"));
+            text.AppendLine(Loc.F($"Data (UTC): {(item.DriverDateUtc is { } d ? d.ToUniversalTime().ToString("yyyy-MM-dd") : "Indisponível")}"));
+            text.AppendLine(Loc.F($"Classe: {Display(item.DriverClass)}"));
+            text.AppendLine(Loc.F($"INF: {Display(item.DriverInfName)}"));
         }
         else
         {
-            text.AppendLine("Nenhum driver associado de forma verificável.");
+            text.AppendLine(Loc.T("Nenhum driver associado de forma verificável."));
         }
 
-        text.AppendLine("A presença do driver não comprova uso efetivo. A data do driver não indica desatualização.");
+        text.AppendLine(Loc.T("A presença do driver não comprova uso efetivo. A data do driver não indica desatualização."));
         text.AppendLine();
-        text.AppendLine("Propriedades");
+        text.AppendLine(Loc.T("Propriedades"));
         if (item.Properties.Count == 0)
         {
-            text.AppendLine("• Nenhuma propriedade adicional registrada.");
+            text.AppendLine(Loc.T("• Nenhuma propriedade adicional registrada."));
         }
         else
         {
             foreach (var prop in item.Properties.OrderBy(p => p.Name, StringComparer.Ordinal))
-                text.AppendLine($"• {prop.Name}: {prop.Value}{(prop.Volatile ? " (volátil, não comparado)" : "")}");
+                text.AppendLine(Loc.F($"• {prop.Name}: {prop.Value}{(prop.Volatile ? " (volátil, não comparado)" : "")}"));
         }
 
         if (item.Category == HardwareCategory.Storage)
         {
             text.AppendLine();
-            text.AppendLine("Estado de saúde reportado não representa garantia de integridade física.");
+            text.AppendLine(Loc.T("Estado de saúde reportado não representa garantia de integridade física."));
         }
 
         if (item.Limitations.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Limitações");
+            text.AppendLine(Loc.T("Limitações"));
             foreach (var limitation in item.Limitations)
-                text.AppendLine($"• {limitation}");
+                text.AppendLine(Loc.F($"• {limitation}"));
         }
 
         var collectorResult = selectedHardware?.Results.FirstOrDefault(r => r.Category == item.Category);
         if (collectorResult is not null)
         {
             text.AppendLine();
-            text.AppendLine($"Coletor: {collectorResult.CollectorVersion} · {HardwareReport.StatusName(collectorResult.Status)} · {Local(collectorResult.CompletedUtc)}");
-            text.AppendLine($"Fonte: {collectorResult.Source}");
+            text.AppendLine(Loc.F($"Coletor: {collectorResult.CollectorVersion} · {HardwareReport.StatusName(collectorResult.Status)} · {Local(collectorResult.CompletedUtc)}"));
+            text.AppendLine(Loc.F($"Fonte: {collectorResult.Source}"));
             if (collectorResult.Status != HardwareCollectionStatus.Completed)
-                text.AppendLine("Coleta parcial ou com falha: itens ausentes nesta categoria não indicam remoção.");
+                text.AppendLine(Loc.T("Coleta parcial ou com falha: itens ausentes nesta categoria não indicam remoção."));
         }
 
         HardwareDetailsHeading.Text = string.IsNullOrWhiteSpace(item.Name) ? item.Kind : item.Name;
@@ -1003,36 +1027,36 @@ public partial class MainWindow : Window
             if (unsavedHardware is not null)
             {
                 hardwareSaving = true;
-                HardwareStatusText.Text = "Tentando salvar novamente o inventário pendente…";
+                HardwareStatusText.Text = Loc.T("Tentando salvar novamente o inventário pendente…");
                 var pending = unsavedHardware;
                 await hardwareStore.SaveSnapshotAsync(pending);
                 saved = true;
                 unsavedHardware = null;
                 await ReloadHardwareAsync(pending.Id);
-                HardwareStatusText.Text = "Inventário pendente salvo novamente.";
+                HardwareStatusText.Text = Loc.T("Inventário pendente salvo novamente.");
                 return;
             }
 
-            HardwareStatusText.Text = "Inventário de hardware em andamento. Leitura somente, sem alterações no Windows.";
+            HardwareStatusText.Text = Loc.T("Inventário de hardware em andamento. Leitura somente, sem alterações no Windows.");
             var progress = new Progress<HardwareProgress>(p =>
             {
                 if (hardwareSaving) return;
                 HardwareProgressBar.Maximum = p.Total;
                 HardwareProgressBar.Value = p.Finished;
-                HardwareStatusText.Text = $"{HardwareCollectorName(p.CollectorId)}: {HardwareReport.StatusName(p.Status)} · {p.Finished}/{p.Total} categorias";
+                HardwareStatusText.Text = Loc.F($"{HardwareCollectorName(p.CollectorId)}: {HardwareReport.StatusName(p.Status)} · {p.Finished}/{p.Total} categorias");
             });
             var snapshot = await hardwareRunner.RunAsync(progress, hardwareCancellation.Token);
             unsavedHardware = snapshot;
             ApplyHardwareSnapshot(snapshot);
             hardwareSaving = true;
             UpdateHardwareButtons();
-            HardwareStatusText.Text = "Salvando inventário e atualizando a memória local…";
+            HardwareStatusText.Text = Loc.T("Salvando inventário e atualizando a memória local…");
             await hardwareStore.SaveSnapshotAsync(snapshot);
             saved = true;
             unsavedHardware = null;
             await ReloadHardwareAsync(snapshot.Id);
-            HardwareStatusText.Text = $"Inventário salvo. Status da coleta: {HardwareReport.StatusName(snapshot.Status)}. " +
-                $"{snapshot.Results.Sum(r => r.Items.Count)} item(ns) em {snapshot.Results.Count} coletores.";
+            HardwareStatusText.Text = Loc.F($"Inventário salvo. Status da coleta: {HardwareReport.StatusName(snapshot.Status)}. ") +
+                Loc.F($"{snapshot.Results.Sum(r => r.Items.Count)} item(ns) em {snapshot.Results.Count} coletores.");
         }
         catch (Exception error)
         {
@@ -1049,7 +1073,7 @@ public partial class MainWindow : Window
             hardwareSaving = false;
             hardwareCancellation?.Dispose();
             hardwareCancellation = null;
-            HardwareRunButton.Content = unsavedHardware is not null ? "Tentar salvar inventário" : "Coletar hardware";
+            HardwareRunButton.Content = unsavedHardware is not null ? Loc.T("Tentar salvar inventário") : Loc.T("Coletar hardware");
             RunButton.IsEnabled = !busy;
             UpdateHardwareButtons();
             if (hardwareClosingAfterSave && unsavedHardware is null)
@@ -1068,7 +1092,7 @@ public partial class MainWindow : Window
     {
         hardwareCancellation?.Cancel();
         HardwareCancelButton.IsEnabled = false;
-        HardwareStatusText.Text = "Cancelamento solicitado. Consultas em andamento podem aguardar o timeout local.";
+        HardwareStatusText.Text = Loc.T("Cancelamento solicitado. Consultas em andamento podem aguardar o timeout local.");
     }
 
     private async void OnHardwareReload(object sender, RoutedEventArgs e)
@@ -1080,15 +1104,15 @@ public partial class MainWindow : Window
         hardwareBusy = true;
         RunButton.IsEnabled = false;
         UpdateHardwareButtons();
-        HardwareStatusText.Text = "Recarregando inventários salvos da memória local…";
+        HardwareStatusText.Text = Loc.T("Recarregando inventários salvos da memória local…");
         try
         {
             await ReloadHardwareAsync(selectedHardware?.Id);
-            HardwareStatusText.Text = "Inventários recarregados da memória local.";
+            HardwareStatusText.Text = Loc.T("Inventários recarregados da memória local.");
         }
         catch (Exception error)
         {
-            ShowHardwareFailure("Não foi possível recarregar os inventários de hardware", error);
+            ShowHardwareFailure(Loc.T("Não foi possível recarregar os inventários de hardware"), error);
         }
         finally
         {
@@ -1137,12 +1161,12 @@ public partial class MainWindow : Window
         try
         {
             var diff = HardwareDiffEngine.Compare(previous, current);
-            HardwareDetailsHeading.Text = "Comparação";
+            HardwareDetailsHeading.Text = Loc.T("Comparação");
             HardwareDetails.Text = RenderHardwareDiff(diff, previous, current);
         }
         catch (Exception error)
         {
-            ShowHardwareFailure("Não foi possível comparar os inventários", error);
+            ShowHardwareFailure(Loc.T("Não foi possível comparar os inventários"), error);
         }
     }
 
@@ -1156,7 +1180,7 @@ public partial class MainWindow : Window
         }
         catch (Exception error)
         {
-            ShowHardwareFailure("Não foi possível abrir a localização do relatório de hardware", error);
+            ShowHardwareFailure(Loc.T("Não foi possível abrir a localização do relatório de hardware"), error);
         }
         finally
         {
@@ -1200,17 +1224,17 @@ public partial class MainWindow : Window
     private static string RenderHardwareDiff(HardwareDiff diff, HardwareSnapshot previous, HardwareSnapshot current)
     {
         var text = new StringBuilder();
-        text.AppendLine("Comparação observada (anterior → atual)");
-        text.AppendLine($"Anterior: {Local(previous.CompletedUtc)} · ID {previous.Id:D} · {HardwareReport.StatusName(previous.Status)}");
-        text.AppendLine($"Atual: {Local(current.CompletedUtc)} · ID {current.Id:D} · {HardwareReport.StatusName(current.Status)}");
+        text.AppendLine(Loc.T("Comparação observada (anterior → atual)"));
+        text.AppendLine(Loc.F($"Anterior: {Local(previous.CompletedUtc)} · ID {previous.Id:D} · {HardwareReport.StatusName(previous.Status)}"));
+        text.AppendLine(Loc.F($"Atual: {Local(current.CompletedUtc)} · ID {current.Id:D} · {HardwareReport.StatusName(current.Status)}"));
         text.AppendLine();
         if (diff.Changes.Count == 0)
         {
-            text.AppendLine("Nenhuma diferença observada nas categorias comparáveis.");
+            text.AppendLine(Loc.T("Nenhuma diferença observada nas categorias comparáveis."));
         }
         else
         {
-            text.AppendLine($"Mudanças observadas: {diff.Changes.Count}");
+            text.AppendLine(Loc.F($"Mudanças observadas: {diff.Changes.Count}"));
             foreach (var change in diff.Changes)
             {
                 var subject = $"{HardwareReport.CategoryName(change.Category)} · {change.Kind}" +
@@ -1225,24 +1249,24 @@ public partial class MainWindow : Window
         if (diff.NotComparable.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Categorias sem avaliação de adição/remoção");
+            text.AppendLine(Loc.T("Categorias sem avaliação de adição/remoção"));
             foreach (var category in diff.NotComparable)
-                text.AppendLine($"• {HardwareReport.CategoryName(category)}");
+                text.AppendLine(Loc.F($"• {HardwareReport.CategoryName(category)}"));
         }
 
         if (diff.Limitations.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Limitações da comparação");
+            text.AppendLine(Loc.T("Limitações da comparação"));
             foreach (var limitation in diff.Limitations)
-                text.AppendLine($"• {limitation}");
+                text.AppendLine(Loc.F($"• {limitation}"));
         }
 
         text.AppendLine();
-        text.AppendLine("Interpretação");
-        text.AppendLine("• O relatório descreve diferenças observadas; não atribui causa, gravidade ou diagnóstico.");
-        text.AppendLine("• Alteração de driver ou firmware não indica melhoria, regressão ou falha.");
-        text.AppendLine("• Categoria não comparável não autoriza afirmar que um dispositivo foi removido.");
+        text.AppendLine(Loc.T("Interpretação"));
+        text.AppendLine(Loc.T("• O relatório descreve diferenças observadas; não atribui causa, gravidade ou diagnóstico."));
+        text.AppendLine(Loc.T("• Alteração de driver ou firmware não indica melhoria, regressão ou falha."));
+        text.AppendLine(Loc.T("• Categoria não comparável não autoriza afirmar que um dispositivo foi removido."));
         return text.ToString();
     }
 
@@ -1274,7 +1298,7 @@ public partial class MainWindow : Window
     {
         var lines = integrityWarnings.SelectMany(p => p.Value.Select(w => $"Histórico incompleto — {p.Key}: {w}"))
             .Concat(runWarnings).ToArray();
-        StorageWarnings.Text = string.Join("\n", lines);
+        StorageWarnings.Text = string.Join(Loc.T("\n"), lines);
         WarningBanner.Visibility = lines.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
     }
 
@@ -1295,7 +1319,7 @@ public partial class MainWindow : Window
         if (!e.WidthChanged) return;
         var narrow = e.NewSize.Width < SidebarForcedCollapseWidth;
         SidebarToggle.IsEnabled = !narrow;
-        SidebarToggle.ToolTip = narrow ? "Amplie a janela (1120 px ou mais) para expandir o menu" : "Recolher ou expandir o menu (Ctrl+B)";
+        SidebarToggle.ToolTip = narrow ? Loc.T("Amplie a janela (1120 px ou mais) para expandir o menu") : Loc.T("Recolher ou expandir o menu (Ctrl+B)");
         if (narrow || !sidebarUserChoice) SetSidebarCollapsed(e.NewSize.Width < SidebarAutoCollapseWidth);
     }
 
@@ -1303,7 +1327,7 @@ public partial class MainWindow : Window
     {
         Nav.SetCollapsed(NavList, collapsed);
         SidebarColumn.Width = new GridLength(collapsed ? 64 : 248);
-        BrandMark.Visibility = BrandText.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
+        BrandMark.Visibility = BrandText.Visibility = LanguageRow.Visibility = collapsed ? Visibility.Collapsed : Visibility.Visible;
         Grid.SetColumnSpan(SidebarToggle, collapsed ? 3 : 1);
         SidebarToggle.HorizontalAlignment = collapsed ? HorizontalAlignment.Center : HorizontalAlignment.Right;
         NavList.Margin = new Thickness(0, collapsed ? 4 : 0, 0, 0);
@@ -1313,7 +1337,7 @@ public partial class MainWindow : Window
     {
         logFailure(error);
         ExecutionStatus.Text = message + ".";
-        ShowWarning($"{message}. {error.GetType().Name}: {error.Message}");
+        ShowWarning(Loc.F($"{message}. {error.GetType().Name}: {error.Message}"));
     }
 
     private void ShowHardwareFailure(string message, Exception error)
@@ -1328,23 +1352,23 @@ public partial class MainWindow : Window
         if (result.Data is { } data)
         {
             foreach (var (name, value) in MarkdownReport.Fields(data))
-                text.AppendLine($"{name}: {value ?? "Indisponível"}");
+                text.AppendLine(Loc.F($"{name}: {value ?? "Indisponível"}"));
         }
         else if (result.Evidence is { } evidence)
         {
             text.AppendLine(evidence.Summary);
-            text.AppendLine($"Registro de origem: {evidence.RecordId:D}");
+            text.AppendLine(Loc.F($"Registro de origem: {evidence.RecordId:D}"));
         }
         else
         {
-            text.AppendLine("Dados indisponíveis.");
+            text.AppendLine(Loc.T("Dados indisponíveis."));
         }
 
-        text.AppendLine($"\nFonte: {result.Source}\nColetor: {result.CollectorVersion}\nColetado: {Local(result.CompletedUtc)}\nDuração: {result.Duration.TotalSeconds:F2} s");
+        text.AppendLine(Loc.F($"\nFonte: {result.Source}\nColetor: {result.CollectorVersion}\nColetado: {Local(result.CompletedUtc)}\nDuração: {result.Duration.TotalSeconds:F2} s"));
         if (result.Limitations.Count > 0)
-            text.AppendLine("\nLimitações:\n" + string.Join("\n", result.Limitations.Select(x => "• " + x)));
+            text.AppendLine(Loc.T("\nLimitações:\n") + string.Join("\n", result.Limitations.Select(x => "• " + x)));
         if (result.CollectorId == "storage")
-            text.AppendLine("\nOK/Healthy é o estado reportado pelo Windows e não garante integridade física.");
+            text.AppendLine(Loc.T("\nOK/Healthy é o estado reportado pelo Windows e não garante integridade física."));
         return text.ToString();
     }
 

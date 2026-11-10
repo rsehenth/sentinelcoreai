@@ -12,27 +12,27 @@
             <Setter Property="Margin" Value="0,6,0,12"/>
         </Style>
     </UserControl.Resources>
-    <Expander Header="Remoção controlada Appx/MSIX — execução real bloqueada" Foreground="{DynamicResource Text}"
+    <Expander Header="{DynamicResource T403}" Foreground="{DynamicResource Text}"
               AutomationProperties.AutomationId="DebloatRemovalDetails">
         <StackPanel Margin="0,12,0,0">
-            <TextBlock Text="SIMULAÇÃO — NENHUM APLICATIVO REAL SERÁ REMOVIDO." Foreground="{DynamicResource Warn}" TextWrapping="Wrap"/>
-            <TextBlock Text="Plano e consequências" Style="{DynamicResource PaneTitle}"/>
-            <TextBox Text="{Binding Plan, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Plano T3C"/>
-            <TextBlock Text="Dependências e efeitos indiretos" Style="{DynamicResource PaneTitle}"/>
-            <TextBox Text="{Binding Dependencies, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Dependências T3C"/>
-            <TextBlock Text="Riscos e bloqueios" Style="{DynamicResource PaneTitle}"/>
-            <TextBox Text="{Binding Risks, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Riscos T3C"/>
-            <TextBlock Text="Autorização específica" Style="{DynamicResource PaneTitle}"/>
-            <TextBox Text="{Binding Authorization, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Autorização T3C"/>
-            <TextBlock Text="Estado e progresso" Style="{DynamicResource PaneTitle}"/>
-            <TextBox Text="{Binding Progress, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Progresso T3C"/>
-            <TextBlock Text="Resultado e pós-verificação" Style="{DynamicResource PaneTitle}"/>
-            <TextBox Text="{Binding Result, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Resultado T3C"/>
-            <TextBlock Text="Histórico" Style="{DynamicResource PaneTitle}"/>
-            <TextBox Text="{Binding History, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Histórico T3C"/>
-            <TextBlock Text="Limitações e reinstalação documental" Style="{DynamicResource PaneTitle}"/>
-            <TextBox Text="{Binding Limitations, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Limitações T3C"/>
-            <TextBox Text="{Binding Reinstallation, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="Reinstalação T3C"/>
+            <TextBlock Text="{DynamicResource T441}" Foreground="{DynamicResource Warn}" TextWrapping="Wrap"/>
+            <TextBlock Text="{DynamicResource T358}" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding Plan, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="{DynamicResource T360}"/>
+            <TextBlock Text="{DynamicResource T135}" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding Dependencies, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="{DynamicResource T136}"/>
+            <TextBlock Text="{DynamicResource T420}" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding Risks, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="{DynamicResource T421}"/>
+            <TextBlock Text="{DynamicResource T58}" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding Authorization, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="{DynamicResource T59}"/>
+            <TextBlock Text="{DynamicResource T183}" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding Progress, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="{DynamicResource T374}"/>
+            <TextBlock Text="{DynamicResource T410}" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding Result, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="{DynamicResource T411}"/>
+            <TextBlock Text="{DynamicResource T226}" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding History, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="{DynamicResource T247}"/>
+            <TextBlock Text="{DynamicResource T290}" Style="{DynamicResource PaneTitle}"/>
+            <TextBox Text="{Binding Limitations, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="{DynamicResource T291}"/>
+            <TextBox Text="{Binding Reinstallation, Mode=OneWay}" Style="{StaticResource RemovalReadout}" AutomationProperties.Name="{DynamicResource T396}"/>
         </StackPanel>
     </Expander>
 </UserControl>

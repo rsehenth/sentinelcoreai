@@ -4,7 +4,7 @@
              xmlns:local="clr-namespace:SentinelCore.App"
              FontFamily="Segoe UI" Foreground="{DynamicResource Text}"
              Loaded="OnLoaded" Unloaded="OnUnloaded"
-             AutomationProperties.AutomationId="DebloatView" AutomationProperties.Name="Gerenciador Appx/MSIX">
+             AutomationProperties.AutomationId="DebloatView" AutomationProperties.Name="{DynamicResource T218}">
     <UserControl.Resources>
         <Style TargetType="DataGrid">
             <Setter Property="Background" Value="{DynamicResource Surface}"/>
@@ -56,62 +56,62 @@
         </Style>
     </UserControl.Resources>
     <StackPanel>
-        <TextBlock Text="Debloat — gerenciador Appx/MSIX" FontSize="20" FontWeight="SemiBold"/>
-        <TextBlock Text="Consulte pacotes e revise o impacto de uma remoção por vez. A remoção real está bloqueada." Style="{DynamicResource PageSubtitle}"/>
-        <TextBlock Text="Inventário nativo Appx/MSIX" Style="{DynamicResource PaneTitle}" Margin="0,18,0,4" AutomationProperties.AutomationId="DebloatNativeInventoryTitle"/>
-        <TextBlock x:Name="NativeInventoryStatus" Text="Consulta ainda não executada. O inventário nativo é somente leitura."
+        <TextBlock Text="{DynamicResource T131}" FontSize="20" FontWeight="SemiBold"/>
+        <TextBlock Text="{DynamicResource T118}" Style="{DynamicResource PageSubtitle}"/>
+        <TextBlock Text="{DynamicResource T275}" Style="{DynamicResource PaneTitle}" Margin="0,18,0,4" AutomationProperties.AutomationId="DebloatNativeInventoryTitle"/>
+        <TextBlock x:Name="NativeInventoryStatus" Text="{DynamicResource T113}"
                    Style="{DynamicResource Caption}" AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="DebloatNativeInventoryStatus"/>
-        <TextBlock Text="Os escopos de outros usuários e de provisionamento dependem dos privilégios atuais."
+        <TextBlock Text="{DynamicResource T345}"
                    Style="{DynamicResource FootNote}" Margin="0,4,0,0" AutomationProperties.AutomationId="DebloatNativeInventoryStates"/>
         <TextBlock x:Name="NativeWarnings" Style="{DynamicResource Caption}" Foreground="{DynamicResource Warn}" Margin="0,8,0,0"
-                   Visibility="Collapsed" AutomationProperties.Name="Avisos do inventário Appx/MSIX"/>
+                   Visibility="Collapsed" AutomationProperties.Name="{DynamicResource T65}"/>
         <WrapPanel Margin="0,10,0,0">
-            <Button x:Name="NativeRefreshButton" Content="Consultar inventário" Style="{DynamicResource PrimaryButton}" IsEnabled="False"
+            <Button x:Name="NativeRefreshButton" Content="{DynamicResource T116}" Style="{DynamicResource PrimaryButton}" IsEnabled="False"
                     Margin="0,0,8,8" Click="OnNativeRefresh"/>
-            <Button x:Name="NativeCancelButton" Content="Cancelar consulta" Style="{DynamicResource GhostButton}" IsEnabled="False"
+            <Button x:Name="NativeCancelButton" Content="{DynamicResource T82}" Style="{DynamicResource GhostButton}" IsEnabled="False"
                     Margin="0,0,8,8" Click="OnNativeCancel"/>
         </WrapPanel>
         <WrapPanel Margin="0,6,0,6">
             <StackPanel Margin="0,0,12,8">
-                <TextBlock Text="Buscar pacote" Style="{DynamicResource Caption}" Margin="0,0,0,4"/>
-                <TextBox x:Name="NativeSearch" Width="222" Style="{DynamicResource SearchBox}" TextChanged="OnNativeFilter" AutomationProperties.Name="Buscar pacote Appx/MSIX"/>
+                <TextBlock Text="{DynamicResource T74}" Style="{DynamicResource Caption}" Margin="0,0,0,4"/>
+                <TextBox x:Name="NativeSearch" Width="222" Style="{DynamicResource SearchBox}" TextChanged="OnNativeFilter" AutomationProperties.Name="{DynamicResource T75}"/>
             </StackPanel>
             <StackPanel Margin="0,0,12,8">
-                <TextBlock Text="Categoria" Style="{DynamicResource Caption}" Margin="0,0,0,4"/>
-                <ComboBox x:Name="NativeCategory" Width="190" SelectionChanged="OnNativeFilter" AutomationProperties.Name="Categoria do pacote"/>
+                <TextBlock Text="{DynamicResource T88}" Style="{DynamicResource Caption}" Margin="0,0,0,4"/>
+                <ComboBox x:Name="NativeCategory" Width="190" SelectionChanged="OnNativeFilter" AutomationProperties.Name="{DynamicResource T90}"/>
             </StackPanel>
             <StackPanel Margin="0,0,12,8">
-                <TextBlock Text="Risco T0" Style="{DynamicResource Caption}" Margin="0,0,0,4"/>
-                <ComboBox x:Name="NativeRisk" Width="140" SelectionChanged="OnNativeFilter" AutomationProperties.Name="Risco do pacote"/>
+                <TextBlock Text="{DynamicResource T419}" Style="{DynamicResource Caption}" Margin="0,0,0,4"/>
+                <ComboBox x:Name="NativeRisk" Width="140" SelectionChanged="OnNativeFilter" AutomationProperties.Name="{DynamicResource T417}"/>
             </StackPanel>
             <StackPanel Margin="0,0,0,8">
-                <TextBlock Text="Escopo" Style="{DynamicResource Caption}" Margin="0,0,0,4"/>
-                <ComboBox x:Name="NativeScope" Width="195" SelectionChanged="OnNativeFilter" AutomationProperties.Name="Escopo do pacote"/>
+                <TextBlock Text="{DynamicResource T177}" Style="{DynamicResource Caption}" Margin="0,0,0,4"/>
+                <ComboBox x:Name="NativeScope" Width="195" SelectionChanged="OnNativeFilter" AutomationProperties.Name="{DynamicResource T178}"/>
             </StackPanel>
         </WrapPanel>
-        <TextBlock x:Name="NativeSummary" Text="Consulte o inventário para carregar a lista." Style="{DynamicResource Caption}" Margin="0,0,0,6"/>
-        <DataGrid x:Name="NativeGrid" Height="245" SelectionChanged="OnNativeSelection" AutomationProperties.Name="Pacotes Appx/MSIX observados">
+        <TextBlock x:Name="NativeSummary" Text="{DynamicResource T117}" Style="{DynamicResource Caption}" Margin="0,0,0,6"/>
+        <DataGrid x:Name="NativeGrid" Height="245" SelectionChanged="OnNativeSelection" AutomationProperties.Name="{DynamicResource T347}">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Aplicativo" Binding="{Binding Name}" Width="2*" MinWidth="190"/>
-                <DataGridTextColumn Header="Escopo" Binding="{Binding Scope}" Width="145"/>
-                <DataGridTextColumn Header="Categoria" Binding="{Binding Category}" Width="150"/>
-                <DataGridTextColumn Header="Risco T0" Binding="{Binding Risk}" Width="110"/>
-                <DataGridTextColumn Header="Elegibilidade" Binding="{Binding Eligibility}" Width="120"/>
+                <DataGridTextColumn Header="{DynamicResource T37}" Binding="{Binding Name}" Width="2*" MinWidth="190"/>
+                <DataGridTextColumn Header="{DynamicResource T177}" Binding="{Binding Scope}" Width="145"/>
+                <DataGridTextColumn Header="{DynamicResource T88}" Binding="{Binding Category}" Width="150"/>
+                <DataGridTextColumn Header="{DynamicResource T419}" Binding="{Binding Risk}" Width="110"/>
+                <DataGridTextColumn Header="{DynamicResource T172}" Binding="{Binding Eligibility}" Width="120"/>
             </DataGrid.Columns>
         </DataGrid>
-        <TextBlock Text="Detalhes do pacote" Style="{DynamicResource PaneTitle}" Margin="0,16,0,6"/>
-        <TextBox x:Name="NativeDetails" Style="{StaticResource DebloatReadout}" Height="160" Text="Selecione um pacote para consultar identidade, dependências e bloqueios."
-                 AutomationProperties.Name="Metadados e elegibilidade Appx/MSIX"/>
-        <Button x:Name="NativePreviewButton" Content="Ver prévia de remoção" Style="{DynamicResource GhostButton}" IsEnabled="False"
+        <TextBlock Text="{DynamicResource T150}" Style="{DynamicResource PaneTitle}" Margin="0,16,0,6"/>
+        <TextBox x:Name="NativeDetails" Style="{StaticResource DebloatReadout}" Height="160" Text="{DynamicResource T429}"
+                 AutomationProperties.Name="{DynamicResource T307}"/>
+        <Button x:Name="NativePreviewButton" Content="{DynamicResource T470}" Style="{DynamicResource GhostButton}" IsEnabled="False"
                 HorizontalAlignment="Left" Margin="0,8,0,0" Click="OnNativePreview"/>
         <TextBox x:Name="NativePreview" Style="{StaticResource DebloatReadout}" Margin="0,8,0,0" Visibility="Collapsed"
-                 AutomationProperties.Name="Prévia de remoção Appx/MSIX"/>
-        <Expander x:Name="SyntheticSection" Header="Catálogo e simulação de Debloat" Foreground="{DynamicResource Text}" Margin="0,18,0,0">
+                 AutomationProperties.Name="{DynamicResource T370}"/>
+        <Expander x:Name="SyntheticSection" Header="{DynamicResource T86}" Foreground="{DynamicResource Text}" Margin="0,18,0,0">
         <StackPanel>
         <Border Background="{DynamicResource WarnSoft}" BorderBrush="{DynamicResource WarnLine}" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,14,0,0">
             <StackPanel>
-                <TextBlock Text="SIMULAÇÃO — NENHUM APLICATIVO REAL SERÁ REMOVIDO." Foreground="{DynamicResource Warn}" FontSize="14" FontWeight="SemiBold" AutomationProperties.AutomationId="DebloatSyntheticBanner"/>
-                <TextBlock Text="Este fluxo usa fixtures. O inventário acima e o catálogo documental não autorizam remoção real." Style="{DynamicResource Caption}" Margin="0,6,0,0"/>
+                <TextBlock Text="{DynamicResource T441}" Foreground="{DynamicResource Warn}" FontSize="14" FontWeight="SemiBold" AutomationProperties.AutomationId="DebloatSyntheticBanner"/>
+                <TextBlock Text="{DynamicResource T188}" Style="{DynamicResource Caption}" Margin="0,6,0,0"/>
             </StackPanel>
         </Border>
         <Border Background="{DynamicResource SurfaceRaised}" BorderBrush="{DynamicResource Line}" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,12,0,0">
@@ -119,69 +119,69 @@
         </Border>
         <WrapPanel Margin="0,16,0,6">
             <StackPanel Margin="0,0,12,10">
-                <TextBlock Text="Buscar aplicativo" Style="{DynamicResource Caption}" Margin="0,0,0,5"/>
-                <TextBox x:Name="SearchText" Width="280" Style="{DynamicResource SearchBox}" TextChanged="OnFilterChanged" AutomationProperties.Name="Buscar aplicativo sintético" AutomationProperties.AutomationId="DebloatSearch"/>
+                <TextBlock Text="{DynamicResource T68}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/>
+                <TextBox x:Name="SearchText" Width="280" Style="{DynamicResource SearchBox}" TextChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T69}" AutomationProperties.AutomationId="DebloatSearch"/>
             </StackPanel>
             <StackPanel Margin="0,0,12,10">
-                <TextBlock Text="Filtro" Style="{DynamicResource Caption}" Margin="0,0,0,5"/>
-                <ComboBox x:Name="FilterCombo" Width="200" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Filtrar inventário sintético" AutomationProperties.AutomationId="DebloatFilter"/>
+                <TextBlock Text="{DynamicResource T212}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/>
+                <ComboBox x:Name="FilterCombo" Width="200" SelectionChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T209}" AutomationProperties.AutomationId="DebloatFilter"/>
             </StackPanel>
-            <Button x:Name="RefreshButton" Content="Atualizar inventário sintético" Style="{DynamicResource GhostButton}" VerticalAlignment="Bottom" Margin="0,0,0,10" Click="OnRefresh" AutomationProperties.AutomationId="RefreshDebloat"/>
+            <Button x:Name="RefreshButton" Content="{DynamicResource T47}" Style="{DynamicResource GhostButton}" VerticalAlignment="Bottom" Margin="0,0,0,10" Click="OnRefresh" AutomationProperties.AutomationId="RefreshDebloat"/>
         </WrapPanel>
-        <TextBlock Text="Catálogo de aplicativos" Style="{DynamicResource PaneTitle}" Margin="0,18,0,4" AutomationProperties.AutomationId="DebloatCatalogTitle"/>
-        <TextBlock Text="162 entradas documentais. Estar no catálogo não comprova presença nem ausência neste computador." Style="{DynamicResource Caption}" Margin="0,0,0,10"/>
-        <TextBlock Text="Inventário de aplicativos" Style="{DynamicResource PaneTitle}" Margin="0,0,0,4" AutomationProperties.AutomationId="DebloatInventoryTitle"/>
-        <TextBlock Text="Observações da fixture sintética. Nenhuma consulta a pacotes reais do Windows é realizada." Style="{DynamicResource Caption}" Margin="0,0,0,8"/>
-        <TextBlock x:Name="InventorySummary" Text="Inventário ainda não carregado." Style="{DynamicResource Caption}" Margin="0,0,0,8"/>
-        <DataGrid x:Name="InventoryGrid" Height="300" SelectionChanged="OnSelectionChanged" AutomationProperties.Name="Catálogo e inventário sintético de aplicativos" AutomationProperties.AutomationId="DebloatInventory">
+        <TextBlock Text="{DynamicResource T84}" Style="{DynamicResource PaneTitle}" Margin="0,18,0,4" AutomationProperties.AutomationId="DebloatCatalogTitle"/>
+        <TextBlock Text="{DynamicResource T0}" Style="{DynamicResource Caption}" Margin="0,0,0,10"/>
+        <TextBlock Text="{DynamicResource T272}" Style="{DynamicResource PaneTitle}" Margin="0,0,0,4" AutomationProperties.AutomationId="DebloatInventoryTitle"/>
+        <TextBlock Text="{DynamicResource T334}" Style="{DynamicResource Caption}" Margin="0,0,0,8"/>
+        <TextBlock x:Name="InventorySummary" Text="{DynamicResource T270}" Style="{DynamicResource Caption}" Margin="0,0,0,8"/>
+        <DataGrid x:Name="InventoryGrid" Height="300" SelectionChanged="OnSelectionChanged" AutomationProperties.Name="{DynamicResource T85}" AutomationProperties.AutomationId="DebloatInventory">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Aplicativo" Binding="{Binding Name}" Width="180"/>
-                <DataGridTextColumn Header="Editor" Binding="{Binding Publisher}" Width="180"/>
-                <DataGridTextColumn Header="Versão" Binding="{Binding Version}" Width="100"/>
-                <DataGridTextColumn Header="Categoria" Binding="{Binding Category}" Width="120"/>
-                <DataGridTextColumn Header="Origem do registro" Binding="{Binding Origin}" Width="170"/>
-                <DataGridTextColumn Header="Presença no inventário" Binding="{Binding State}" Width="250"/>
-                <DataGridTextColumn Header="Risco efetivo" Binding="{Binding Risk}" Width="115"/>
-                <DataGridTextColumn Header="Dependências" Binding="{Binding Dependencies}" Width="140"/>
-                <DataGridTextColumn Header="Elegibilidade" Binding="{Binding Eligibility}" Width="280"/>
+                <DataGridTextColumn Header="{DynamicResource T37}" Binding="{Binding Name}" Width="180"/>
+                <DataGridTextColumn Header="{DynamicResource T171}" Binding="{Binding Publisher}" Width="180"/>
+                <DataGridTextColumn Header="{DynamicResource T471}" Binding="{Binding Version}" Width="100"/>
+                <DataGridTextColumn Header="{DynamicResource T88}" Binding="{Binding Category}" Width="120"/>
+                <DataGridTextColumn Header="{DynamicResource T342}" Binding="{Binding Origin}" Width="170"/>
+                <DataGridTextColumn Header="{DynamicResource T368}" Binding="{Binding State}" Width="250"/>
+                <DataGridTextColumn Header="{DynamicResource T418}" Binding="{Binding Risk}" Width="115"/>
+                <DataGridTextColumn Header="{DynamicResource T134}" Binding="{Binding Dependencies}" Width="140"/>
+                <DataGridTextColumn Header="{DynamicResource T172}" Binding="{Binding Eligibility}" Width="280"/>
             </DataGrid.Columns>
         </DataGrid>
-        <TextBlock Text="Use a rolagem horizontal para consultar todas as colunas. Selecione uma linha para abrir os detalhes." Style="{DynamicResource FootNote}" Margin="0,6,0,0"/>
-        <TextBlock Text="Aplicativo selecionado" Style="{DynamicResource PaneTitle}" Margin="0,20,0,8"/>
-        <TextBox x:Name="DetailsText" Style="{StaticResource DebloatReadout}" Text="Selecione um aplicativo no inventário sintético." AutomationProperties.Name="Identidade, riscos e limitações do aplicativo" AutomationProperties.AutomationId="DebloatDetails"/>
-        <TextBlock Text="Preparar simulação individual" Style="{DynamicResource PaneTitle}" Margin="0,20,0,8"/>
+        <TextBlock Text="{DynamicResource T467}" Style="{DynamicResource FootNote}" Margin="0,6,0,0"/>
+        <TextBlock Text="{DynamicResource T38}" Style="{DynamicResource PaneTitle}" Margin="0,20,0,8"/>
+        <TextBox x:Name="DetailsText" Style="{StaticResource DebloatReadout}" Text="{DynamicResource T426}" AutomationProperties.Name="{DynamicResource T254}" AutomationProperties.AutomationId="DebloatDetails"/>
+        <TextBlock Text="{DynamicResource T366}" Style="{DynamicResource PaneTitle}" Margin="0,20,0,8"/>
         <WrapPanel>
             <StackPanel Margin="0,0,12,10">
-                <TextBlock Text="Cenário sintético" Style="{DynamicResource Caption}" Margin="0,0,0,5"/>
-                <ComboBox x:Name="ScenarioCombo" Width="280" DisplayMemberPath="Label" SelectionChanged="OnPlanInputChanged" AutomationProperties.Name="Cenário sintético" AutomationProperties.AutomationId="DebloatScenario"/>
+                <TextBlock Text="{DynamicResource T92}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/>
+                <ComboBox x:Name="ScenarioCombo" Width="280" DisplayMemberPath="Label" SelectionChanged="OnPlanInputChanged" AutomationProperties.Name="{DynamicResource T92}" AutomationProperties.AutomationId="DebloatScenario"/>
             </StackPanel>
-            <Button x:Name="PrepareButton" Content="Preparar plano simulado" Style="{DynamicResource GhostButton}" VerticalAlignment="Bottom" Margin="0,0,0,10" IsEnabled="False" Click="OnPrepare" AutomationProperties.AutomationId="PrepareDebloat"/>
+            <Button x:Name="PrepareButton" Content="{DynamicResource T365}" Style="{DynamicResource GhostButton}" VerticalAlignment="Bottom" Margin="0,0,0,10" IsEnabled="False" Click="OnPrepare" AutomationProperties.AutomationId="PrepareDebloat"/>
         </WrapPanel>
-        <CheckBox x:Name="MediumReviewCheck" Foreground="{DynamicResource Text}" Content="Revisei riscos, consequências e limites deste aplicativo de risco médio." Checked="OnPlanInputChanged" Unchecked="OnPlanInputChanged" Margin="0,0,0,12" AutomationProperties.Name="Confirmar revisão individual de risco médio" AutomationProperties.AutomationId="DebloatMediumReview"/>
-        <TextBox x:Name="PlanText" Style="{StaticResource DebloatReadout}" Height="250" Text="Prepare um plano após revisar os detalhes. Alterações de aplicativo, cenário ou revisão invalidam o plano." AutomationProperties.Name="Plano simulado de Debloat" AutomationProperties.AutomationId="DebloatPlan"/>
-        <TextBlock x:Name="ConfirmationHint" Text="A confirmação exata será exibida após preparar um plano elegível." Style="{DynamicResource Caption}" Margin="0,12,0,6" AutomationProperties.AutomationId="DebloatConfirmationHint"/>
+        <CheckBox x:Name="MediumReviewCheck" Foreground="{DynamicResource Text}" Content="{DynamicResource T415}" Checked="OnPlanInputChanged" Unchecked="OnPlanInputChanged" Margin="0,0,0,12" AutomationProperties.Name="{DynamicResource T111}" AutomationProperties.AutomationId="DebloatMediumReview"/>
+        <TextBox x:Name="PlanText" Style="{StaticResource DebloatReadout}" Height="250" Text="{DynamicResource T367}" AutomationProperties.Name="{DynamicResource T359}" AutomationProperties.AutomationId="DebloatPlan"/>
+        <TextBlock x:Name="ConfirmationHint" Text="{DynamicResource T3}" Style="{DynamicResource Caption}" Margin="0,12,0,6" AutomationProperties.AutomationId="DebloatConfirmationHint"/>
         <WrapPanel>
-            <TextBox x:Name="ConfirmationText" Width="400" Height="38" Padding="12,8" IsReadOnly="False" TextWrapping="NoWrap" AcceptsReturn="False" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Auto" Margin="0,0,10,10" TextChanged="OnConfirmationChanged" IsEnabled="False" AutomationProperties.Name="Digite a confirmação exata do plano simulado" AutomationProperties.AutomationId="DebloatConfirmation"/>
-            <Button x:Name="ExecuteButton" Content="Autorizar e executar simulação" Style="{DynamicResource PrimaryButton}" Margin="0,0,10,10" IsEnabled="False" Click="OnExecute" AutomationProperties.AutomationId="ExecuteDebloatSynthetic"/>
-            <Button x:Name="CancelButton" Content="Cancelar" Margin="0,0,0,10" IsEnabled="False" Click="OnCancel" AutomationProperties.AutomationId="CancelDebloat"/>
+            <TextBox x:Name="ConfirmationText" Width="400" Height="38" Padding="12,8" IsReadOnly="False" TextWrapping="NoWrap" AcceptsReturn="False" VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Auto" Margin="0,0,10,10" TextChanged="OnConfirmationChanged" IsEnabled="False" AutomationProperties.Name="{DynamicResource T161}" AutomationProperties.AutomationId="DebloatConfirmation"/>
+            <Button x:Name="ExecuteButton" Content="{DynamicResource T62}" Style="{DynamicResource PrimaryButton}" Margin="0,0,10,10" IsEnabled="False" Click="OnExecute" AutomationProperties.AutomationId="ExecuteDebloatSynthetic"/>
+            <Button x:Name="CancelButton" Content="{DynamicResource T79}" Margin="0,0,0,10" IsEnabled="False" Click="OnCancel" AutomationProperties.AutomationId="CancelDebloat"/>
         </WrapPanel>
-        <ProgressBar x:Name="BusyProgress" Height="4" Visibility="Collapsed" IsIndeterminate="True" AutomationProperties.Name="Operação sintética em andamento"/>
-        <TextBlock x:Name="StatusText" Text="Simulação com fixtures." Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="DebloatStatus"/>
+        <ProgressBar x:Name="BusyProgress" Height="4" Visibility="Collapsed" IsIndeterminate="True" AutomationProperties.Name="{DynamicResource T337}"/>
+        <TextBlock x:Name="StatusText" Text="{DynamicResource T442}" Margin="0,4,0,0" AutomationProperties.LiveSetting="Polite" AutomationProperties.AutomationId="DebloatStatus"/>
         </StackPanel>
         </Expander>
         <DockPanel Margin="0,22,0,8" LastChildFill="False">
-            <TextBlock Text="Histórico de Debloat" Style="{DynamicResource PaneTitle}" VerticalAlignment="Center"/>
-            <Button x:Name="OpenRecoveryButton" Content="Abrir Central de Recuperação" DockPanel.Dock="Right" Style="{DynamicResource GhostButton}"
+            <TextBlock Text="{DynamicResource T231}" Style="{DynamicResource PaneTitle}" VerticalAlignment="Center"/>
+            <Button x:Name="OpenRecoveryButton" Content="{DynamicResource T10}" DockPanel.Dock="Right" Style="{DynamicResource GhostButton}"
                     Margin="8,0,0,0" Click="OnOpenRecovery"/>
         </DockPanel>
         <TextBlock x:Name="HistorySummary" Style="{DynamicResource Caption}" Margin="0,0,0,8"/>
-        <ListBox x:Name="HistoryList" Height="180" SelectionMode="Single" DisplayMemberPath="Label" SelectionChanged="OnHistorySelected" AutomationProperties.Name="Histórico local de simulações de Debloat" AutomationProperties.AutomationId="DebloatHistory"/>
+        <ListBox x:Name="HistoryList" Height="180" SelectionMode="Single" DisplayMemberPath="Label" SelectionChanged="OnHistorySelected" AutomationProperties.Name="{DynamicResource T246}" AutomationProperties.AutomationId="DebloatHistory"/>
         <TextBlock x:Name="HistoryWarnings" Foreground="{DynamicResource Warn}" Margin="0,6,0,0" AutomationProperties.AutomationId="DebloatHistoryWarnings"/>
-        <TextBox x:Name="HistoryDetails" Style="{StaticResource DebloatReadout}" Height="190" Margin="0,8,0,0" Text="Selecione uma simulação para consultar identidade, estado e limitações persistidas." AutomationProperties.Name="Detalhes da simulação histórica" AutomationProperties.AutomationId="DebloatHistoryDetails"/>
-        <TextBlock Text="Reinstalação — informação documental" Style="{DynamicResource PaneTitle}" Margin="0,20,0,8"/>
-        <TextBlock x:Name="ReinstallText" Text="Selecione um aplicativo ou registro do histórico para consultar as informações disponíveis." AutomationProperties.AutomationId="DebloatReinstallInformation"/>
-        <TextBlock Text="Reinstalação não equivale a rollback. Dados, preferências, licenças, contas e integrações não possuem recuperação garantida." Foreground="{DynamicResource Warn}" Margin="0,8,0,0"/>
-        <TextBlock Text="Entradas do catálogo sem observação de inventário aparecem como “Não verificado — inventário real indisponível”. Nenhuma linha afirma ausência sem consulta efetiva ao Windows." Style="{DynamicResource FootNote}" Margin="0,20,0,0"/>
-        <TextBlock Text="Referência: Win11Debloat, Raphire, licença MIT. Nenhum script upstream é executado. Aviso integral em THIRD-PARTY-NOTICES.md." Style="{DynamicResource FootNote}" Margin="0,8,0,0"/>
+        <TextBox x:Name="HistoryDetails" Style="{StaticResource DebloatReadout}" Height="190" Margin="0,8,0,0" Text="{DynamicResource T433}" AutomationProperties.Name="{DynamicResource T148}" AutomationProperties.AutomationId="DebloatHistoryDetails"/>
+        <TextBlock Text="{DynamicResource T394}" Style="{DynamicResource PaneTitle}" Margin="0,20,0,8"/>
+        <TextBlock x:Name="ReinstallText" Text="{DynamicResource T427}" AutomationProperties.AutomationId="DebloatReinstallInformation"/>
+        <TextBlock Text="{DynamicResource T395}" Foreground="{DynamicResource Warn}" Margin="0,8,0,0"/>
+        <TextBlock Text="{DynamicResource T176}" Style="{DynamicResource FootNote}" Margin="0,20,0,0"/>
+        <TextBlock Text="{DynamicResource T389}" Style="{DynamicResource FootNote}" Margin="0,8,0,0"/>
     </StackPanel>
 </UserControl>

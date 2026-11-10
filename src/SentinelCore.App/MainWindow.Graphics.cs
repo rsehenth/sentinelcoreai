@@ -7,6 +7,7 @@ using SentinelCore.Application;
 using SentinelCore.Domain;
 using SentinelCore.Infrastructure.Windows;
 using SentinelCore.Persistence;
+using SentinelCore.App.Localization;
 
 namespace SentinelCore.App;
 
@@ -95,34 +96,34 @@ public partial class MainWindow
         GraphicsProgress.Value = coverage.CompletedSources;
 
         GraphicsStatusText.Text =
-            $"Investigação de {Local(investigation.CompletedUtc)} · {GraphicsStatusName(investigation.Status)} · " +
-            $"execução {GraphicsExecutionName(coverage.Execution)} · cobertura {GraphicsCoverageName(coverage.Status)} · " +
-            $"{coverage.CompletedSources}/{coverage.ExpectedSources} fontes · ID {investigation.Id:D}" +
-            (persisted ? string.Empty : " · não confirmada na memória local");
+            Loc.F($"Investigação de {Local(investigation.CompletedUtc)} · {GraphicsStatusName(investigation.Status)} · ") +
+            Loc.F($"execução {GraphicsExecutionName(coverage.Execution)} · cobertura {GraphicsCoverageName(coverage.Status)} · ") +
+            Loc.F($"{coverage.CompletedSources}/{coverage.ExpectedSources} fontes · ID {investigation.Id:D}") +
+            (persisted ? string.Empty : Loc.T(" · não confirmada na memória local"));
 
         GraphicsAdapterValue.Text = investigation.Adapters.Count.ToString(CultureInfo.CurrentCulture);
         GraphicsAdapterDetail.Text = investigation.Adapters.Count == 0
-            ? "nenhum adaptador enumerado"
-            : string.Join(", ", investigation.Adapters.Take(2).Select(adapter => adapter.Name ?? "adaptador"));
+            ? Loc.T("nenhum adaptador enumerado")
+            : string.Join(", ", investigation.Adapters.Take(2).Select(adapter => adapter.Name ?? Loc.T("adaptador")));
 
         GraphicsMonitorValue.Text = investigation.Monitors.Count.ToString(CultureInfo.CurrentCulture);
         var activeMonitor = investigation.Monitors.FirstOrDefault(monitor => monitor.Width is > 0 && monitor.Height is > 0);
         GraphicsMonitorDetail.Text = activeMonitor is null
-            ? "nenhuma resolução ativa confirmada"
-            : $"{activeMonitor.Width}×{activeMonitor.Height}" +
-              (activeMonitor.RefreshHz is null ? string.Empty : $" · {activeMonitor.RefreshHz} Hz");
+            ? Loc.T("nenhuma resolução ativa confirmada")
+            : Loc.F($"{activeMonitor.Width}×{activeMonitor.Height}") +
+              (activeMonitor.RefreshHz is null ? string.Empty : Loc.F($" · {activeMonitor.RefreshHz} Hz"));
 
         GraphicsEventValue.Text = investigation.Events.Count.ToString(CultureInfo.CurrentCulture);
-        GraphicsEventDetail.Text = $"{investigation.WerReports.Count} relatório(s) WER · " +
-            $"{investigation.Observations.Count} observação(ões)";
+        GraphicsEventDetail.Text = Loc.F($"{investigation.WerReports.Count} relatório(s) WER · ") +
+            Loc.F($"{investigation.Observations.Count} observação(ões)");
 
         var tdr = investigation.Events.Count(item => item.Kind == GraphicsEventKind.DisplayDriverReset);
         var liveKernel = GraphicsEvidenceClassification.CountLiveKernelReports(investigation.WerReports);
         GraphicsTdrValue.Text = tdr.ToString(CultureInfo.CurrentCulture);
         GraphicsTdrDetail.Text =
-            $"TDR Display {GraphicsEvidenceClassification.DisplayDriverResetEventId} · " +
-            $"{liveKernel} LiveKernelEvent(s) " +
-            $"{string.Join("/", GraphicsEvidenceClassification.LiveKernelProblemCodes)}";
+            Loc.F($"TDR Display {GraphicsEvidenceClassification.DisplayDriverResetEventId} · ") +
+            Loc.F($"{liveKernel} LiveKernelEvent(s) ") +
+            Loc.F($"{string.Join("/", GraphicsEvidenceClassification.LiveKernelProblemCodes)}");
 
         GraphicsAdapterList.ItemsSource = investigation.Adapters.Select(item => new GraphicsAdapterRow(item)).ToArray();
         GraphicsMonitorList.ItemsSource = investigation.Monitors.Select(item => new GraphicsMonitorRow(item)).ToArray();
@@ -152,16 +153,16 @@ public partial class MainWindow
         GraphicsProgress.Maximum = 1;
         GraphicsProgress.Value = 0;
         GraphicsStatusText.Text =
-            "Nenhuma investigação gráfica selecionada. A coleta é somente de leitura e não altera drivers, " +
-            "resolução, HDR, frequência ou energia.";
+            Loc.T("Nenhuma investigação gráfica selecionada. A coleta é somente de leitura e não altera drivers, ") +
+            Loc.T("resolução, HDR, frequência ou energia.");
         GraphicsAdapterValue.Text = "—";
-        GraphicsAdapterDetail.Text = "adaptadores enumerados";
+        GraphicsAdapterDetail.Text = Loc.T("adaptadores enumerados");
         GraphicsMonitorValue.Text = "—";
-        GraphicsMonitorDetail.Text = "monitores ativos";
+        GraphicsMonitorDetail.Text = Loc.T("monitores ativos");
         GraphicsEventValue.Text = "—";
-        GraphicsEventDetail.Text = "eventos e metadados WER";
+        GraphicsEventDetail.Text = Loc.T("eventos e metadados WER");
         GraphicsTdrValue.Text = "—";
-        GraphicsTdrDetail.Text = "TDR e LiveKernelEvent";
+        GraphicsTdrDetail.Text = Loc.T("TDR e LiveKernelEvent");
         GraphicsAdapterList.ItemsSource = null;
         GraphicsMonitorList.ItemsSource = null;
         GraphicsDriverList.ItemsSource = null;
@@ -171,51 +172,51 @@ public partial class MainWindow
         GraphicsObservationList.ItemsSource = null;
         updatingGraphics = false;
         GraphicsObservationDetail.Text =
-            "Nenhuma observação gráfica selecionada. Um evento não confirma causa, defeito físico ou correlação " +
-            "com tela preta.";
+            Loc.T("Nenhuma observação gráfica selecionada. Um evento não confirma causa, defeito físico ou correlação ") +
+            Loc.T("com tela preta.");
         UpdateGraphicsButtons();
     }
 
     private static string BuildGraphicsSummaryText(GraphicsInvestigation investigation)
     {
         var text = new StringBuilder();
-        text.AppendLine("Nenhuma observação sustentada nesta investigação.");
-        text.AppendLine("Causalidade não avaliada.");
+        text.AppendLine(Loc.T("Nenhuma observação sustentada nesta investigação."));
+        text.AppendLine(Loc.T("Causalidade não avaliada."));
         text.AppendLine();
-        text.AppendLine($"Adaptadores: {investigation.Adapters.Count} · monitores: {investigation.Monitors.Count} · " +
-            $"drivers: {investigation.Drivers.Count} · eventos: {investigation.Events.Count} · " +
-            $"WER: {investigation.WerReports.Count}");
-        text.AppendLine($"Execução: {GraphicsExecutionName(investigation.Coverage.Execution)} · " +
-            $"cobertura: {GraphicsCoverageName(investigation.Coverage.Status)}");
+        text.AppendLine(Loc.F($"Adaptadores: {investigation.Adapters.Count} · monitores: {investigation.Monitors.Count} · ") +
+            Loc.F($"drivers: {investigation.Drivers.Count} · eventos: {investigation.Events.Count} · ") +
+            Loc.F($"WER: {investigation.WerReports.Count}"));
+        text.AppendLine(Loc.F($"Execução: {GraphicsExecutionName(investigation.Coverage.Execution)} · ") +
+            Loc.F($"cobertura: {GraphicsCoverageName(investigation.Coverage.Status)}"));
 
         var truncatedMessages = investigation.Events.Count(item => item.MessageTruncated);
         if (truncatedMessages > 0)
-            text.AppendLine($"Mensagens truncadas: {truncatedMessages} de {investigation.Events.Count}. " +
-                "O texto exibido é parcial; o conteúdo ausente não foi reconstruído.");
+            text.AppendLine(Loc.F($"Mensagens truncadas: {truncatedMessages} de {investigation.Events.Count}. ") +
+                Loc.T("O texto exibido é parcial; o conteúdo ausente não foi reconstruído."));
 
         if (investigation.Changes.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Alterações observadas");
+            text.AppendLine(Loc.T("Alterações observadas"));
             foreach (var change in investigation.Changes)
-                text.AppendLine($"• {GraphicsChangeTypeName(change.Type)}: {change.SubjectName ?? change.Subject}" +
-                    (change.Field is null ? string.Empty : $" · {change.Field}: {change.Before ?? "—"} → {change.After ?? "—"}"));
+                text.AppendLine(Loc.F($"• {GraphicsChangeTypeName(change.Type)}: {change.SubjectName ?? change.Subject}") +
+                    (change.Field is null ? string.Empty : Loc.F($" · {change.Field}: {change.Before ?? "—"} → {change.After ?? "—"}")));
         }
 
         if (investigation.AnalysisNotes.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Notas de análise");
+            text.AppendLine(Loc.T("Notas de análise"));
             foreach (var note in investigation.AnalysisNotes)
-                text.AppendLine($"• {note.RuleId}: {note.Detail}");
+                text.AppendLine(Loc.F($"• {note.RuleId}: {note.Detail}"));
         }
 
         if (investigation.Limitations.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Limitações");
+            text.AppendLine(Loc.T("Limitações"));
             foreach (var limitation in investigation.Limitations)
-                text.AppendLine($"• {limitation}");
+                text.AppendLine(Loc.F($"• {limitation}"));
         }
 
         return text.ToString();
@@ -240,25 +241,25 @@ public partial class MainWindow
             UpdateNetworkButtons();
             UpdateHardwareButtons();
             UpdateEventButtons();
-            GraphicsStatusText.Text = "Tentando salvar novamente a investigação pendente…";
+            GraphicsStatusText.Text = Loc.T("Tentando salvar novamente a investigação pendente…");
             try
             {
                 var pending = unsavedGraphics;
                 await graphicsStore.SaveGraphicsInvestigationAsync(pending, CancellationToken.None);
                 unsavedGraphics = null;
                 await ReloadGraphicsAsync(pending.Id);
-                GraphicsStatusText.Text = "Investigação pendente salva novamente.";
+                GraphicsStatusText.Text = Loc.T("Investigação pendente salva novamente.");
             }
             catch (Exception error)
             {
-                ShowGraphicsFailure("Falha de gravação da investigação. O resultado permanece nesta janela; " +
-                    "tente salvar novamente", error);
+                ShowGraphicsFailure(Loc.T("Falha de gravação da investigação. O resultado permanece nesta janela; ") +
+                    Loc.T("tente salvar novamente"), error);
             }
             finally
             {
                 graphicsBusy = false;
                 graphicsSaving = false;
-                GraphicsRunButton.Content = unsavedGraphics is null ? "Investigar gráficos" : "Tentar salvar investigação";
+                GraphicsRunButton.Content = unsavedGraphics is null ? Loc.T("Investigar gráficos") : Loc.T("Tentar salvar investigação");
                 UpdateGraphicsButtons();
                 UpdatePerformanceButtons();
                 UpdateNetworkButtons();
@@ -275,7 +276,7 @@ public partial class MainWindow
         graphicsBusy = true;
         graphicsSaving = false;
         graphicsCancellation = new CancellationTokenSource();
-        GraphicsRunButton.Content = "Investigar gráficos";
+        GraphicsRunButton.Content = Loc.T("Investigar gráficos");
         GraphicsProgress.Minimum = 0;
         GraphicsProgress.Maximum = 1;
         GraphicsProgress.Value = 0;
@@ -288,7 +289,7 @@ public partial class MainWindow
         var saved = false;
         try
         {
-            GraphicsStatusText.Text = "Investigação gráfica em andamento. Leitura somente; nenhuma configuração será alterada.";
+            GraphicsStatusText.Text = Loc.T("Investigação gráfica em andamento. Leitura somente; nenhuma configuração será alterada.");
             var progress = new Progress<GraphicsProgress>(OnGraphicsProgress);
             var request = new GraphicsInvestigationRequest(SelectedGraphicsWindow());
             var investigation = await graphicsRunner.RunAsync(request, previous, progress,
@@ -297,16 +298,16 @@ public partial class MainWindow
             ApplyGraphicsInvestigation(investigation);
             graphicsSaving = true;
             UpdateGraphicsButtons();
-            GraphicsStatusText.Text = "Salvando investigação e relatório na memória local…";
+            GraphicsStatusText.Text = Loc.T("Salvando investigação e relatório na memória local…");
             await graphicsStore.SaveGraphicsInvestigationAsync(investigation, CancellationToken.None);
             saved = true;
             unsavedGraphics = null;
             await ReloadGraphicsAsync(investigation.Id);
             GraphicsStatusText.Text =
-                $"Investigação {GraphicsStatusName(investigation.Status).ToLowerInvariant()} salva. " +
-                $"{investigation.Adapters.Count} adaptador(es), {investigation.Monitors.Count} monitor(es), " +
-                $"{investigation.Events.Count} evento(s), {investigation.WerReports.Count} relatório(s) WER, " +
-                $"{investigation.Observations.Count} observação(ões). Causalidade não avaliada.";
+                Loc.F($"Investigação {GraphicsStatusName(investigation.Status).ToLowerInvariant()} salva. ") +
+                Loc.F($"{investigation.Adapters.Count} adaptador(es), {investigation.Monitors.Count} monitor(es), ") +
+                Loc.F($"{investigation.Events.Count} evento(s), {investigation.WerReports.Count} relatório(s) WER, ") +
+                Loc.F($"{investigation.Observations.Count} observação(ões). Causalidade não avaliada.");
         }
         catch (Exception error)
         {
@@ -323,7 +324,7 @@ public partial class MainWindow
             graphicsSaving = false;
             graphicsCancellation?.Dispose();
             graphicsCancellation = null;
-            GraphicsRunButton.Content = unsavedGraphics is null ? "Investigar gráficos" : "Tentar salvar investigação";
+            GraphicsRunButton.Content = unsavedGraphics is null ? Loc.T("Investigar gráficos") : Loc.T("Tentar salvar investigação");
             UpdateGraphicsButtons();
             UpdatePerformanceButtons();
             UpdateNetworkButtons();
@@ -339,7 +340,7 @@ public partial class MainWindow
     {
         graphicsCancellation?.Cancel();
         GraphicsCancelButton.IsEnabled = false;
-        GraphicsStatusText.Text = "Cancelamento solicitado. Aguardando a leitura gráfica em andamento…";
+        GraphicsStatusText.Text = Loc.T("Cancelamento solicitado. Aguardando a leitura gráfica em andamento…");
     }
 
     private async void OnGraphicsReport(object sender, RoutedEventArgs e)
@@ -352,7 +353,7 @@ public partial class MainWindow
         }
         catch (Exception error)
         {
-            ShowGraphicsFailure("Não foi possível abrir a localização do relatório gráfico", error);
+            ShowGraphicsFailure(Loc.T("Não foi possível abrir a localização do relatório gráfico"), error);
         }
         finally
         {
@@ -377,8 +378,8 @@ public partial class MainWindow
         if (graphicsSaving) return;
         GraphicsProgress.Maximum = Math.Max(1, update.Total);
         GraphicsProgress.Value = update.Finished;
-        GraphicsStatusText.Text = $"{update.Phase}: {update.SourceId} — {GraphicsSourceStatusName(update.Status)} · " +
-            $"{update.Finished}/{update.Total} fonte(s) · leitura somente";
+        GraphicsStatusText.Text = Loc.F($"{update.Phase}: {update.SourceId} — {GraphicsSourceStatusName(update.Status)} · ") +
+            Loc.F($"{update.Finished}/{update.Total} fonte(s) · leitura somente");
     }
 
     private void OnGraphicsHistorySelected(object sender, SelectionChangedEventArgs e)
@@ -402,28 +403,28 @@ public partial class MainWindow
         var observation = row.Observation;
         var text = new StringBuilder();
         text.AppendLine(observation.Title);
-        text.AppendLine($"Regra: {observation.RuleId} {observation.RuleVersion} · tipo: " +
-            $"{GraphicsObservationKindName(observation.Kind)}");
-        text.AppendLine($"Severidade: {EventCatalog.SeverityName(observation.Severity)} · " +
-            $"confiança: {EventCatalog.ConfidenceName(observation.Confidence)} · causalidade: não avaliada");
+        text.AppendLine(Loc.F($"Regra: {observation.RuleId} {observation.RuleVersion} · tipo: ") +
+            Loc.F($"{GraphicsObservationKindName(observation.Kind)}"));
+        text.AppendLine(Loc.F($"Severidade: {EventCatalog.SeverityName(observation.Severity)} · ") +
+            Loc.F($"confiança: {EventCatalog.ConfidenceName(observation.Confidence)} · causalidade: não avaliada"));
         text.AppendLine();
         text.AppendLine(observation.Statement);
         text.AppendLine();
-        text.AppendLine($"Métrica: {observation.Metric}" +
+        text.AppendLine(Loc.F($"Métrica: {observation.Metric}") +
             (observation.ObservedValue is { } value
-                ? $" · valor: {value.ToString("0.###", CultureInfo.CurrentCulture)} {observation.Unit}"
+                ? Loc.F($" · valor: {value.ToString("0.###", CultureInfo.CurrentCulture)} {observation.Unit}")
                 : string.Empty));
-        text.AppendLine($"Janela solicitada: {Local(observation.WindowFromUtc)} até {Local(observation.WindowToUtc)}");
-        text.AppendLine($"Primeira observação: {Local(observation.FirstObservedUtc)}");
-        text.AppendLine($"Última observação: {Local(observation.LastObservedUtc)}");
-        text.AppendLine($"Evidências de suporte: {observation.EvidenceCount}");
-        text.AppendLine($"Fonte: {observation.Source}");
+        text.AppendLine(Loc.F($"Janela solicitada: {Local(observation.WindowFromUtc)} até {Local(observation.WindowToUtc)}"));
+        text.AppendLine(Loc.F($"Primeira observação: {Local(observation.FirstObservedUtc)}"));
+        text.AppendLine(Loc.F($"Última observação: {Local(observation.LastObservedUtc)}"));
+        text.AppendLine(Loc.F($"Evidências de suporte: {observation.EvidenceCount}"));
+        text.AppendLine(Loc.F($"Fonte: {observation.Source}"));
         if (observation.Limitations.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Limitações");
+            text.AppendLine(Loc.T("Limitações"));
             foreach (var limitation in observation.Limitations)
-                text.AppendLine($"• {limitation}");
+                text.AppendLine(Loc.F($"• {limitation}"));
         }
 
         GraphicsObservationDetail.Text = text.ToString();
@@ -447,7 +448,7 @@ public partial class MainWindow
     {
         logFailure(error);
         GraphicsStatusText.Text = message + ".";
-        ShowWarning($"{message}. {error.GetType().Name}: {error.Message}");
+        ShowWarning(Loc.F($"{message}. {error.GetType().Name}: {error.Message}"));
     }
 
     private static string GraphicsStatusName(GraphicsInvestigationStatus status) => status switch

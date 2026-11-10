@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 using SentinelCore.Application;
 using SentinelCore.Domain;
+using SentinelCore.App.Localization;
 
 namespace SentinelCore.App;
 
@@ -23,8 +24,8 @@ public partial class MainWindow
     {
         if (tweaks is null)
         {
-            TweaksModeText.Text = "Personalização indisponível nesta composição.";
-            TweaksModeDetail.Text = "Nenhum motor de tweaks foi composto.";
+            TweaksModeText.Text = Loc.T("Personalização indisponível nesta composição.");
+            TweaksModeDetail.Text = Loc.T("Nenhum motor de tweaks foi composto.");
             TweaksRefreshButton.IsEnabled = false;
             TweakSearchModeCombo.IsEnabled = false;
             TweakSearchModePrepareButton.IsEnabled = false;
@@ -47,8 +48,8 @@ public partial class MainWindow
                 "e não é executada no computador de desenvolvimento.")
         };
         TweaksSubtitle.Text = tweaks.RealExecutionEnabled
-            ? $"{tweaks.Operations.Count} operações HKCU · backup obrigatório · rollback pelo estado observado."
-            : $"{tweaks.Operations.Count} operações HKCU em modo de leitura/simulação · escrita real indisponível.";
+            ? Loc.F($"{tweaks.Operations.Count} operações HKCU · backup obrigatório · rollback pelo estado observado.")
+            : Loc.F($"{tweaks.Operations.Count} operações HKCU em modo de leitura/simulação · escrita real indisponível.");
         Pages.SelectionChanged += OnTweaksPageSelectionChanged;
         UpdateTweakButtons();
     }
@@ -89,7 +90,7 @@ public partial class MainWindow
         tweaksBusy = true;
         tweakSimulation = null;
         TweakConfirmationText.Text = string.Empty;
-        TweakDetailsText.Text = "Lendo o estado atual do perfil…";
+        TweakDetailsText.Text = Loc.T("Lendo o estado atual do perfil…");
         UpdateTweakButtons();
         try
         {
@@ -101,14 +102,14 @@ public partial class MainWindow
             await ReloadSearchModeAsync();
             await ReloadTweakHistoryAsync(selectTransaction);
             tweaksLoaded = true;
-            TweakDetailsText.Text = "Selecione 'Detalhes' em um cartão para ler o estado atual e simular o plano.";
-            TweakStatusText.Text = status ?? "Estado atual lido. Selecione 'Detalhes' para simular o plano.";
+            TweakDetailsText.Text = Loc.T("Selecione 'Detalhes' em um cartão para ler o estado atual e simular o plano.");
+            TweakStatusText.Text = status ?? Loc.T("Estado atual lido. Selecione 'Detalhes' para simular o plano.");
             ScrollTweaksToTop();
         }
         catch (Exception error)
         {
-            ShowFailure("Não foi possível ler o estado dos tweaks", error);
-            TweakStatusText.Text = "Falha ao ler o estado; nenhuma escrita foi executada.";
+            ShowFailure(Loc.T("Não foi possível ler o estado dos tweaks"), error);
+            TweakStatusText.Text = Loc.T("Falha ao ler o estado; nenhuma escrita foi executada.");
         }
         finally
         {
@@ -154,15 +155,15 @@ public partial class MainWindow
             TweakSearchModeCombo.SelectedItem = searchModeState.ObservedMode is { } observed
                 ? options.FirstOrDefault(option => option.Mode == observed)
                 : null;
-            TweakSearchModeStatus.Text = "Modo observado: " + searchModeState.ObservedLabel +
+            TweakSearchModeStatus.Text = Loc.T("Modo observado: ") + searchModeState.ObservedLabel +
                 (searchModeState.Limitation is null ? string.Empty : " · " + searchModeState.Limitation) +
-                " · selecionar não altera o Windows.";
+                Loc.T(" · selecionar não altera o Windows.");
         }
         catch (Exception error)
         {
             searchModeState = null;
             TweakSearchModeCombo.ItemsSource = null;
-            TweakSearchModeStatus.Text = "Modo de pesquisa indisponível: " + error.Message;
+            TweakSearchModeStatus.Text = Loc.T("Modo de pesquisa indisponível: ") + error.Message;
         }
     }
 
@@ -172,9 +173,9 @@ public partial class MainWindow
             TweakSearchModeCombo.SelectedItem is TaskbarSearchMode mode)
         {
             TweakSearchModeStatus.Text = searchModeState.IsSelected(mode.Mode)
-                ? $"Modo observado selecionado ({mode.Mode} — {mode.DisplayName}). Nenhuma alteração foi feita."
-                : $"Seleção {mode.Mode} — {mode.DisplayName} preparada. Clique em 'Simular plano' para " +
-                  "simular; nenhuma alteração foi feita.";
+                ? Loc.F($"Modo observado selecionado ({mode.Mode} — {mode.DisplayName}). Nenhuma alteração foi feita.")
+                : Loc.F($"Seleção {mode.Mode} — {mode.DisplayName} preparada. Clique em 'Simular plano' para ") +
+                  Loc.T("simular; nenhuma alteração foi feita.");
         }
         UpdateTweakButtons();
     }
@@ -193,13 +194,13 @@ public partial class MainWindow
         {
             var simulation = await searchModes.PrepareAsync(mode.Mode);
             ShowTweakSimulation(simulation,
-                $"Modo {mode.Mode} — {mode.DisplayName}: plano simulado sem efeito. " +
-                "A seleção do controle não alterou o Windows.");
+                Loc.F($"Modo {mode.Mode} — {mode.DisplayName}: plano simulado sem efeito. ") +
+                Loc.T("A seleção do controle não alterou o Windows."));
         }
         catch (Exception error)
         {
-            ShowFailure("Não foi possível preparar o modo de pesquisa", error);
-            TweakSearchModeStatus.Text = "Plano indisponível; nenhuma alteração foi executada.";
+            ShowFailure(Loc.T("Não foi possível preparar o modo de pesquisa"), error);
+            TweakSearchModeStatus.Text = Loc.T("Plano indisponível; nenhuma alteração foi executada.");
         }
         finally
         {
@@ -225,8 +226,8 @@ public partial class MainWindow
         }
         catch (Exception error)
         {
-            ShowFailure("Não foi possível simular o tweak", error);
-            TweakStatusText.Text = "Simulação indisponível; nenhuma escrita foi executada.";
+            ShowFailure(Loc.T("Não foi possível simular o tweak"), error);
+            TweakStatusText.Text = Loc.T("Simulação indisponível; nenhuma escrita foi executada.");
         }
         finally
         {
@@ -240,16 +241,16 @@ public partial class MainWindow
         tweakSimulation = simulation;
         tweakPreview = null;
         TweakDetailsTitle.Text = simulation.Operation.DisplayName;
-        TweakDetailsMeta.Text = $"Operação {simulation.Operation.Id} v{simulation.Operation.Version} · " +
-            $"risco {UiText.Risk(simulation.Operation.Risk)} · {UiText.Scope(simulation.Operation.Scope)}";
+        TweakDetailsMeta.Text = Loc.F($"Operação {simulation.Operation.Id} v{simulation.Operation.Version} · ") +
+            Loc.F($"risco {UiText.Risk(simulation.Operation.Risk)} · {UiText.Scope(simulation.Operation.Scope)}");
         TweakDetailsText.Text = BuildTweakPlanText(simulation);
         TweakConfirmationText.Text = string.Empty;
         TweakConfirmationHint.Text = simulation.CanExecute && tweaks is { RealExecutionEnabled: true }
-            ? "Digite exatamente: " + TweakManager.BuildConfirmationText(simulation.Plan)
-            : "Plano indisponível para autorização: " + string.Join(", ", simulation.Blockers);
+            ? Loc.T("Digite exatamente: ") + TweakManager.BuildConfirmationText(simulation.Plan)
+            : Loc.T("Plano indisponível para autorização: ") + string.Join(", ", simulation.Blockers);
         TweakStatusText.Text = status ?? (simulation.CanExecute
-            ? "Plano simulado sem efeito. A autorização abaixo é vinculada a este plano e ao estado observado."
-            : "Plano bloqueado no backend; nenhuma escrita será aceita.");
+            ? Loc.T("Plano simulado sem efeito. A autorização abaixo é vinculada a este plano e ao estado observado.")
+            : Loc.T("Plano bloqueado no backend; nenhuma escrita será aceita."));
     }
 
     private async void OnTweakAuthorize(object sender, RoutedEventArgs e)
@@ -261,19 +262,19 @@ public partial class MainWindow
         var expected = TweakManager.BuildConfirmationText(plan);
         if (!tweaks.RealExecutionEnabled)
         {
-            TweakStatusText.Text = "Execução real desabilitada nesta distribuição; validação real pendente.";
+            TweakStatusText.Text = Loc.T("Execução real desabilitada nesta distribuição; validação real pendente.");
             return;
         }
         var typedConfirmation = TweakConfirmationText.Text.Trim();
         if (!string.Equals(typedConfirmation, expected, StringComparison.Ordinal))
         {
-            TweakStatusText.Text = "A confirmação digitada não corresponde à operação e ao plano apresentado.";
+            TweakStatusText.Text = Loc.T("A confirmação digitada não corresponde à operação e ao plano apresentado.");
             return;
         }
 
         tweaksBusy = true;
         UpdateTweakButtons();
-        TweakStatusText.Text = "Preflight, backup e journal em andamento. Aguarde a verificação posterior…";
+        TweakStatusText.Text = Loc.T("Preflight, backup e journal em andamento. Aguarde a verificação posterior…");
         try
         {
             var token = tweaks.Authorize(tweakSimulation, typedConfirmation);
@@ -287,8 +288,8 @@ public partial class MainWindow
         }
         catch (Exception error)
         {
-            ShowFailure("A execução controlada não foi concluída", error);
-            TweakStatusText.Text = "Falha na execução; consulte o histórico e limitações. Sucesso não é presumido.";
+            ShowFailure(Loc.T("A execução controlada não foi concluída"), error);
+            TweakStatusText.Text = Loc.T("Falha na execução; consulte o histórico e limitações. Sucesso não é presumido.");
         }
         finally
         {
@@ -304,10 +305,10 @@ public partial class MainWindow
         tweakSelectedTransaction = (TweakHistoryList.SelectedItem as TweakHistoryRow)?.Transaction;
         tweakPreview = null;
         TweakRecoveryText.Text = tweakSelectedTransaction is { } transaction
-            ? BuildTransactionText(transaction) : "Selecione uma transação do histórico.";
+            ? BuildTransactionText(transaction) : Loc.T("Selecione uma transação do histórico.");
         TweakRecoveryConfirmationText.Text = string.Empty;
-        TweakRecoveryHint.Text = "Analise a recuperação antes de confirmar.";
-        TweakRecoveryStatusText.Text = "Recuperação ainda não analisada.";
+        TweakRecoveryHint.Text = Loc.T("Analise a recuperação antes de confirmar.");
+        TweakRecoveryStatusText.Text = Loc.T("Recuperação ainda não analisada.");
         UpdateTweakButtons();
     }
 
@@ -328,14 +329,14 @@ public partial class MainWindow
             TweakRecoveryText.Text = BuildRecoveryText(tweakSelectedTransaction, preview);
             TweakRecoveryConfirmationText.Text = string.Empty;
             TweakRecoveryHint.Text = preview.CanRecover
-                ? "Digite exatamente: " + TweakManager.BuildRecoveryConfirmationText(transactionId)
-                : "Recuperação bloqueada; conflitos não são sobrescritos.";
+                ? Loc.T("Digite exatamente: ") + TweakManager.BuildRecoveryConfirmationText(transactionId)
+                : Loc.T("Recuperação bloqueada; conflitos não são sobrescritos.");
             TweakRecoveryStatusText.Text = preview.Reason ?? UiText.Outcome(preview.Outcome);
         }
         catch (Exception error)
         {
-            ShowFailure("Não foi possível analisar a recuperação", error);
-            TweakRecoveryStatusText.Text = "Análise indisponível; nenhuma escrita foi executada.";
+            ShowFailure(Loc.T("Não foi possível analisar a recuperação"), error);
+            TweakRecoveryStatusText.Text = Loc.T("Análise indisponível; nenhuma escrita foi executada.");
         }
         finally
         {
@@ -353,24 +354,24 @@ public partial class MainWindow
         var expected = TweakManager.BuildRecoveryConfirmationText(transactionId);
         if (!tweaks.RealExecutionEnabled)
         {
-            TweakRecoveryStatusText.Text = "Rollback real desabilitado nesta distribuição; a análise permanece somente leitura.";
+            TweakRecoveryStatusText.Text = Loc.T("Rollback real desabilitado nesta distribuição; a análise permanece somente leitura.");
             return;
         }
         if (!tweakPreview.CanRecover)
         {
-            TweakRecoveryStatusText.Text = "Recuperação não permitida: " + (tweakPreview.Reason ?? "conflito.");
+            TweakRecoveryStatusText.Text = Loc.T("Recuperação não permitida: ") + (tweakPreview.Reason ?? Loc.T("conflito."));
             return;
         }
         var typedConfirmation = TweakRecoveryConfirmationText.Text.Trim();
         if (!string.Equals(typedConfirmation, expected, StringComparison.Ordinal))
         {
-            TweakRecoveryStatusText.Text = "A confirmação de recuperação não corresponde à transação selecionada.";
+            TweakRecoveryStatusText.Text = Loc.T("A confirmação de recuperação não corresponde à transação selecionada.");
             return;
         }
 
         tweaksBusy = true;
         UpdateTweakButtons();
-        TweakRecoveryStatusText.Text = "Recuperação em andamento. O estado atual é reconferido antes de cada escrita…";
+        TweakRecoveryStatusText.Text = Loc.T("Recuperação em andamento. O estado atual é reconferido antes de cada escrita…");
         try
         {
             var result = await tweaks.RollbackAsync(transactionId, new RecoveryOptions(typedConfirmation) { Preview = tweakPreview });
@@ -381,8 +382,8 @@ public partial class MainWindow
         }
         catch (Exception error)
         {
-            ShowFailure("A recuperação não foi concluída", error);
-            TweakRecoveryStatusText.Text = "Falha de recuperação; o resultado parcial deve ser consultado no histórico.";
+            ShowFailure(Loc.T("A recuperação não foi concluída"), error);
+            TweakRecoveryStatusText.Text = Loc.T("Falha de recuperação; o resultado parcial deve ser consultado no histórico.");
         }
         finally
         {
@@ -429,54 +430,54 @@ public partial class MainWindow
         var plan = simulation.Plan;
         var text = new StringBuilder();
         text.AppendLine(operation.DisplayName);
-        text.AppendLine($"Operação: {operation.Id} v{operation.Version} · risco {UiText.Risk(operation.Risk)} · {UiText.Scope(operation.Scope)}");
-        text.AppendLine($"Hash do plano: {plan.PlanHash[..Math.Min(16, plan.PlanHash.Length)]}…");
-        text.AppendLine($"Estado observado: {plan.CreatedAtUtc:O}");
-        text.AppendLine($"Compatibilidade: Windows 11 a partir do build {operation.Compatibility.MinimumBuild}" +
-            (operation.Compatibility.MaximumBuild is { } maximum ? $" até {maximum}." : "."));
+        text.AppendLine(Loc.F($"Operação: {operation.Id} v{operation.Version} · risco {UiText.Risk(operation.Risk)} · {UiText.Scope(operation.Scope)}"));
+        text.AppendLine(Loc.F($"Hash do plano: {plan.PlanHash[..Math.Min(16, plan.PlanHash.Length)]}…"));
+        text.AppendLine(Loc.F($"Estado observado: {plan.CreatedAtUtc:O}"));
+        text.AppendLine(Loc.F($"Compatibilidade: Windows 11 a partir do build {operation.Compatibility.MinimumBuild}") +
+            (operation.Compatibility.MaximumBuild is { } maximum ? Loc.F($" até {maximum}.") : "."));
         if (operation.Dependencies.Count > 0)
-            text.AppendLine("Dependências: " + string.Join(", ", operation.Dependencies));
+            text.AppendLine(Loc.T("Dependências: ") + string.Join(", ", operation.Dependencies));
         text.AppendLine();
-        text.AppendLine("Configuração");
+        text.AppendLine(Loc.T("Configuração"));
         foreach (var change in plan.Changes)
         {
-            text.AppendLine($"• {change.Target.Identity}");
-            text.AppendLine($"  atual: {VerificationEngine.Describe(change.Before)}");
-            text.AppendLine($"  pretendido: {VerificationEngine.Describe(change.After)}");
+            text.AppendLine(Loc.F($"• {change.Target.Identity}"));
+            text.AppendLine(Loc.F($"  atual: {VerificationEngine.Describe(change.Before)}"));
+            text.AppendLine(Loc.F($"  pretendido: {VerificationEngine.Describe(change.After)}"));
         }
         text.AppendLine();
-        text.AppendLine("Consequências");
-        foreach (var consequence in operation.Consequences) text.AppendLine($"• {consequence}");
+        text.AppendLine(Loc.T("Consequências"));
+        foreach (var consequence in operation.Consequences) text.AppendLine(Loc.F($"• {consequence}"));
         text.AppendLine();
-        text.AppendLine("Atualização visual e reinício");
+        text.AppendLine(Loc.T("Atualização visual e reinício"));
         text.AppendLine(operation.RequiresExplorerRestart
-            ? "• A interface pode exigir reabrir ou atualizar o Explorador; o aplicativo não reinicia processos."
-            : "• Nenhum reinício do Explorador é necessário para registrar a intenção.");
+            ? Loc.T("• A interface pode exigir reabrir ou atualizar o Explorador; o aplicativo não reinicia processos.")
+            : Loc.T("• Nenhum reinício do Explorador é necessário para registrar a intenção."));
         text.AppendLine(operation.RequiresSystemRestart
-            ? "• Reinício do sistema indicado pela definição."
-            : "• Nenhum reinício do sistema é executado.");
+            ? Loc.T("• Reinício do sistema indicado pela definição.")
+            : Loc.T("• Nenhum reinício do sistema é executado."));
         text.AppendLine();
-        text.AppendLine("Proteções");
-        foreach (var protection in simulation.Protections) text.AppendLine($"• {protection}");
+        text.AppendLine(Loc.T("Proteções"));
+        foreach (var protection in simulation.Protections) text.AppendLine(Loc.F($"• {protection}"));
         text.AppendLine();
-        text.AppendLine("Reversibilidade");
+        text.AppendLine(Loc.T("Reversibilidade"));
         text.AppendLine(operation.Protection.RequiresFullTarget
-            ? "• Backup de chave inteira exigido; indisponível nesta fase."
-            : "• Rollback restaura o estado observado, inclusive valor ausente, e detecta conflito posterior.");
+            ? Loc.T("• Backup de chave inteira exigido; indisponível nesta fase.")
+            : Loc.T("• Rollback restaura o estado observado, inclusive valor ausente, e detecta conflito posterior."));
         text.AppendLine();
-        text.AppendLine("Limitações");
-        foreach (var limitation in simulation.Limitations) text.AppendLine($"• {limitation}");
+        text.AppendLine(Loc.T("Limitações"));
+        foreach (var limitation in simulation.Limitations) text.AppendLine(Loc.F($"• {limitation}"));
         if (operation.KnownRisks.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Riscos conhecidos");
-            foreach (var risk in operation.KnownRisks) text.AppendLine($"• {risk}");
+            text.AppendLine(Loc.T("Riscos conhecidos"));
+            foreach (var risk in operation.KnownRisks) text.AppendLine(Loc.F($"• {risk}"));
         }
         if (!simulation.CanExecute)
         {
             text.AppendLine();
-            text.AppendLine("Bloqueios");
-            foreach (var blocker in simulation.Blockers) text.AppendLine($"• {blocker}");
+            text.AppendLine(Loc.T("Bloqueios"));
+            foreach (var blocker in simulation.Blockers) text.AppendLine(Loc.F($"• {blocker}"));
         }
         return text.ToString();
     }
@@ -484,33 +485,33 @@ public partial class MainWindow
     private static string BuildTransactionText(TransactionRecord transaction)
     {
         var text = new StringBuilder();
-        text.AppendLine($"Transação: {transaction.TransactionId:D}");
-        text.AppendLine($"Operação: {transaction.OperationId} v{transaction.OperationVersion}");
-        text.AppendLine($"Estado: {UiText.State(transaction.State)} · sucesso verificado: {(transaction.Succeeded ? "sim" : "não")}" +
-            $" · indeterminado: {(transaction.IsIndeterminate ? "sim" : "não")}");
-        text.AppendLine($"Criado: {transaction.CreatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss zzz}");
-        text.AppendLine($"Atualizado: {transaction.UpdatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss zzz}");
+        text.AppendLine(Loc.F($"Transação: {transaction.TransactionId:D}"));
+        text.AppendLine(Loc.F($"Operação: {transaction.OperationId} v{transaction.OperationVersion}"));
+        text.AppendLine(Loc.F($"Estado: {UiText.State(transaction.State)} · sucesso verificado: {(transaction.Succeeded ? "sim" : "não")}") +
+            Loc.F($" · indeterminado: {(transaction.IsIndeterminate ? "sim" : "não")}"));
+        text.AppendLine(Loc.F($"Criado: {transaction.CreatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss zzz}"));
+        text.AppendLine(Loc.F($"Atualizado: {transaction.UpdatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss zzz}"));
         if (transaction.Plan is { } plan)
         {
             text.AppendLine();
-            text.AppendLine("Estado observado e pretendido");
+            text.AppendLine(Loc.T("Estado observado e pretendido"));
             foreach (var change in plan.Changes)
             {
-                text.AppendLine($"• {change.Target.Identity}");
-                text.AppendLine($"  antes: {VerificationEngine.Describe(change.Before)}");
-                text.AppendLine($"  depois: {VerificationEngine.Describe(change.After)}");
+                text.AppendLine(Loc.F($"• {change.Target.Identity}"));
+                text.AppendLine(Loc.F($"  antes: {VerificationEngine.Describe(change.Before)}"));
+                text.AppendLine(Loc.F($"  depois: {VerificationEngine.Describe(change.After)}"));
             }
         }
         text.AppendLine();
-        text.AppendLine($"Backup: {(transaction.Backup is null ? "indisponível" : transaction.Backup.ContentHash[..16] + "…")}");
+        text.AppendLine(Loc.F($"Backup: {(transaction.Backup is null ? "indisponível" : transaction.Backup.ContentHash[..16] + "…")}"));
         text.AppendLine($"Verificação: {(transaction.Verification is null ? "não executada" :
-            transaction.Verification.Passed ? "aprovada" : "divergente")}");
-        text.AppendLine($"Recuperação: {(transaction.Recovery is null ? "não tentada" : UiText.Outcome(transaction.Recovery.Outcome))}");
+            transaction.Verification.Passed ? Loc.T("aprovada") : Loc.T("divergente"))}");
+        text.AppendLine(Loc.F($"Recuperação: {(transaction.Recovery is null ? "não tentada" : UiText.Outcome(transaction.Recovery.Outcome))}"));
         if (transaction.Limitations.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Limitações");
-            foreach (var limitation in transaction.Limitations) text.AppendLine($"• {limitation}");
+            text.AppendLine(Loc.T("Limitações"));
+            foreach (var limitation in transaction.Limitations) text.AppendLine(Loc.F($"• {limitation}"));
         }
         return text.ToString();
     }
@@ -519,27 +520,27 @@ public partial class MainWindow
     {
         var text = new StringBuilder(BuildTransactionText(transaction));
         text.AppendLine();
-        text.AppendLine("Prévia de recuperação");
-        text.AppendLine($"Resultado: {UiText.Outcome(preview.Outcome)} · recuperável: {(preview.CanRecover ? "sim" : "não")}");
-        if (!string.IsNullOrWhiteSpace(preview.Reason)) text.AppendLine($"Motivo: {preview.Reason}");
+        text.AppendLine(Loc.T("Prévia de recuperação"));
+        text.AppendLine(Loc.F($"Resultado: {UiText.Outcome(preview.Outcome)} · recuperável: {(preview.CanRecover ? "sim" : "não")}"));
+        if (!string.IsNullOrWhiteSpace(preview.Reason)) text.AppendLine(Loc.F($"Motivo: {preview.Reason}"));
         if (preview.Conflicts.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Conflitos (não sobrescritos)");
+            text.AppendLine(Loc.T("Conflitos (não sobrescritos)"));
             foreach (var conflict in preview.Conflicts)
-                text.AppendLine($"• {conflict.TargetIdentity}: {UiText.Conflict(conflict.Kind)} — {conflict.Description}");
+                text.AppendLine(Loc.F($"• {conflict.TargetIdentity}: {UiText.Conflict(conflict.Kind)} — {conflict.Description}"));
         }
         if (preview.CurrentStates.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Estado atual observado");
+            text.AppendLine(Loc.T("Estado atual observado"));
             foreach (var state in preview.CurrentStates)
-                text.AppendLine($"• {state.TargetIdentity}: " +
-                    $"{(state.Verified ? "no estado observado" : state.Error ?? string.Join("; ", state.Effects))}");
+                text.AppendLine(Loc.F($"• {state.TargetIdentity}: ") +
+                    Loc.F($"{(state.Verified ? "no estado observado" : state.Error ?? string.Join("; ", state.Effects))}"));
         }
         text.AppendLine();
-        text.AppendLine("A recuperação restaura somente o estado observado. Um estado alterado por terceiro " +
-            "permanece como conflito e não é sobrescrito silenciosamente.");
+        text.AppendLine(Loc.T("A recuperação restaura somente o estado observado. Um estado alterado por terceiro ") +
+            Loc.T("permanece como conflito e não é sobrescrito silenciosamente."));
         return text.ToString();
     }
 

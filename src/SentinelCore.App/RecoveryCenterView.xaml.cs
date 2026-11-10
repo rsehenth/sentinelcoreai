@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using SentinelCore.Application;
 using SentinelCore.Domain;
+using SentinelCore.App.Localization;
 
 namespace SentinelCore.App;
 
@@ -67,14 +68,14 @@ public partial class RecoveryCenterView : UserControl
         if (center is not null) throw new InvalidOperationException("Central de Recuperação já composta.");
         center = recoveryCenter;
         ModeText.Text = center.SyntheticRecoveryAvailable
-            ? "HOST SINTÉTICO — recuperação apenas de alvos Synthetic"
-            : center.RealRecoveryAvailable ? "Recuperação controlada — HKCU do usuário atual"
-                : "Consulta local — execução real bloqueada";
+            ? Loc.T("HOST SINTÉTICO — recuperação apenas de alvos Synthetic")
+            : center.RealRecoveryAvailable ? Loc.T("Recuperação controlada — HKCU do usuário atual")
+                : Loc.T("Consulta local — execução real bloqueada");
         RecoveryPolicyText.Text = center.SyntheticRecoveryAvailable
-            ? "Fluxo sintético: o RecoveryService valida backup e estado atual antes de recuperar. Conflitos não serão sobrescritos."
+            ? Loc.T("Fluxo sintético: o RecoveryService valida backup e estado atual antes de recuperar. Conflitos não serão sobrescritos.")
             : center.RealRecoveryAvailable
-                ? "Analise os alvos antes de confirmar. O serviço revalida o backup e preserva valores em conflito."
-                : "Rollback desabilitado na distribuição. Os detalhes mostram a evidência registrada.";
+                ? Loc.T("Analise os alvos antes de confirmar. O serviço revalida o backup e preserva valores em conflito.")
+                : Loc.T("Rollback desabilitado na distribuição. Os detalhes mostram a evidência registrada.");
         UpdateButtons();
         if (loadIfVisible && IsLoaded) _ = RefreshAsync();
     }
@@ -115,7 +116,7 @@ public partial class RecoveryCenterView : UserControl
         busy = true;
         readCancellation = new CancellationTokenSource();
         var interrupted = false;
-        StatusText.Text = "Lendo as fontes duráveis de histórico…";
+        StatusText.Text = Loc.T("Lendo as fontes duráveis de histórico…");
         UpdateButtons();
         try
         {
@@ -133,8 +134,8 @@ public partial class RecoveryCenterView : UserControl
                 ? snapshot.Operations.SingleOrDefault(operation => operation.Id == id && operation.Module == RecoveryModule.Tweaks)
                 : selected);
             StatusText.Text = snapshot.IsComplete
-                ? $"Histórico carregado às {DateTime.Now:HH:mm:ss} (horário local). Nenhuma operação de manutenção foi iniciada."
-                : $"Leitura incompleta às {DateTime.Now:HH:mm:ss} (horário local): examine os avisos. As contagens cobrem somente os registros válidos carregados.";
+                ? Loc.F($"Histórico carregado às {DateTime.Now:HH:mm:ss} (horário local). Nenhuma operação de manutenção foi iniciada.")
+                : Loc.F($"Leitura incompleta às {DateTime.Now:HH:mm:ss} (horário local): examine os avisos. As contagens cobrem somente os registros válidos carregados.");
         }
         catch (OperationCanceledException)
         {
@@ -168,8 +169,8 @@ public partial class RecoveryCenterView : UserControl
         AuditInterruptionsList.ItemsSource = null;
         AuditInterruptionsPanel.Visibility = Visibility.Collapsed;
         SummaryCards.ItemsSource = null;
-        SummaryText.Text = "Históricos indisponíveis. Contagens não determinadas.";
-        HistorySummary.Text = "Leitura não concluída; não representa ausência de operações.";
+        SummaryText.Text = Loc.T("Históricos indisponíveis. Contagens não determinadas.");
+        HistorySummary.Text = Loc.T("Leitura não concluída; não representa ausência de operações.");
         WarningsPanel.Visibility = Visibility.Visible;
         WarningsText.Text = message;
         StatusText.Text = message;
@@ -205,9 +206,9 @@ public partial class RecoveryCenterView : UserControl
             AuditInterruptionsList.ItemsSource = audits.Audits.Select(audit => new InterruptedAuditRow(audit)).ToArray();
             AuditInterruptionsSummary.Text = audits.Warnings.Count > 0
                 ? string.Join(Environment.NewLine, audits.Warnings)
-                : audits.Audits.Count == 0 ? "Nenhuma auditoria encontrada nos registros carregados."
-                : $"{audits.Audits.Count} auditoria(s) carregada(s), incluindo " +
-                  $"{audits.Audits.Count(audit => audit.Status == DiagnosticStatus.Interrupted)} interrompida(s). Abra a origem para consultar as evidências.";
+                : audits.Audits.Count == 0 ? Loc.T("Nenhuma auditoria encontrada nos registros carregados.")
+                : Loc.F($"{audits.Audits.Count} auditoria(s) carregada(s), incluindo ") +
+                  Loc.F($"{audits.Audits.Count(audit => audit.Status == DiagnosticStatus.Interrupted)} interrompida(s). Abra a origem para consultar as evidências.");
         }
         var warnings = snapshot.Sources.SelectMany(source => source.Warnings.Select(w => $"{RecoveryCenterPresentation.Label(source.Module)}: {w}"))
             .Concat(snapshot.Warnings)
@@ -247,7 +248,7 @@ public partial class RecoveryCenterView : UserControl
             (to is null && !string.IsNullOrWhiteSpace(ToDate.Text)) || from > to)
         {
             HistoryGrid.ItemsSource = Array.Empty<HistoryRow>();
-            HistorySummary.Text = "Datas inválidas. Informe um intervalo local válido.";
+            HistorySummary.Text = Loc.T("Datas inválidas. Informe um intervalo local válido.");
             ShowSelection();
             return;
         }
@@ -267,9 +268,9 @@ public partial class RecoveryCenterView : UserControl
         updating = false;
         HistorySummary.Text = rows.Length == 0
             ? snapshot.IsComplete && snapshot.Operations.Count == 0
-                ? "Nenhuma operação registrada nas fontes carregadas."
-                : "Nenhum registro válido carregado corresponde aos filtros; fontes inacessíveis não são contadas como vazias."
-            : $"{rows.Length} de {snapshot.Operations.Count} registro(s) carregado(s). Horários no fuso local. Carga às {loadedAt:HH:mm:ss}.";
+                ? Loc.T("Nenhuma operação registrada nas fontes carregadas.")
+                : Loc.T("Nenhum registro válido carregado corresponde aos filtros; fontes inacessíveis não são contadas como vazias.")
+            : Loc.F($"{rows.Length} de {snapshot.Operations.Count} registro(s) carregado(s). Horários no fuso local. Carga às {loadedAt:HH:mm:ss}.");
         ShowSelection();
     }
 
@@ -299,14 +300,14 @@ public partial class RecoveryCenterView : UserControl
     {
         var operation = (HistoryGrid.SelectedItem as HistoryRow)?.Operation;
         ConfirmationText.Clear();
-        DetailsTitle.Text = operation is null ? "Detalhes da operação" : $"{operation.OperationId} · {RecoveryCenterPresentation.Label(operation.Origin)}";
-        DetailsText.Text = operation is null ? "Selecione uma operação do histórico." : RecoveryCenterPresentation.Details(operation);
-        TimelineText.Text = operation is null ? "Nenhum evento selecionado." : RecoveryCenterPresentation.Timeline(operation);
+        DetailsTitle.Text = operation is null ? Loc.T("Detalhes da operação") : Loc.F($"{operation.OperationId} · {RecoveryCenterPresentation.Label(operation.Origin)}");
+        DetailsText.Text = operation is null ? Loc.T("Selecione uma operação do histórico.") : RecoveryCenterPresentation.Details(operation);
+        TimelineText.Text = operation is null ? Loc.T("Nenhum evento selecionado.") : RecoveryCenterPresentation.Timeline(operation);
         ReportPathText.Text = operation?.ReportPath ?? string.Empty;
         ConfirmationHint.Text = operation is { Preview.CanRecover: true, Capability: RecoveryCapability.PotentiallyAvailable } &&
             center?.CanAnalyze(operation) == true
-            ? $"Digite exatamente: {TweakManager.BuildRecoveryConfirmationText(operation.Id)}"
-            : "Selecione uma operação elegível e analise a recuperação.";
+            ? Loc.F($"Digite exatamente: {TweakManager.BuildRecoveryConfirmationText(operation.Id)}")
+            : Loc.T("Selecione uma operação elegível e analise a recuperação.");
         UpdateButtons();
     }
 
@@ -343,7 +344,7 @@ public partial class RecoveryCenterView : UserControl
         ConfirmationText.Clear();
         UpdateSummary();
         ApplyFilter(pending);
-        StatusText.Text = "Analisando backup e estado atual dos alvos…";
+        StatusText.Text = Loc.T("Analisando backup e estado atual dos alvos…");
         UpdateButtons();
         try
         {
@@ -351,17 +352,17 @@ public partial class RecoveryCenterView : UserControl
             snapshot = snapshot with { Operations = snapshot.Operations.Select(o => o.Id == analyzed.Id && o.Module == analyzed.Module ? analyzed : o).ToArray() };
             UpdateSummary();
             ApplyFilter(analyzed);
-            StatusText.Text = analyzed.Preview?.Reason ?? "Prévia concluída. Confira os alvos e as condições de recuperação.";
+            StatusText.Text = analyzed.Preview?.Reason ?? Loc.T("Prévia concluída. Confira os alvos e as condições de recuperação.");
         }
         catch (Exception error)
         {
             var failed = pending with { Limitations = pending.Limitations.Append(
-                "Análise atual indisponível; a prévia anterior foi invalidada: " + error.Message).Distinct().ToArray() };
+                Loc.T("Análise atual indisponível; a prévia anterior foi invalidada: ") + error.Message).Distinct().ToArray() };
             snapshot = snapshot with { Operations = snapshot.Operations.Select(o =>
                 o.Id == failed.Id && o.Module == failed.Module ? failed : o).ToArray() };
             UpdateSummary();
             ApplyFilter(failed);
-            StatusText.Text = "Análise indisponível; recuperação bloqueada: " + error.Message;
+            StatusText.Text = Loc.T("Análise indisponível; recuperação bloqueada: ") + error.Message;
         }
         finally { busy = false; closeRequested = false; UpdateButtons(); BecameIdle?.Invoke(); }
     }
@@ -374,7 +375,7 @@ public partial class RecoveryCenterView : UserControl
         if (productLease is null) return;
         var confirmation = ConfirmationText.Text;
         busy = true;
-        StatusText.Text = "Recuperação em andamento. Aguarde a verificação dos alvos…";
+        StatusText.Text = Loc.T("Recuperação em andamento. Aguarde a verificação dos alvos…");
         UpdateButtons();
         string resultText;
         try

@@ -7,6 +7,7 @@ using SentinelCore.Application;
 using SentinelCore.Domain;
 using SentinelCore.Infrastructure.Windows;
 using SentinelCore.Persistence;
+using SentinelCore.App.Localization;
 
 namespace SentinelCore.App;
 
@@ -95,31 +96,31 @@ public partial class MainWindow
         NetworkProgress.Value = coverage?.CollectedSamples ?? session.Samples.Count;
 
         NetworkStatusText.Text =
-            $"Sessão de {Local(session.CompletedUtc)} · {StatusName(session.Status)} · cobertura {CoverageName(coverage)} · " +
-            $"{session.Samples.Count} amostra(s) em {session.Duration.TotalSeconds.ToString("F1", CultureInfo.CurrentCulture)} s · " +
-            $"ID {session.Id:D}" +
-            (persisted ? string.Empty : " · não confirmada na memória local");
+            Loc.F($"Sessão de {Local(session.CompletedUtc)} · {StatusName(session.Status)} · cobertura {CoverageName(coverage)} · ") +
+            Loc.F($"{session.Samples.Count} amostra(s) em {session.Duration.TotalSeconds.ToString("F1", CultureInfo.CurrentCulture)} s · ") +
+            Loc.F($"ID {session.Id:D}") +
+            (persisted ? string.Empty : Loc.T(" · não confirmada na memória local"));
 
         NetworkTcpValue.Text = stats.FinalTcpConnections.ToString(CultureInfo.CurrentCulture);
         NetworkTcpDetail.Text =
-            $"pico {stats.PeakTcpConnections} · média {Number(stats.MeanTcpConnections)} · " +
-            $"escuta {stats.FinalListening} · TIME_WAIT {stats.FinalTimeWait}";
+            Loc.F($"pico {stats.PeakTcpConnections} · média {Number(stats.MeanTcpConnections)} · ") +
+            Loc.F($"escuta {stats.FinalListening} · TIME_WAIT {stats.FinalTimeWait}");
 
         NetworkUdpValue.Text = stats.FinalUdpEndpoints.ToString(CultureInfo.CurrentCulture);
         NetworkUdpDetail.Text =
-            $"pico {stats.PeakUdpEndpoints} · média {Number(stats.MeanUdpEndpoints)} · " +
-            $"portas locais {stats.FinalDistinctLocalPorts}";
+            Loc.F($"pico {stats.PeakUdpEndpoints} · média {Number(stats.MeanUdpEndpoints)} · ") +
+            Loc.F($"portas locais {stats.FinalDistinctLocalPorts}");
 
         NetworkEphemeralValue.Text = stats.FinalEphemeralEndpoints.ToString(CultureInfo.CurrentCulture);
         NetworkEphemeralDetail.Text = stats.FinalEphemeralSharePercent is { } share
-            ? $"{share.ToString("F1", CultureInfo.CurrentCulture)}% dos endpoints locais"
-            : "participação indisponível";
+            ? Loc.F($"{share.ToString("F1", CultureInfo.CurrentCulture)}% dos endpoints locais")
+            : Loc.T("participação indisponível");
 
         NetworkProcessValue.Text = stats.FinalTopProcesses.Count.ToString(CultureInfo.CurrentCulture);
         var topProc = stats.FinalTopProcesses.FirstOrDefault();
         NetworkProcessDetail.Text = topProc is not null
-            ? $"topo: {topProc.Name ?? $"PID {topProc.Pid}"} ({topProc.TcpConnections + topProc.UdpEndpoints})"
-            : "nenhum processo atribuído";
+            ? Loc.F($"topo: {topProc.Name ?? $"PID {topProc.Pid}"} ({topProc.TcpConnections + topProc.UdpEndpoints})")
+            : Loc.T("nenhum processo atribuído");
 
         NetworkPortList.ItemsSource = stats.FinalTopLocalPorts.Select(p => new NetworkPortRow(p)).ToArray();
         NetworkStateList.ItemsSource = stats.FinalStates.Select(s => new NetworkStateRow(s)).ToArray();
@@ -147,15 +148,15 @@ public partial class MainWindow
         NetworkProgress.Maximum = 1;
         NetworkProgress.Value = 0;
         NetworkStatusText.Text =
-            "Nenhuma sessão de rede selecionada. Escolha Instantâneo, 30 segundos ou 1 minuto (somente leitura, sem tráfego ativo).";
+            Loc.T("Nenhuma sessão de rede selecionada. Escolha Instantâneo, 30 segundos ou 1 minuto (somente leitura, sem tráfego ativo).");
         NetworkTcpValue.Text = "—";
-        NetworkTcpDetail.Text = "escuta, estabelecidas e TIME_WAIT";
+        NetworkTcpDetail.Text = Loc.T("escuta, estabelecidas e TIME_WAIT");
         NetworkUdpValue.Text = "—";
-        NetworkUdpDetail.Text = "endpoints UDP locais";
+        NetworkUdpDetail.Text = Loc.T("endpoints UDP locais");
         NetworkEphemeralValue.Text = "—";
-        NetworkEphemeralDetail.Text = "ocupação da faixa dinâmica";
+        NetworkEphemeralDetail.Text = Loc.T("ocupação da faixa dinâmica");
         NetworkProcessValue.Text = "—";
-        NetworkProcessDetail.Text = "processos com mais endpoints";
+        NetworkProcessDetail.Text = Loc.T("processos com mais endpoints");
         NetworkPortList.ItemsSource = null;
         NetworkStateList.ItemsSource = null;
         NetworkProcessList.ItemsSource = null;
@@ -164,19 +165,19 @@ public partial class MainWindow
         NetworkObservationList.ItemsSource = null;
         updatingNetwork = false;
         NetworkObservationDetail.Text =
-            "Nenhuma observação de rede selecionada. A coleta é somente de leitura e não executa ping, DNS ativo ou captura de pacotes.";
+            Loc.T("Nenhuma observação de rede selecionada. A coleta é somente de leitura e não executa ping, DNS ativo ou captura de pacotes.");
         UpdateNetworkButtons();
     }
 
     private static string BuildNetworkSummaryText(NetworkSession session)
     {
         var text = new StringBuilder();
-        text.AppendLine("Nenhuma observação sustentada superou os limiares conservadores nesta sessão.");
-        text.AppendLine("Causalidade não avaliada.");
+        text.AppendLine(Loc.T("Nenhuma observação sustentada superou os limiares conservadores nesta sessão."));
+        text.AppendLine(Loc.T("Causalidade não avaliada."));
         if (session.TcpipEvents is { } tcpip)
         {
             text.AppendLine();
-            text.AppendLine($"Contexto Tcpip: {NetworkTcpipEventContext.FormatCounts(tcpip)}. {tcpip.Note}");
+            text.AppendLine(Loc.F($"Contexto Tcpip: {NetworkTcpipEventContext.FormatCounts(tcpip)}. {tcpip.Note}"));
         }
 
         if (NetworkQualityCatalog.Evaluate(session) is { } quality)
@@ -188,17 +189,17 @@ public partial class MainWindow
         if (session.AnalysisNotes.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Regras avaliadas");
+            text.AppendLine(Loc.T("Regras avaliadas"));
             foreach (var note in session.AnalysisNotes)
-                text.AppendLine($"• {note.RuleId}: {note.Detail}");
+                text.AppendLine(Loc.F($"• {note.RuleId}: {note.Detail}"));
         }
 
         if (session.Limitations.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Limitações");
+            text.AppendLine(Loc.T("Limitações"));
             foreach (var limitation in session.Limitations)
-                text.AppendLine($"• {limitation}");
+                text.AppendLine(Loc.F($"• {limitation}"));
         }
 
         return text.ToString();
@@ -220,26 +221,26 @@ public partial class MainWindow
             UpdatePerformanceButtons();
             UpdateHardwareButtons();
             UpdateEventButtons();
-            NetworkStatusText.Text = "Tentando salvar novamente a sessão pendente…";
+            NetworkStatusText.Text = Loc.T("Tentando salvar novamente a sessão pendente…");
             try
             {
                 var pending = unsavedNetwork;
                 await networkStore.SaveNetworkSessionAsync(pending, CancellationToken.None);
                 unsavedNetwork = null;
                 await ReloadNetworksAsync(pending.Id);
-                NetworkStatusText.Text = "Sessão pendente salva novamente.";
+                NetworkStatusText.Text = Loc.T("Sessão pendente salva novamente.");
             }
             catch (Exception error)
             {
-                ShowNetworkFailure("Falha de gravação da sessão. O resultado permanece nesta janela; " +
-                    "tente salvar novamente", error);
+                ShowNetworkFailure(Loc.T("Falha de gravação da sessão. O resultado permanece nesta janela; ") +
+                    Loc.T("tente salvar novamente"), error);
             }
             finally
             {
                 networkBusy = false;
                 networkSaving = false;
                 RunButton.IsEnabled = !busy;
-                NetworkRunButton.Content = unsavedNetwork is null ? "Coletar agora" : "Tentar salvar sessão";
+                NetworkRunButton.Content = unsavedNetwork is null ? Loc.T("Coletar agora") : Loc.T("Tentar salvar sessão");
                 UpdateNetworkButtons();
                 UpdatePerformanceButtons();
                 UpdateHardwareButtons();
@@ -258,7 +259,7 @@ public partial class MainWindow
         networkSaving = false;
         networkCancellation = new CancellationTokenSource();
         RunButton.IsEnabled = false;
-        NetworkRunButton.Content = "Coletar agora";
+        NetworkRunButton.Content = Loc.T("Coletar agora");
         NetworkProgress.Minimum = 0;
         NetworkProgress.Maximum = 1;
         NetworkProgress.Value = 0;
@@ -271,8 +272,8 @@ public partial class MainWindow
         try
         {
             NetworkStatusText.Text = preset == NetworkSessionPreset.Snapshot
-                ? "Instantâneo em andamento. Leitura somente, sem conexões ativas."
-                : "Coleta de rede em andamento. Leitura somente, sem conexões ativas.";
+                ? Loc.T("Instantâneo em andamento. Leitura somente, sem conexões ativas.")
+                : Loc.T("Coleta de rede em andamento. Leitura somente, sem conexões ativas.");
             var progress = new Progress<NetworkProgress>(OnNetworkProgress);
             var session = await networkRunner.RunAsync(NetworkSessionRequest.ForPreset(preset, includeAddresses),
                 events, progress, networkCancellation.Token);
@@ -280,14 +281,14 @@ public partial class MainWindow
             ApplyNetworkSession(session);
             networkSaving = true;
             UpdateNetworkButtons();
-            NetworkStatusText.Text = "Salvando sessão e relatório na memória local…";
+            NetworkStatusText.Text = Loc.T("Salvando sessão e relatório na memória local…");
             await networkStore.SaveNetworkSessionAsync(session, CancellationToken.None);
             saved = true;
             unsavedNetwork = null;
             await ReloadNetworksAsync(session.Id);
-            NetworkStatusText.Text = $"Sessão {StatusName(session.Status).ToLowerInvariant()} salva. " +
-                $"{session.Samples.Count} amostra(s), {session.Statistics.FinalTcpConnections} conexão(ões) TCP, " +
-                $"{session.Observations.Count} observação(ões). Causalidade não avaliada.";
+            NetworkStatusText.Text = Loc.F($"Sessão {StatusName(session.Status).ToLowerInvariant()} salva. ") +
+                Loc.F($"{session.Samples.Count} amostra(s), {session.Statistics.FinalTcpConnections} conexão(ões) TCP, ") +
+                Loc.F($"{session.Observations.Count} observação(ões). Causalidade não avaliada.");
         }
         catch (Exception error)
         {
@@ -305,7 +306,7 @@ public partial class MainWindow
             networkCancellation?.Dispose();
             networkCancellation = null;
             RunButton.IsEnabled = !busy;
-            NetworkRunButton.Content = unsavedNetwork is null ? "Coletar agora" : "Tentar salvar sessão";
+            NetworkRunButton.Content = unsavedNetwork is null ? Loc.T("Coletar agora") : Loc.T("Tentar salvar sessão");
             UpdateNetworkButtons();
             UpdatePerformanceButtons();
             UpdateHardwareButtons();
@@ -320,7 +321,7 @@ public partial class MainWindow
     {
         networkCancellation?.Cancel();
         NetworkCancelButton.IsEnabled = false;
-        NetworkStatusText.Text = "Cancelamento solicitado. Aguardando a última leitura somente de rede…";
+        NetworkStatusText.Text = Loc.T("Cancelamento solicitado. Aguardando a última leitura somente de rede…");
     }
 
     private async void OnNetworkReport(object sender, RoutedEventArgs e)
@@ -333,7 +334,7 @@ public partial class MainWindow
         }
         catch (Exception error)
         {
-            ShowNetworkFailure("Não foi possível abrir a localização do relatório de rede", error);
+            ShowNetworkFailure(Loc.T("Não foi possível abrir a localização do relatório de rede"), error);
         }
         finally
         {
@@ -352,8 +353,8 @@ public partial class MainWindow
         if (updatingNetwork) return;
         if (NetworkAddressCheck.IsChecked == true)
         {
-            ShowWarning("Endereços local e remoto passarão a ser gravados no histórico local desta sessão. " +
-                "Eles podem identificar dispositivos da sua rede; desative a opção se não precisar desse dado.");
+            ShowWarning(Loc.T("Endereços local e remoto passarão a ser gravados no histórico local desta sessão. ") +
+                Loc.T("Eles podem identificar dispositivos da sua rede; desative a opção se não precisar desse dado."));
         }
     }
 
@@ -368,19 +369,19 @@ public partial class MainWindow
         if (networkSaving) return;
         NetworkProgress.Maximum = Math.Max(1, update.ExpectedSamples);
         NetworkProgress.Value = update.SamplesCollected;
-        NetworkStatusText.Text = $"Coletando — {update.SamplesCollected}/{update.ExpectedSamples} amostra(s) · " +
-            $"{update.Elapsed.TotalSeconds.ToString("F0", CultureInfo.CurrentCulture)}/" +
-            $"{update.Requested.TotalSeconds.ToString("F0", CultureInfo.CurrentCulture)} s · leitura somente";
+        NetworkStatusText.Text = Loc.F($"Coletando — {update.SamplesCollected}/{update.ExpectedSamples} amostra(s) · ") +
+            Loc.F($"{update.Elapsed.TotalSeconds.ToString("F0", CultureInfo.CurrentCulture)}/") +
+            Loc.F($"{update.Requested.TotalSeconds.ToString("F0", CultureInfo.CurrentCulture)} s · leitura somente");
         if (update.Latest is not { } sample) return;
         NetworkTcpValue.Text = sample.TcpConnections.ToString(CultureInfo.CurrentCulture);
-        NetworkTcpDetail.Text = $"escuta {sample.ListeningTcp} · portas {sample.DistinctLocalPorts}";
+        NetworkTcpDetail.Text = Loc.F($"escuta {sample.ListeningTcp} · portas {sample.DistinctLocalPorts}");
         NetworkUdpValue.Text = sample.UdpEndpoints.ToString(CultureInfo.CurrentCulture);
-        NetworkUdpDetail.Text = "endpoints UDP observados";
+        NetworkUdpDetail.Text = Loc.T("endpoints UDP observados");
         NetworkEphemeralValue.Text =
             (sample.EphemeralTcpConnections + sample.EphemeralUdpEndpoints).ToString(CultureInfo.CurrentCulture);
-        NetworkEphemeralDetail.Text = "endpoints na faixa dinâmica";
+        NetworkEphemeralDetail.Text = Loc.T("endpoints na faixa dinâmica");
         NetworkProcessValue.Text = sample.TopProcesses.Count.ToString(CultureInfo.CurrentCulture);
-        NetworkProcessDetail.Text = "processos com mais endpoints";
+        NetworkProcessDetail.Text = Loc.T("processos com mais endpoints");
     }
 
     private void OnNetworkHistorySelected(object sender, SelectionChangedEventArgs e)
@@ -404,32 +405,32 @@ public partial class MainWindow
         var observation = row.Observation;
         var text = new StringBuilder();
         text.AppendLine(observation.Title);
-        text.AppendLine($"Regra: {observation.RuleId} {observation.RuleVersion} · tipo: {KindName(observation.Kind)}");
-        text.AppendLine($"Severidade: {EventCatalog.SeverityName(observation.Severity)} · " +
-            $"confiança: {EventCatalog.ConfidenceName(observation.Confidence)} · causalidade: não avaliada");
+        text.AppendLine(Loc.F($"Regra: {observation.RuleId} {observation.RuleVersion} · tipo: {KindName(observation.Kind)}"));
+        text.AppendLine(Loc.F($"Severidade: {EventCatalog.SeverityName(observation.Severity)} · ") +
+            Loc.F($"confiança: {EventCatalog.ConfidenceName(observation.Confidence)} · causalidade: não avaliada"));
         text.AppendLine();
         text.AppendLine(observation.Statement);
         text.AppendLine();
-        text.AppendLine($"Métrica: {observation.Metric} ({observation.Unit})" +
+        text.AppendLine(Loc.F($"Métrica: {observation.Metric} ({observation.Unit})") +
             (observation.Threshold is { } threshold
-                ? $" · limiar: {threshold.ToString("0.##", CultureInfo.CurrentCulture)}"
+                ? Loc.F($" · limiar: {threshold.ToString("0.##", CultureInfo.CurrentCulture)}")
                 : string.Empty));
         if (observation.Subject is not null || observation.SubjectName is not null)
-            text.AppendLine($"Sujeito: {observation.Subject ?? "Indisponível"}" +
-                (observation.SubjectName is null ? string.Empty : $" ({observation.SubjectName})"));
-        text.AppendLine($"Janela: {Local(observation.WindowFromUtc)} até {Local(observation.WindowToUtc)} · " +
-            $"{observation.Duration.TotalSeconds.ToString("F0", CultureInfo.CurrentCulture)} s");
-        text.AppendLine($"Amostras de suporte: {observation.SupportingSampleCount} de {observation.EvaluatedSampleCount}");
-        text.AppendLine($"Valores observados — mínimo: {Value(observation.ObservedMin)}; " +
-            $"máximo: {Value(observation.ObservedMax)}; média: {Value(observation.ObservedMean)}; " +
-            $"P95: {Value(observation.ObservedP95)}");
-        text.AppendLine($"Fonte: {observation.Source}");
+            text.AppendLine(Loc.F($"Sujeito: {observation.Subject ?? "Indisponível"}") +
+                (observation.SubjectName is null ? string.Empty : Loc.F($" ({observation.SubjectName})")));
+        text.AppendLine(Loc.F($"Janela: {Local(observation.WindowFromUtc)} até {Local(observation.WindowToUtc)} · ") +
+            Loc.F($"{observation.Duration.TotalSeconds.ToString("F0", CultureInfo.CurrentCulture)} s"));
+        text.AppendLine(Loc.F($"Amostras de suporte: {observation.SupportingSampleCount} de {observation.EvaluatedSampleCount}"));
+        text.AppendLine(Loc.F($"Valores observados — mínimo: {Value(observation.ObservedMin)}; ") +
+            Loc.F($"máximo: {Value(observation.ObservedMax)}; média: {Value(observation.ObservedMean)}; ") +
+            Loc.F($"P95: {Value(observation.ObservedP95)}"));
+        text.AppendLine(Loc.F($"Fonte: {observation.Source}"));
         if (observation.Limitations.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Limitações");
+            text.AppendLine(Loc.T("Limitações"));
             foreach (var limitation in observation.Limitations)
-                text.AppendLine($"• {limitation}");
+                text.AppendLine(Loc.F($"• {limitation}"));
         }
 
         NetworkObservationDetail.Text = text.ToString();
@@ -454,7 +455,7 @@ public partial class MainWindow
     {
         logFailure(error);
         NetworkStatusText.Text = message + ".";
-        ShowWarning($"{message}. {error.GetType().Name}: {error.Message}");
+        ShowWarning(Loc.F($"{message}. {error.GetType().Name}: {error.Message}"));
     }
 
     private static string StatusName(NetworkSessionStatus status) => status switch

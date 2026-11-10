@@ -13,6 +13,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using System.Xml.Linq;
 using SentinelCore.App;
+using SentinelCore.App.Localization;
 using SentinelCore.Application;
 using SentinelCore.Domain;
 using SentinelCore.Infrastructure.Debloat;
@@ -47,6 +48,7 @@ internal sealed class U3Host
             new XAttribute(XNamespace.Xmlns + "x", "http://schemas.microsoft.com/winfx/2006/xaml"),
             new XAttribute(XNamespace.Xmlns + "local", "clr-namespace:SentinelCore.App;assembly=" + typeof(MainWindow).Assembly.GetName().Name),
             xml.Root!.Element(p + "Application.Resources")!.Nodes()).ToString());
+        Localizer.Use(AppLanguage.Portuguese);
         app.DispatcherUnhandledException += (_, e) => { host.Check("dispatcher", false, e.Exception.ToString()); e.Handled = true; };
         app.Startup += async (_, _) =>
         {

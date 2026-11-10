@@ -8,6 +8,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using System.Xml.Linq;
 using SentinelCore.App;
+using SentinelCore.App.Localization;
 using SentinelCore.Application;
 using SentinelCore.Domain;
 using SentinelCore.Infrastructure.Modifications;
@@ -46,6 +47,7 @@ internal sealed class WpfHost
             new XAttribute(XNamespace.Xmlns + "local", "clr-namespace:SentinelCore.App;assembly=" + typeof(MainWindow).Assembly.GetName().Name),
             xml.Root!.Element(presentation + "Application.Resources")!.Nodes());
         app.Resources = (ResourceDictionary)XamlReader.Parse(dictionary.ToString());
+        Localizer.Use(AppLanguage.Portuguese);
         var unhandled = 0;
         app.DispatcherUnhandledException += (_, e) => { unhandled++; host.lines.Add("UNHANDLED " + e.Exception); e.Handled = true; };
         app.Startup += async (_, _) =>

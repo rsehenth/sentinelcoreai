@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Foreground="{DynamicResource Text}" FontFamily="Segoe UI Variable Text, Segoe UI"
              Loaded="OnLoaded" Unloaded="OnUnloaded"
-             AutomationProperties.AutomationId="RecoveryCenterView" AutomationProperties.Name="Central de Recuperação">
+             AutomationProperties.AutomationId="RecoveryCenterView" AutomationProperties.Name="{DynamicResource T93}">
     <UserControl.Resources>
         <Style x:Key="RecoveryReadout" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
             <Setter Property="IsReadOnly" Value="True"/>
@@ -69,26 +69,26 @@
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <Border Style="{DynamicResource PageIcon}"><Viewbox Width="23" Height="23"><Canvas Width="24" Height="24"><Path Data="{DynamicResource IconHistory}" Stroke="{DynamicResource Accent}" StrokeThickness="1.9" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Canvas></Viewbox></Border>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="Central de Recuperação" Style="{DynamicResource PageTitle}"/>
-                        <TextBlock Text="Histórico, consequências e possibilidades de recuperação dos módulos locais." Style="{DynamicResource PageSubtitle}"/>
+                        <TextBlock Text="{DynamicResource T93}" Style="{DynamicResource PageTitle}"/>
+                        <TextBlock Text="{DynamicResource T250}" Style="{DynamicResource PageSubtitle}"/>
                     </StackPanel>
                 </Grid>
-                <Button x:Name="RefreshButton" Grid.Column="1" Content="Atualizar histórico" Tag="{DynamicResource IconRefresh}" Click="OnRefresh" Margin="16,0,0,0" VerticalAlignment="Top" AutomationProperties.AutomationId="RecoveryRefresh"/>
+                <Button x:Name="RefreshButton" Grid.Column="1" Content="{DynamicResource T46}" Tag="{DynamicResource IconRefresh}" Click="OnRefresh" Margin="16,0,0,0" VerticalAlignment="Top" AutomationProperties.AutomationId="RecoveryRefresh"/>
             </Grid>
             <Border Style="{DynamicResource Card}" Padding="16" Margin="0,18,0,0">
                 <StackPanel>
-                    <TextBlock x:Name="ModeText" Text="Consulta local — execução real bloqueada" FontWeight="SemiBold" Foreground="{DynamicResource Accent}"/>
-                    <TextBlock Text="Fixtures são identificadas como sintéticas. Origem não registrada permanece desconhecida. Debloat e reparos não possuem rollback equivalente aos Tweaks." Style="{DynamicResource Caption}" Margin="0,6,0,0"/>
-                    <TextBlock Text="Snapshots de aplicativos preservam metadados; não recuperam configurações, licenças, contas ou dados pessoais." Style="{DynamicResource Caption}" Margin="0,4,0,0"/>
+                    <TextBlock x:Name="ModeText" Text="{DynamicResource T114}" FontWeight="SemiBold" Foreground="{DynamicResource Accent}"/>
+                    <TextBlock Text="{DynamicResource T215}" Style="{DynamicResource Caption}" Margin="0,6,0,0"/>
+                    <TextBlock Text="{DynamicResource T447}" Style="{DynamicResource Caption}" Margin="0,4,0,0"/>
                 </StackPanel>
             </Border>
 
-            <TextBlock x:Name="SummaryText" Text="Históricos ainda não carregados. Contagens indisponíveis." Margin="0,16,0,8" Foreground="{DynamicResource Muted}" AutomationProperties.AutomationId="RecoverySummary" AutomationProperties.LiveSetting="Polite"/>
-            <Expander x:Name="AuditInterruptionsPanel" Header="Auditorias e interrupções" Visibility="Collapsed" Margin="0,0,0,12">
+            <TextBlock x:Name="SummaryText" Text="{DynamicResource T251}" Margin="0,16,0,8" Foreground="{DynamicResource Muted}" AutomationProperties.AutomationId="RecoverySummary" AutomationProperties.LiveSetting="Polite"/>
+            <Expander x:Name="AuditInterruptionsPanel" Header="{DynamicResource T55}" Visibility="Collapsed" Margin="0,0,0,12">
                 <StackPanel Margin="12,8">
                     <TextBlock x:Name="AuditInterruptionsSummary" Style="{DynamicResource Caption}" TextWrapping="Wrap"/>
                     <ListBox x:Name="AuditInterruptionsList" MaxHeight="180" Margin="0,8,0,0"
-                             AutomationProperties.Name="Histórico de auditorias e interrupções">
+                             AutomationProperties.Name="{DynamicResource T229}">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Button Content="{Binding Label}" Click="OnOpenInterruptedAudit" Style="{DynamicResource CompactButton}"
@@ -113,76 +113,76 @@
 
             <Border x:Name="WarningsPanel" Visibility="Collapsed" Background="{DynamicResource WarnSoft}" BorderBrush="{DynamicResource WarnLine}" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,4,0,16">
                 <StackPanel>
-                    <TextBlock Text="Histórico incompleto ou com limitações" Foreground="{DynamicResource Warn}" FontWeight="SemiBold"/>
-                    <TextBox x:Name="WarningsText" AutomationProperties.Name="Avisos da Central de Recuperação" Style="{StaticResource RecoveryReadout}" MaxHeight="180" Margin="0,8,0,0" AutomationProperties.AutomationId="RecoveryWarnings"/>
+                    <TextBlock Text="{DynamicResource T245}" Foreground="{DynamicResource Warn}" FontWeight="SemiBold"/>
+                    <TextBox x:Name="WarningsText" AutomationProperties.Name="{DynamicResource T64}" Style="{StaticResource RecoveryReadout}" MaxHeight="180" Margin="0,8,0,0" AutomationProperties.AutomationId="RecoveryWarnings"/>
                 </StackPanel>
             </Border>
-            <TextBlock Text="Localizar operações" Style="{DynamicResource PaneTitle}" Margin="0,8,0,8"/>
-            <TextBox x:Name="SearchText" Style="{DynamicResource SearchBox}" TextChanged="OnFilterChanged" AutomationProperties.Name="Buscar por identificação, alvo ou informações do histórico" AutomationProperties.AutomationId="RecoverySearch" ToolTip="Busca textual nos registros carregados"/>
+            <TextBlock Text="{DynamicResource T297}" Style="{DynamicResource PaneTitle}" Margin="0,8,0,8"/>
+            <TextBox x:Name="SearchText" Style="{DynamicResource SearchBox}" TextChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T76}" AutomationProperties.AutomationId="RecoverySearch" ToolTip="{DynamicResource T67}"/>
             <WrapPanel Margin="0,12,0,0">
-                <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="Módulo" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="ModuleCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Módulo"/></StackPanel>
-                <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="Resultado" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="OutcomeCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Resultado"/></StackPanel>
-                <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="Origem" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="OriginCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Origem sintética, real ou desconhecida"/></StackPanel>
-                <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="Recuperação" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="CapabilityCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Capacidade de recuperação"/></StackPanel>
+                <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="{DynamicResource T309}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="ModuleCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T309}"/></StackPanel>
+                <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="{DynamicResource T409}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="OutcomeCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T409}"/></StackPanel>
+                <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="{DynamicResource T341}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="OriginCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T344}"/></StackPanel>
+                <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="{DynamicResource T383}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="CapabilityCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T83}"/></StackPanel>
             </WrapPanel>
-            <Expander Header="Mais filtros" IsExpanded="False" Foreground="{DynamicResource Text}" Margin="0,0,0,10" AutomationProperties.Name="Mais filtros de histórico">
+            <Expander Header="{DynamicResource T300}" IsExpanded="False" Foreground="{DynamicResource Text}" Margin="0,0,0,10" AutomationProperties.Name="{DynamicResource T301}">
                 <WrapPanel Margin="0,12,0,0">
-                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="Tipo" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="TypeCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Tipo de operação"/></StackPanel>
-                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="Estado registrado" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="StateCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Estado registrado"/></StackPanel>
-                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="Risco" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="RiskCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Risco"/></StackPanel>
-                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="Disponibilidade de recuperação" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="AvailableCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Recuperação disponível ou indisponível"/></StackPanel>
-                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="Conflito" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="ConflictCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Conflito"/></StackPanel>
-                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="Intervenção necessária" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="InterventionCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="Intervenção necessária"/></StackPanel>
-                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="De (data local)" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><DatePicker x:Name="FromDate" SelectedDateChanged="OnFilterChanged" AutomationProperties.Name="Data inicial no fuso local"/></StackPanel>
-                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="Até (data local)" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><DatePicker x:Name="ToDate" SelectedDateChanged="OnFilterChanged" AutomationProperties.Name="Data final no fuso local"/></StackPanel>
+                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="{DynamicResource T456}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="TypeCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T458}"/></StackPanel>
+                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="{DynamicResource T184}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="StateCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T184}"/></StackPanel>
+                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="{DynamicResource T416}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="RiskCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T416}"/></StackPanel>
+                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="{DynamicResource T162}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="AvailableCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T385}"/></StackPanel>
+                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="{DynamicResource T112}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="ConflictCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T112}"/></StackPanel>
+                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="{DynamicResource T269}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="InterventionCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T269}"/></StackPanel>
+                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="{DynamicResource T130}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><DatePicker x:Name="FromDate" SelectedDateChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T128}"/></StackPanel>
+                    <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="{DynamicResource T42}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><DatePicker x:Name="ToDate" SelectedDateChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T127}"/></StackPanel>
                 </WrapPanel>
             </Expander>
-            <Button x:Name="ClearFiltersButton" Content="Limpar filtros" Click="OnClearFilters" HorizontalAlignment="Left" Style="{DynamicResource GhostButton}" Margin="0,0,0,10"/>
-            <TextBlock x:Name="HistorySummary" Text="Nenhuma fonte carregada." Style="{DynamicResource Caption}" Margin="0,0,0,8" AutomationProperties.AutomationId="RecoveryHistorySummary"/>
-            <DataGrid x:Name="HistoryGrid" Height="300" HorizontalScrollBarVisibility="Auto" SelectionChanged="OnSelectionChanged" AutomationProperties.AutomationId="RecoveryHistory" AutomationProperties.Name="Histórico unificado de operações">
+            <Button x:Name="ClearFiltersButton" Content="{DynamicResource T292}" Click="OnClearFilters" HorizontalAlignment="Left" Style="{DynamicResource GhostButton}" Margin="0,0,0,10"/>
+            <TextBlock x:Name="HistorySummary" Text="{DynamicResource T323}" Style="{DynamicResource Caption}" Margin="0,0,0,8" AutomationProperties.AutomationId="RecoveryHistorySummary"/>
+            <DataGrid x:Name="HistoryGrid" Height="300" HorizontalScrollBarVisibility="Auto" SelectionChanged="OnSelectionChanged" AutomationProperties.AutomationId="RecoveryHistory" AutomationProperties.Name="{DynamicResource T248}">
                 <DataGrid.Columns>
-                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Data local" Binding="{Binding LocalDate}" SortMemberPath="Operation.AtUtc" Width="1.1*" MinWidth="84"/>
-                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Módulo" Binding="{Binding Module}" Width="1*" MinWidth="84"/>
-                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Origem" Binding="{Binding Origin}" Width="1*" MinWidth="84"/>
-                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Operação" Binding="{Binding Operation.OperationId}" Width="1.3*" MinWidth="84"/>
-                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Alvo" Binding="{Binding Operation.Target}" Width="1.5*" MinWidth="84"/>
-                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Estado" Binding="{Binding StateText}" Width="1.1*" MinWidth="84"/>
-                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Resultado" Binding="{Binding Outcome}" Width="1.1*" MinWidth="84"/>
-                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="Recuperação" Binding="{Binding Capability}" Width="1.4*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="{DynamicResource T129}" Binding="{Binding LocalDate}" SortMemberPath="Operation.AtUtc" Width="1.1*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="{DynamicResource T309}" Binding="{Binding Module}" Width="1*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="{DynamicResource T341}" Binding="{Binding Origin}" Width="1*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="{DynamicResource T336}" Binding="{Binding Operation.OperationId}" Width="1.3*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="{DynamicResource T33}" Binding="{Binding Operation.Target}" Width="1.5*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="{DynamicResource T181}" Binding="{Binding StateText}" Width="1.1*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="{DynamicResource T409}" Binding="{Binding Outcome}" Width="1.1*" MinWidth="84"/>
+                    <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="{DynamicResource T383}" Binding="{Binding Capability}" Width="1.4*" MinWidth="84"/>
                 </DataGrid.Columns>
             </DataGrid>
 
             <Border Style="{DynamicResource Card}" Padding="18" Margin="0,18,0,0">
                 <StackPanel>
-                    <TextBlock x:Name="DetailsTitle" Text="Detalhes da operação" FontSize="17" FontWeight="SemiBold"/>
-                    <TextBlock Text="Identificação, estado, consequências, proteções, recuperação e próximas ações. Informação ausente permanece indisponível." Style="{DynamicResource Caption}" Margin="0,5,0,10"/>
+                    <TextBlock x:Name="DetailsTitle" Text="{DynamicResource T145}" FontSize="17" FontWeight="SemiBold"/>
+                    <TextBlock Text="{DynamicResource T255}" Style="{DynamicResource Caption}" Margin="0,5,0,10"/>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="3*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
-                        <TextBox x:Name="DetailsText" Style="{StaticResource RecoveryReadout}" Height="280" Text="Selecione uma operação do histórico." AutomationProperties.AutomationId="RecoveryDetails" AutomationProperties.Name="Detalhes da operação selecionada"/>
+                        <TextBox x:Name="DetailsText" Style="{StaticResource RecoveryReadout}" Height="280" Text="{DynamicResource T432}" AutomationProperties.AutomationId="RecoveryDetails" AutomationProperties.Name="{DynamicResource T147}"/>
                         <StackPanel Grid.Column="2">
-                            <TextBlock Text="Eventos persistidos" Style="{DynamicResource PaneTitle}" Margin="0,0,0,4"/>
-                            <TextBlock Text="Somente eventos existentes, em ordem temporal. Uma intenção não comprova início de execução." Style="{DynamicResource Caption}" Margin="0,0,0,8"/>
-                            <TextBox x:Name="TimelineText" Style="{StaticResource RecoveryReadout}" Height="212" Text="Nenhum evento selecionado." AutomationProperties.AutomationId="RecoveryTimeline" AutomationProperties.Name="Eventos persistidos da operação"/>
+                            <TextBlock Text="{DynamicResource T195}" Style="{DynamicResource PaneTitle}" Margin="0,0,0,4"/>
+                            <TextBlock Text="{DynamicResource T449}" Style="{DynamicResource Caption}" Margin="0,0,0,8"/>
+                            <TextBox x:Name="TimelineText" Style="{StaticResource RecoveryReadout}" Height="212" Text="{DynamicResource T315}" AutomationProperties.AutomationId="RecoveryTimeline" AutomationProperties.Name="{DynamicResource T196}"/>
                         </StackPanel>
                     </Grid>
-                    <TextBlock Text="Localização do relatório" Style="{DynamicResource Caption}" Margin="0,14,0,5"/>
-                    <TextBox x:Name="ReportPathText" Style="{StaticResource RecoveryReadout}" AutomationProperties.Name="Localização do relatório, somente leitura"/>
+                    <TextBlock Text="{DynamicResource T295}" Style="{DynamicResource Caption}" Margin="0,14,0,5"/>
+                    <TextBox x:Name="ReportPathText" Style="{StaticResource RecoveryReadout}" AutomationProperties.Name="{DynamicResource T296}"/>
                 </StackPanel>
             </Border>
             <Border Style="{DynamicResource Card}" Padding="18" Margin="0,14,0,0">
                 <StackPanel>
-                    <TextBlock Text="Recuperação de Tweaks" FontSize="15" FontWeight="SemiBold"/>
-                    <TextBlock x:Name="RecoveryPolicyText" Text="Execução bloqueada nesta composição. A central não consulta o estado atual do Registro nem executa rollback real." Style="{DynamicResource Caption}" Margin="0,6,0,0"/>
-                    <TextBlock x:Name="ConfirmationHint" Text="Selecione um alvo sintético suportado para analisar a recuperação." Style="{DynamicResource Caption}" Margin="0,10,0,6"/>
-                    <TextBox x:Name="ConfirmationText" IsEnabled="False" TextChanged="OnConfirmationChanged" AutomationProperties.AutomationId="RecoveryConfirmation" AutomationProperties.Name="Confirmação específica de recuperação"/>
+                    <TextBlock Text="{DynamicResource T384}" FontSize="15" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="RecoveryPolicyText" Text="{DynamicResource T201}" Style="{DynamicResource Caption}" Margin="0,6,0,0"/>
+                    <TextBlock x:Name="ConfirmationHint" Text="{DynamicResource T425}" Style="{DynamicResource Caption}" Margin="0,10,0,6"/>
+                    <TextBox x:Name="ConfirmationText" IsEnabled="False" TextChanged="OnConfirmationChanged" AutomationProperties.AutomationId="RecoveryConfirmation" AutomationProperties.Name="{DynamicResource T107}"/>
                     <WrapPanel Margin="0,12,0,0">
-                        <Button x:Name="AnalyzeButton" Content="Analisar recuperação" IsEnabled="False" Click="OnAnalyze" Margin="0,0,10,8" AutomationProperties.AutomationId="RecoveryAnalyze"/>
-                        <Button x:Name="RecoverButton" Content="Confirmar recuperação" IsEnabled="False" Click="OnRecover" Margin="0,0,0,8" AutomationProperties.AutomationId="RecoveryExecuteSynthetic"/>
+                        <Button x:Name="AnalyzeButton" Content="{DynamicResource T35}" IsEnabled="False" Click="OnAnalyze" Margin="0,0,10,8" AutomationProperties.AutomationId="RecoveryAnalyze"/>
+                        <Button x:Name="RecoverButton" Content="{DynamicResource T110}" IsEnabled="False" Click="OnRecover" Margin="0,0,0,8" AutomationProperties.AutomationId="RecoveryExecuteSynthetic"/>
                     </WrapPanel>
                 </StackPanel>
             </Border>
-            <TextBlock x:Name="StatusText" Text="Aguardando leitura do histórico local." Margin="0,14,0,0" AutomationProperties.AutomationId="RecoveryStatus" AutomationProperties.LiveSetting="Polite"/>
-            <TextBlock Text="Consulta não executa reparos, remoções ou reinstalações. Conflitos e bloqueios persistentes não podem ser ignorados. A validação real permanece pendente." Style="{DynamicResource FootNote}"/>
+            <TextBlock x:Name="StatusText" Text="{DynamicResource T32}" Margin="0,14,0,0" AutomationProperties.AutomationId="RecoveryStatus" AutomationProperties.LiveSetting="Polite"/>
+            <TextBlock Text="{DynamicResource T115}" Style="{DynamicResource FootNote}"/>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

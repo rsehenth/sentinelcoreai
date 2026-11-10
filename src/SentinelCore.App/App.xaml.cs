@@ -12,6 +12,7 @@ using SentinelCore.Infrastructure.Windows;
 using SentinelCore.Infrastructure.Windows.Monitoring;
 using SentinelCore.Infrastructure.Windows.Network;
 using SentinelCore.Persistence;
+using SentinelCore.App.Localization;
 
 namespace SentinelCore.App;
 
@@ -31,17 +32,18 @@ public partial class App : System.Windows.Application
         catch (Exception error)
         {
             // Fail-closed: sem log e sem diretório; o erro é só exibido.
-            MessageBox.Show("Não foi possível iniciar o aplicativo: diretório de dados inválido. " + error.Message,
-                "SentinelCore AI");
+            MessageBox.Show(Loc.T("Não foi possível iniciar o aplicativo: diretório de dados inválido. ") + error.Message,
+                Loc.T("SentinelCore AI"));
             Shutdown(1);
             return;
         }
         log = new ApplicationLog(dataRoot);
+        Localizer.Initialize(dataRoot);
         RenderOptions.ProcessRenderMode = RenderMode.SoftwareOnly;
         DispatcherUnhandledException += (_, args) =>
         {
             LogFailure(args.Exception);
-            MessageBox.Show("Erro não tratado. O aplicativo será fechado. Consulte logs/application.log no diretório de dados.", "SentinelCore AI");
+            MessageBox.Show(Loc.T("Erro não tratado. O aplicativo será fechado. Consulte logs/application.log no diretório de dados."), Loc.T("SentinelCore AI"));
             args.Handled = true; Shutdown(1);
         };
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
@@ -53,7 +55,7 @@ public partial class App : System.Windows.Application
             instanceMutex = new Mutex(true, @"Local\SentinelCoreAI.Phase1", out var created);
             if (!created)
             {
-                MessageBox.Show("O SentinelCore AI já está aberto nesta sessão.", "SentinelCore AI");
+                MessageBox.Show(Loc.T("O SentinelCore AI já está aberto nesta sessão."), Loc.T("SentinelCore AI"));
                 Shutdown(); return;
             }
             var performanceRunner = new PerformanceSessionRunner(Infrastructure.Windows.Performance.WindowsPerformanceCollectors.Create());
@@ -127,7 +129,7 @@ public partial class App : System.Windows.Application
         }
         catch (Exception error)
         {
-            LogFailure(error); MessageBox.Show("Não foi possível iniciar o aplicativo. Consulte logs/application.log.", "SentinelCore AI"); Shutdown(1);
+            LogFailure(error); MessageBox.Show(Loc.T("Não foi possível iniciar o aplicativo. Consulte logs/application.log."), Loc.T("SentinelCore AI")); Shutdown(1);
         }
     }
     protected override void OnExit(ExitEventArgs e) { instanceMutex?.Dispose(); base.OnExit(e); }

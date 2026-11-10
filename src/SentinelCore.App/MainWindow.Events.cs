@@ -8,6 +8,7 @@ using SentinelCore.Application;
 using SentinelCore.Domain;
 using SentinelCore.Infrastructure.Windows;
 using SentinelCore.Persistence;
+using SentinelCore.App.Localization;
 
 namespace SentinelCore.App;
 
@@ -90,23 +91,23 @@ public partial class MainWindow
         var last = investigation.Groups.Select(group => group.LastObservedUtc).Max();
         var distinctReports = investigation.Reports.Select(report => report.ReportId)
             .Distinct(StringComparer.OrdinalIgnoreCase).Count();
-        EventInvestigationInfo.Text = $"Investigação de {Local(investigation.CompletedUtc)} · " +
-            $"{EventCatalog.StatusName(investigation.Status)} · janela {WindowName(investigation.Window)} · ID {investigation.Id:D}";
+        EventInvestigationInfo.Text = Loc.F($"Investigação de {Local(investigation.CompletedUtc)} · ") +
+            Loc.F($"{EventCatalog.StatusName(investigation.Status)} · janela {WindowName(investigation.Window)} · ID {investigation.Id:D}");
         EventGroupCountText.Text = investigation.Groups.Count.ToString(CultureInfo.InvariantCulture);
         EventRecordCountText.Text = investigation.Events.Count.ToString(CultureInfo.InvariantCulture);
         EventReportCountText.Text = distinctReports.ToString(CultureInfo.InvariantCulture);
-        EventLastSeenText.Text = last is { } at ? Local(at) : "Indisponível";
+        EventLastSeenText.Text = last is { } at ? Local(at) : Loc.T("Indisponível");
         var quality = EventQualityRules.Evaluate(investigation);
-        EventQualityText.Text = $"Qualidade ({quality.RuleId} v{quality.RuleVersion}): {QualityStateName(quality.State)} · {quality.Summary}" +
+        EventQualityText.Text = Loc.F($"Qualidade ({quality.RuleId} v{quality.RuleVersion}): {QualityStateName(quality.State)} · {quality.Summary}") +
             (quality.State == EventQualityState.Affected
-                ? " Contagens WER não confiáveis; registros preservados. Nenhuma substituição automática."
+                ? Loc.T(" Contagens WER não confiáveis; registros preservados. Nenhuma substituição automática.")
                 : string.Empty);
         EventQualityText.Foreground = (Brush)FindResource(
             quality.State is EventQualityState.Affected or EventQualityState.Undetermined ? "Warn" : "Muted");
         if (!eventBusy)
-            EventStatusText.Text = $"Investigação {EventCatalog.StatusName(investigation.Status).ToLowerInvariant()} · " +
-                $"causalidade não avaliada · {investigation.Sources.Count(source => source.Status == EventSourceStatus.Completed)}" +
-                $"/{investigation.Sources.Count} fontes concluídas.";
+            EventStatusText.Text = Loc.F($"Investigação {EventCatalog.StatusName(investigation.Status).ToLowerInvariant()} · ") +
+                Loc.F($"causalidade não avaliada · {investigation.Sources.Count(source => source.Status == EventSourceStatus.Completed)}") +
+                Loc.F($"/{investigation.Sources.Count} fontes concluídas.");
         updatingEvents = true;
         EventSearch.Text = string.Empty;
         EventSearchHint.Visibility = Visibility.Visible;
@@ -126,15 +127,15 @@ public partial class MainWindow
         EventSearch.Text = string.Empty;
         EventSearchHint.Visibility = Visibility.Visible;
         updatingEvents = false;
-        EventInvestigationInfo.Text = "Nenhuma investigação de eventos realizada.";
+        EventInvestigationInfo.Text = Loc.T("Nenhuma investigação de eventos realizada.");
         EventGroupCountText.Text = "—";
         EventRecordCountText.Text = "—";
         EventReportCountText.Text = "—";
         EventLastSeenText.Text = "—";
         EventQualityText.Text = string.Empty;
-        EventGroupHeading.Text = "Grupos";
-        EventDetailsHeading.Text = "Detalhes";
-        EventDetails.Text = "Nenhuma investigação disponível. Use 'Investigar eventos' ou abra uma investigação salva.";
+        EventGroupHeading.Text = Loc.T("Grupos");
+        EventDetailsHeading.Text = Loc.T("Detalhes");
+        EventDetails.Text = Loc.T("Nenhuma investigação disponível. Use 'Investigar eventos' ou abra uma investigação salva.");
         UpdateEventButtons();
     }
 
@@ -145,7 +146,7 @@ public partial class MainWindow
             updatingEvents = true;
             EventGroupList.ItemsSource = null;
             updatingEvents = false;
-            EventGroupHeading.Text = "Grupos";
+            EventGroupHeading.Text = Loc.T("Grupos");
             return;
         }
         var query = EventSearch.Text.Trim();
@@ -162,8 +163,8 @@ public partial class MainWindow
         EventGroupList.SelectedItem = rows.Length > 0 ? rows[0] : null;
         updatingEvents = false;
         EventGroupHeading.Text = eventCategory is { } category
-            ? $"{EventCatalog.CategoryName(category)} · {rows.Length}"
-            : $"Grupos · {rows.Length}";
+            ? Loc.F($"{EventCatalog.CategoryName(category)} · {rows.Length}")
+            : Loc.F($"Grupos · {rows.Length}");
         if (rows.Length > 0) RenderEventGroup(rows[0].Group);
         else RenderEventEmpty(investigation, query);
     }
@@ -176,63 +177,63 @@ public partial class MainWindow
         var reports = investigation.Reports
             .Where(item => string.Equals(item.GroupId, group.Id, StringComparison.OrdinalIgnoreCase)).ToArray();
         var text = new StringBuilder();
-        text.AppendLine($"{group.Title} — Eventos relacionados encontrados");
-        text.AppendLine("Status: evidência identificada; causa ainda indeterminada.");
+        text.AppendLine(Loc.F($"{group.Title} — Eventos relacionados encontrados"));
+        text.AppendLine(Loc.T("Status: evidência identificada; causa ainda indeterminada."));
         text.AppendLine();
-        text.AppendLine($"Categoria: {EventCatalog.CategoryName(group.Category)}");
-        text.AppendLine($"Identificador técnico: {group.Id}");
-        if (!string.IsNullOrWhiteSpace(group.Provider)) text.AppendLine($"Provedor: {group.Provider}");
-        if (group.EventId is { } eventId) text.AppendLine($"Event ID: {eventId}");
-        if (!string.IsNullOrWhiteSpace(group.ProblemCode)) text.AppendLine($"Código do problema: {group.ProblemCode}");
-        text.AppendLine($"Severidade: {EventCatalog.SeverityName(group.Severity)}");
-        text.AppendLine($"Confiança da evidência: {EventCatalog.ConfidenceName(group.Confidence)}");
-        text.AppendLine($"Causalidade: {CausalityName(group.Causality)}");
+        text.AppendLine(Loc.F($"Categoria: {EventCatalog.CategoryName(group.Category)}"));
+        text.AppendLine(Loc.F($"Identificador técnico: {group.Id}"));
+        if (!string.IsNullOrWhiteSpace(group.Provider)) text.AppendLine(Loc.F($"Provedor: {group.Provider}"));
+        if (group.EventId is { } eventId) text.AppendLine(Loc.F($"Event ID: {eventId}"));
+        if (!string.IsNullOrWhiteSpace(group.ProblemCode)) text.AppendLine(Loc.F($"Código do problema: {group.ProblemCode}"));
+        text.AppendLine(Loc.F($"Severidade: {EventCatalog.SeverityName(group.Severity)}"));
+        text.AppendLine(Loc.F($"Confiança da evidência: {EventCatalog.ConfidenceName(group.Confidence)}"));
+        text.AppendLine(Loc.F($"Causalidade: {CausalityName(group.Causality)}"));
         text.AppendLine();
-        text.AppendLine($"Quantidade de registros de evento: {group.EventRecordCount}");
-        text.AppendLine($"Quantidade de relatórios distintos: {group.DistinctReportCount}");
-        text.AppendLine($"Reapresentações de relatório: {group.RePresentationCount}");
-        text.AppendLine($"Primeira ocorrência conhecida: {Format(group.FirstObservedUtc)}");
-        text.AppendLine($"Última ocorrência conhecida: {Format(group.LastObservedUtc)}");
-        text.AppendLine($"Canais: {Join(group.Channels)}");
-        text.AppendLine($"Fontes: {Join(group.Sources)}");
+        text.AppendLine(Loc.F($"Quantidade de registros de evento: {group.EventRecordCount}"));
+        text.AppendLine(Loc.F($"Quantidade de relatórios distintos: {group.DistinctReportCount}"));
+        text.AppendLine(Loc.F($"Reapresentações de relatório: {group.RePresentationCount}"));
+        text.AppendLine(Loc.F($"Primeira ocorrência conhecida: {Format(group.FirstObservedUtc)}"));
+        text.AppendLine(Loc.F($"Última ocorrência conhecida: {Format(group.LastObservedUtc)}"));
+        text.AppendLine(Loc.F($"Canais: {Join(group.Channels)}"));
+        text.AppendLine(Loc.F($"Fontes: {Join(group.Sources)}"));
         if (group.Limitations.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Limitações do grupo");
-            foreach (var limitation in group.Limitations) text.AppendLine($"• {limitation}");
+            text.AppendLine(Loc.T("Limitações do grupo"));
+            foreach (var limitation in group.Limitations) text.AppendLine(Loc.F($"• {limitation}"));
         }
         if (events.Length > 0)
         {
             text.AppendLine();
-            text.AppendLine($"Registros de evento ({Math.Min(events.Length, 50)} de {events.Length})");
+            text.AppendLine(Loc.F($"Registros de evento ({Math.Min(events.Length, 50)} de {events.Length})"));
             foreach (var item in events.Take(50))
             {
                 var record = item.RecordId is { } id ? $"RecordId {id}" : "sem RecordId";
-                text.AppendLine($"• {item.Channel} · {item.Provider} · Event ID {item.EventId} · {record} · {Local(item.OccurredUtc)}");
-                text.AppendLine($"  Nível: {item.Level}" + (item.TaskCode is { } task ? $" · tarefa {task}" : string.Empty) +
-                    (item.ActivityId is { } activity ? $" · atividade {activity:D}" : string.Empty));
-                if (!string.IsNullOrWhiteSpace(item.Message)) text.AppendLine($"  Mensagem: {Excerpt(item.Message)}");
+                text.AppendLine(Loc.F($"• {item.Channel} · {item.Provider} · Event ID {item.EventId} · {record} · {Local(item.OccurredUtc)}"));
+                text.AppendLine(Loc.F($"  Nível: {item.Level}") + (item.TaskCode is { } task ? Loc.F($" · tarefa {task}") : string.Empty) +
+                    (item.ActivityId is { } activity ? Loc.F($" · atividade {activity:D}") : string.Empty));
+                if (!string.IsNullOrWhiteSpace(item.Message)) text.AppendLine(Loc.F($"  Mensagem: {Excerpt(item.Message)}"));
             }
         }
         if (reports.Length > 0)
         {
             text.AppendLine();
-            text.AppendLine($"Relatórios WER ({Math.Min(reports.Length, 50)} de {reports.Length})");
+            text.AppendLine(Loc.F($"Relatórios WER ({Math.Min(reports.Length, 50)} de {reports.Length})"));
             foreach (var item in reports.Take(50))
             {
-                text.AppendLine($"• {item.Source}/{item.Store} · ReportId {item.ReportId} · " +
-                    $"{item.EventType ?? "tipo indisponível"}{(item.ProblemCode is { } code ? $" {code}" : string.Empty)} · " +
-                    $"{Format(item.EventTimeUtc ?? item.CreationTimeUtc)}");
+                text.AppendLine(Loc.F($"• {item.Source}/{item.Store} · ReportId {item.ReportId} · ") +
+                    Loc.F($"{item.EventType ?? "tipo indisponível"}{(item.ProblemCode is { } code ? $" {code}" : string.Empty)} · ") +
+                    Loc.F($"{Format(item.EventTimeUtc ?? item.CreationTimeUtc)}"));
                 if (!string.IsNullOrWhiteSpace(item.Application))
-                    text.AppendLine($"  Aplicativo: {item.Application}" +
-                        (item.Module is { } module ? $" · módulo {module}" : string.Empty));
+                    text.AppendLine(Loc.F($"  Aplicativo: {item.Application}") +
+                        (item.Module is { } module ? Loc.F($" · módulo {module}") : string.Empty));
             }
         }
         text.AppendLine();
-        text.AppendLine("Interpretação");
-        text.AppendLine("• A presença de eventos relacionados é evidência técnica, não confirmação de causa.");
-        text.AppendLine("• Um código isolado não determina defeito de hardware.");
-        text.AppendLine("• Contagens parciais ou limitadas não representam o total do sistema.");
+        text.AppendLine(Loc.T("Interpretação"));
+        text.AppendLine(Loc.T("• A presença de eventos relacionados é evidência técnica, não confirmação de causa."));
+        text.AppendLine(Loc.T("• Um código isolado não determina defeito de hardware."));
+        text.AppendLine(Loc.T("• Contagens parciais ou limitadas não representam o total do sistema."));
         EventDetailsHeading.Text = group.Title;
         EventDetails.Text = text.ToString();
     }
@@ -241,35 +242,35 @@ public partial class MainWindow
     {
         var text = new StringBuilder();
         text.AppendLine(query.Length > 0
-            ? $"Nenhum grupo corresponde à busca \"{query}\"."
-            : "Nenhum evento compatível encontrado no período.");
-        text.AppendLine("Ausência de eventos não comprova estabilidade nem ausência de problema.");
+            ? Loc.F($"Nenhum grupo corresponde à busca \"{query}\".")
+            : Loc.T("Nenhum evento compatível encontrado no período."));
+        text.AppendLine(Loc.T("Ausência de eventos não comprova estabilidade nem ausência de problema."));
         text.AppendLine();
-        text.AppendLine($"Status da investigação: {EventCatalog.StatusName(investigation.Status)} · causalidade não avaliada");
-        text.AppendLine($"Fontes: {investigation.Sources.Count(source => source.Status == EventSourceStatus.Completed)}" +
-            $"/{investigation.Sources.Count} concluídas");
+        text.AppendLine(Loc.F($"Status da investigação: {EventCatalog.StatusName(investigation.Status)} · causalidade não avaliada"));
+        text.AppendLine(Loc.F($"Fontes: {investigation.Sources.Count(source => source.Status == EventSourceStatus.Completed)}") +
+            Loc.F($"/{investigation.Sources.Count} concluídas"));
         foreach (var source in investigation.Sources)
         {
-            text.AppendLine($"• {EventCollectorName(source.CollectorId)}: {EventCatalog.SourceStatusName(source.Status)} · " +
-                $"{source.EventsRead} evento(s) · {source.ReportsRead} relatório(s)" +
-                (source.LimitHit ? " · limite atingido" : string.Empty));
-            foreach (var limitation in source.Limitations) text.AppendLine($"  Limitação: {limitation}");
+            text.AppendLine(Loc.F($"• {EventCollectorName(source.CollectorId)}: {EventCatalog.SourceStatusName(source.Status)} · ") +
+                Loc.F($"{source.EventsRead} evento(s) · {source.ReportsRead} relatório(s)") +
+                (source.LimitHit ? Loc.T(" · limite atingido") : string.Empty));
+            foreach (var limitation in source.Limitations) text.AppendLine(Loc.F($"  Limitação: {limitation}"));
         }
         var unavailable = investigation.Channels.Where(channel => !channel.Accessible || !channel.Exists).ToArray();
         if (unavailable.Length > 0)
         {
             text.AppendLine();
-            text.AppendLine("Canais indisponíveis ou inacessíveis");
+            text.AppendLine(Loc.T("Canais indisponíveis ou inacessíveis"));
             foreach (var channel in unavailable)
-                text.AppendLine($"• {channel.Channel}: {channel.Detail ?? "indisponível"}");
+                text.AppendLine(Loc.F($"• {channel.Channel}: {channel.Detail ?? "indisponível"}"));
         }
         if (investigation.Limitations.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Limitações da investigação");
-            foreach (var limitation in investigation.Limitations) text.AppendLine($"• {limitation}");
+            text.AppendLine(Loc.T("Limitações da investigação"));
+            foreach (var limitation in investigation.Limitations) text.AppendLine(Loc.F($"• {limitation}"));
         }
-        EventDetailsHeading.Text = query.Length > 0 ? "Busca" : "Investigação";
+        EventDetailsHeading.Text = query.Length > 0 ? Loc.T("Busca") : Loc.T("Investigação");
         EventDetails.Text = text.ToString();
     }
 
@@ -285,12 +286,12 @@ public partial class MainWindow
         {
             if (EventFromPicker.SelectedDate is not { } fromDate || EventToPicker.SelectedDate is not { } toDate)
             {
-                EventStatusText.Text = "Selecione as duas datas do período personalizado.";
+                EventStatusText.Text = Loc.T("Selecione as duas datas do período personalizado.");
                 return;
             }
             if (fromDate.Date > toDate.Date)
             {
-                EventStatusText.Text = "A data inicial não pode ser posterior à data final.";
+                EventStatusText.Text = Loc.T("A data inicial não pode ser posterior à data final.");
                 return;
             }
             from = LocalStart(fromDate);
@@ -310,39 +311,39 @@ public partial class MainWindow
             {
                 eventSaving = true;
                 var pending = unsavedEvent;
-                EventStatusText.Text = "Tentando salvar novamente a investigação pendente…";
+                EventStatusText.Text = Loc.T("Tentando salvar novamente a investigação pendente…");
                 UpdateEventButtons();
                 await eventStore.SaveInvestigationAsync(pending);
                 saved = true;
                 unsavedEvent = null;
                 await ReloadEventsAsync(pending.Id);
-                EventStatusText.Text = "Investigação pendente salva novamente.";
+                EventStatusText.Text = Loc.T("Investigação pendente salva novamente.");
                 return;
             }
-            EventStatusText.Text = "Investigando canais de eventos e metadados WER. Leitura somente, sem alterações no Windows.";
+            EventStatusText.Text = Loc.T("Investigando canais de eventos e metadados WER. Leitura somente, sem alterações no Windows.");
             var progress = new Progress<EventInvestigationProgress>(update =>
             {
                 if (eventSaving) return;
                 EventProgressBar.Maximum = Math.Max(1, update.Total);
                 EventProgressBar.Value = update.Finished;
-                EventStatusText.Text = $"{EventCollectorName(update.CollectorId)}: " +
-                    $"{EventCatalog.SourceStatusName(update.Status)} · {update.Finished}/{update.Total} fontes";
+                EventStatusText.Text = Loc.F($"{EventCollectorName(update.CollectorId)}: ") +
+                    Loc.F($"{EventCatalog.SourceStatusName(update.Status)} · {update.Finished}/{update.Total} fontes");
             });
             var investigation = await eventRunner.RunAsync(window, from, to, progress, eventCancellation.Token);
             unsavedEvent = investigation;
             ApplyEventInvestigation(investigation);
             eventSaving = true;
             UpdateEventButtons();
-            EventStatusText.Text = "Salvando investigação e atualizando a memória local…";
+            EventStatusText.Text = Loc.T("Salvando investigação e atualizando a memória local…");
             await eventStore.SaveInvestigationAsync(investigation);
             saved = true;
             unsavedEvent = null;
             await ReloadEventsAsync(investigation.Id);
             var distinctReports = investigation.Reports.Select(report => report.ReportId)
                 .Distinct(StringComparer.OrdinalIgnoreCase).Count();
-            EventStatusText.Text = $"Investigação {EventCatalog.StatusName(investigation.Status).ToLowerInvariant()}. " +
-                $"{investigation.Groups.Count} grupo(s), {investigation.Events.Count} registro(s), " +
-                $"{distinctReports} relatório(s) distinto(s).";
+            EventStatusText.Text = Loc.F($"Investigação {EventCatalog.StatusName(investigation.Status).ToLowerInvariant()}. ") +
+                Loc.F($"{investigation.Groups.Count} grupo(s), {investigation.Events.Count} registro(s), ") +
+                Loc.F($"{distinctReports} relatório(s) distinto(s).");
         }
         catch (Exception error)
         {
@@ -357,7 +358,7 @@ public partial class MainWindow
         {
             eventBusy = false; eventSaving = false;
             eventCancellation?.Dispose(); eventCancellation = null;
-            EventRunButton.Content = unsavedEvent is null ? "Investigar eventos" : "Tentar salvar investigação";
+            EventRunButton.Content = unsavedEvent is null ? Loc.T("Investigar eventos") : Loc.T("Tentar salvar investigação");
             RunButton.IsEnabled = true;
             UpdateEventButtons(); UpdateHardwareButtons();
             var closeNow = eventClosingAfterSave && unsavedEvent is null;
@@ -370,7 +371,7 @@ public partial class MainWindow
     {
         eventCancellation?.Cancel();
         EventCancelButton.IsEnabled = false;
-        EventStatusText.Text = "Cancelamento solicitado. Aguardando a leitura somente de eventos em andamento…";
+        EventStatusText.Text = Loc.T("Cancelamento solicitado. Aguardando a leitura somente de eventos em andamento…");
     }
 
     private async void OnEventReload(object sender, RoutedEventArgs e)
@@ -382,13 +383,13 @@ public partial class MainWindow
         eventBusy = true;
         EventReloadButton.IsEnabled = false; RunButton.IsEnabled = false;
         UpdateEventButtons(); UpdateHardwareButtons();
-        EventStatusText.Text = "Recarregando investigações salvas da memória local…";
+        EventStatusText.Text = Loc.T("Recarregando investigações salvas da memória local…");
         try
         {
             await ReloadEventsAsync(selectedEventInvestigation?.Id);
-            EventStatusText.Text = "Investigações recarregadas da memória local.";
+            EventStatusText.Text = Loc.T("Investigações recarregadas da memória local.");
         }
-        catch (Exception error) { ShowEventFailure("Não foi possível recarregar as investigações de eventos", error); }
+        catch (Exception error) { ShowEventFailure(Loc.T("Não foi possível recarregar as investigações de eventos"), error); }
         finally
         {
             eventBusy = false;
@@ -441,7 +442,7 @@ public partial class MainWindow
             EventReportButton.IsEnabled = false;
             await WindowsShell.OpenReportLocationAsync(eventStore.GetEventReportPath(investigation.Id));
         }
-        catch (Exception error) { ShowEventFailure("Não foi possível abrir a localização do relatório de eventos", error); }
+        catch (Exception error) { ShowEventFailure(Loc.T("Não foi possível abrir a localização do relatório de eventos"), error); }
         finally { UpdateEventButtons(); }
     }
 
@@ -454,7 +455,7 @@ public partial class MainWindow
     private void UpdateEventStorageIdentity()
     {
         var directory = Path.GetDirectoryName(eventStore.GetEventReportPath(Guid.Empty));
-        EventStorageIdentityText.Text = $"Relatórios de eventos: {directory} · caminho configurado; disponibilidade não verificada.";
+        EventStorageIdentityText.Text = Loc.F($"Relatórios de eventos: {directory} · caminho configurado; disponibilidade não verificada.");
     }
 
     private void UpdateEventButtons()
@@ -481,7 +482,7 @@ public partial class MainWindow
     {
         logFailure(error);
         EventStatusText.Text = message + ".";
-        ShowWarning($"{message}. {error.GetType().Name}: {error.Message}");
+        ShowWarning(Loc.F($"{message}. {error.GetType().Name}: {error.Message}"));
     }
 
     private static IReadOnlyList<EventCategoryRow> Categories()

@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using SentinelCore.Application;
 using SentinelCore.Domain;
 using SentinelCore.Infrastructure.Windows;
+using SentinelCore.App.Localization;
 
 namespace SentinelCore.App;
 
@@ -91,61 +92,61 @@ public partial class MainWindow
 
         PerformanceCpuValue.Text = cpu.Mean is { } mean ? Percent(mean) : "—";
         PerformanceCpuDetail.Text = cpu.ValidSamples > 0
-            ? $"P95 {Percent(cpu.P95)} · máx. {Percent(cpu.Max)} · {cpu.ValidSamples}/{cpu.TotalSamples} amostras"
-            : "Indisponível";
+            ? Loc.F($"P95 {Percent(cpu.P95)} · máx. {Percent(cpu.Max)} · {cpu.ValidSamples}/{cpu.TotalSamples} amostras")
+            : Loc.T("Indisponível");
         PerformanceMemoryValue.Text = memory.Mean is { } available ? Percent(available) : "—";
         var minimumAvailable = session.Samples
             .Where(sample => sample.Memory is { Valid: true })
             .Select(sample => (ulong?)sample.Memory!.AvailableBytes)
             .DefaultIfEmpty()
             .Min();
-        PerformanceMemoryDetail.Text = $"mín. disponível {Bytes(minimumAvailable)} · " +
-            $"{memory.ValidSamples}/{memory.TotalSamples} amostras";
+        PerformanceMemoryDetail.Text = Loc.F($"mín. disponível {Bytes(minimumAvailable)} · ") +
+            Loc.F($"{memory.ValidSamples}/{memory.TotalSamples} amostras");
         PerformanceProcessValue.Text = processes.Count.ToString(CultureInfo.InvariantCulture);
         var topCpu = processes.OrderByDescending(process => process.CpuPercent.Mean ?? -1).FirstOrDefault();
         PerformanceProcessDetail.Text = topCpu is null
-            ? "Nenhum processo monitorado"
-            : $"maior CPU: {topCpu.Name} ({Percent(topCpu.CpuPercent.Mean)})";
+            ? Loc.T("Nenhum processo monitorado")
+            : Loc.F($"maior CPU: {topCpu.Name} ({Percent(topCpu.CpuPercent.Mean)})");
         PerformanceStorageValue.Text = storage.Count.ToString(CultureInfo.InvariantCulture);
         var peakLatency = storage
             .SelectMany(item => new[] { item.ReadLatencyMs.Max, item.WriteLatencyMs.Max })
             .Where(value => value.HasValue).Select(value => value!.Value)
             .DefaultIfEmpty(double.NaN).Max();
         PerformanceStorageDetail.Text = storage.Count == 0
-            ? "Nenhum dispositivo observado"
-            : $"latência máx. {(double.IsNaN(peakLatency) ? "Indisponível" : Milliseconds(peakLatency))}";
+            ? Loc.T("Nenhum dispositivo observado")
+            : Loc.F($"latência máx. {(double.IsNaN(peakLatency) ? "Indisponível" : Milliseconds(peakLatency))}");
 
         var info = new StringBuilder();
-        info.AppendLine($"{status} · cobertura {CoverageName(coverage.Status)} · {PresetName(session.Preset)} · " +
-            $"{samples} amostra(s) · {session.Duration.TotalSeconds.ToString("F1", CultureInfo.CurrentCulture)} s · " +
-            $"ID {session.Id:D}");
-        info.AppendLine($"{coverage.CollectedSamples}/{coverage.ExpectedSamples} amostra(s) coletada(s) · " +
-            $"{coverage.MissedOpportunities} oportunidade(s) perdida(s) · " +
-            $"{session.Sources.Count} fonte(s) · {session.Samples.Sum(sample => sample.Exits.Count)} saída(s) · " +
-            "causalidade não avaliada");
-        info.AppendLine($"Início {Local(session.StartedUtc)} · conclusão {Local(session.CompletedUtc)}");
+        info.AppendLine(Loc.F($"{status} · cobertura {CoverageName(coverage.Status)} · {PresetName(session.Preset)} · ") +
+            Loc.F($"{samples} amostra(s) · {session.Duration.TotalSeconds.ToString("F1", CultureInfo.CurrentCulture)} s · ") +
+            Loc.F($"ID {session.Id:D}"));
+        info.AppendLine(Loc.F($"{coverage.CollectedSamples}/{coverage.ExpectedSamples} amostra(s) coletada(s) · ") +
+            Loc.F($"{coverage.MissedOpportunities} oportunidade(s) perdida(s) · ") +
+            Loc.F($"{session.Sources.Count} fonte(s) · {session.Samples.Sum(sample => sample.Exits.Count)} saída(s) · ") +
+            Loc.T("causalidade não avaliada"));
+        info.AppendLine(Loc.F($"Início {Local(session.StartedUtc)} · conclusão {Local(session.CompletedUtc)}"));
         if (coverage.ProcessLimitReached || coverage.StorageLimitReached || coverage.SampleLimitReached)
-            info.AppendLine($"Limites: processos {(coverage.ProcessLimitReached ? "atingido" : "não")} · " +
-                $"armazenamento {(coverage.StorageLimitReached ? "atingido" : "não")} · " +
-                $"amostras {(coverage.SampleLimitReached ? "atingido" : "não")}");
+            info.AppendLine(Loc.F($"Limites: processos {(coverage.ProcessLimitReached ? "atingido" : "não")} · ") +
+                Loc.F($"armazenamento {(coverage.StorageLimitReached ? "atingido" : "não")} · ") +
+                Loc.F($"amostras {(coverage.SampleLimitReached ? "atingido" : "não")}"));
         if (coverage.UnavailableCollectors.Count > 0)
-            info.AppendLine("Coletores indisponíveis: " + string.Join(", ", coverage.UnavailableCollectors));
+            info.AppendLine(Loc.T("Coletores indisponíveis: ") + string.Join(", ", coverage.UnavailableCollectors));
         var slowest = session.Sources.OrderByDescending(source => source.MaxReadMilliseconds ?? 0).FirstOrDefault();
         if (slowest?.MeanReadMilliseconds is { } meanRead)
-            info.AppendLine($"Leitura: {slowest.CollectorId} média {Milliseconds(meanRead)} · " +
-                $"máx. {Milliseconds(slowest.MaxReadMilliseconds)}");
+            info.AppendLine(Loc.F($"Leitura: {slowest.CollectorId} média {Milliseconds(meanRead)} · ") +
+                Loc.F($"máx. {Milliseconds(slowest.MaxReadMilliseconds)}"));
         var limitations = coverage.Limitations.Concat(session.Limitations)
             .Distinct(StringComparer.Ordinal).ToArray();
         if (limitations.Length > 0)
-            info.AppendLine("Limitações: " + string.Join(" ", limitations));
+            info.AppendLine(Loc.T("Limitações: ") + string.Join(" ", limitations));
         PerformanceStatusText.Text = info.ToString().TrimEnd();
 
         var quality = PerformanceQualityCatalog.Find(session.Id);
         PerformanceQualityBanner.Visibility = quality is null ? Visibility.Collapsed : Visibility.Visible;
         PerformanceQualityText.Text = quality is null ? string.Empty :
-            $"Qualidade histórica: {quality.DefectId} — {quality.Reason} " +
-            $"Versão afetada: {quality.AffectedVersion}; corrigida em {quality.FixedVersion}. " +
-            "Comparação quantitativa bloqueada; registro original preservado.";
+            Loc.F($"Qualidade histórica: {quality.DefectId} — {quality.Reason} ") +
+            Loc.F($"Versão afetada: {quality.AffectedVersion}; corrigida em {quality.FixedVersion}. ") +
+            Loc.T("Comparação quantitativa bloqueada; registro original preservado.");
         PerformanceProgress.Maximum = Math.Max(1, samples);
         PerformanceProgress.Value = samples;
 
@@ -156,8 +157,8 @@ public partial class MainWindow
             .Select(observation => new PerformanceObservationRow(observation))
             .ToArray();
         PerformanceObservationDetail.Text = session.Observations.Count == 0
-            ? "Nenhuma observação de evidência foi gerada nesta sessão."
-            : "Selecione uma observação para ver valores, janela e limitações.";
+            ? Loc.T("Nenhuma observação de evidência foi gerada nesta sessão.")
+            : Loc.T("Selecione uma observação para ver valores, janela e limitações.");
         UpdatePerformanceButtons();
     }
 
@@ -172,15 +173,15 @@ public partial class MainWindow
         PerformanceObservationDetail.Text = string.Empty;
         updatingPerformance = false;
         PerformanceCpuValue.Text = "—";
-        PerformanceCpuDetail.Text = "Nenhuma sessão disponível.";
+        PerformanceCpuDetail.Text = Loc.T("Nenhuma sessão disponível.");
         PerformanceMemoryValue.Text = "—";
-        PerformanceMemoryDetail.Text = "Inicie uma sessão para coletar.";
+        PerformanceMemoryDetail.Text = Loc.T("Inicie uma sessão para coletar.");
         PerformanceProcessValue.Text = "—";
-        PerformanceProcessDetail.Text = "Nenhuma sessão disponível.";
+        PerformanceProcessDetail.Text = Loc.T("Nenhuma sessão disponível.");
         PerformanceStorageValue.Text = "—";
-        PerformanceStorageDetail.Text = "Nenhuma sessão disponível.";
+        PerformanceStorageDetail.Text = Loc.T("Nenhuma sessão disponível.");
         PerformanceProgress.Value = 0;
-        PerformanceStatusText.Text = "Nenhuma sessão de desempenho realizada. A coleta é somente de leitura.";
+        PerformanceStatusText.Text = Loc.T("Nenhuma sessão de desempenho realizada. A coleta é somente de leitura.");
         PerformanceQualityBanner.Visibility = Visibility.Collapsed;
         PerformanceQualityText.Text = string.Empty;
         UpdatePerformanceButtons();
@@ -252,23 +253,23 @@ public partial class MainWindow
         {
             performanceBusy = true; performanceSaving = true;
             UpdatePerformanceButtons(); UpdateHardwareButtons();
-            PerformanceStatusText.Text = "Tentando salvar novamente a sessão pendente…";
+            PerformanceStatusText.Text = Loc.T("Tentando salvar novamente a sessão pendente…");
             try
             {
                 var pending = unsavedPerformance;
                 await SavePerformanceAsync(pending);
                 unsavedPerformance = null;
                 await ReloadPerformanceAsync(pending.Id);
-                PerformanceStatusText.Text = "Sessão pendente salva novamente.";
+                PerformanceStatusText.Text = Loc.T("Sessão pendente salva novamente.");
             }
             catch (Exception error)
             {
-                ShowPerformanceFailure("Falha de gravação da sessão. O resultado permanece nesta janela; tente salvar novamente", error);
+                ShowPerformanceFailure(Loc.T("Falha de gravação da sessão. O resultado permanece nesta janela; tente salvar novamente"), error);
             }
             finally
             {
                 performanceBusy = false; performanceSaving = false;
-                PerformanceRunButton.Content = unsavedPerformance is null ? "Iniciar sessão" : "Tentar salvar sessão";
+                PerformanceRunButton.Content = unsavedPerformance is null ? Loc.T("Iniciar sessão") : Loc.T("Tentar salvar sessão");
                 RunButton.IsEnabled = true;
                 UpdatePerformanceButtons(); UpdateHardwareButtons();
                 var closeNow = performanceClosingAfterSave && unsavedPerformance is null;
@@ -282,7 +283,7 @@ public partial class MainWindow
         var hardware = hardwareSnapshots.FirstOrDefault();
         performanceBusy = true; performanceSaving = false;
         performanceCancellation = new CancellationTokenSource();
-        PerformanceRunButton.Content = "Iniciar sessão";
+        PerformanceRunButton.Content = Loc.T("Iniciar sessão");
         PerformanceProgress.Minimum = 0; PerformanceProgress.Maximum = 1; PerformanceProgress.Value = 0;
         ClearRunWarnings();
         PerformanceQualityBanner.Visibility = Visibility.Collapsed;
@@ -292,21 +293,21 @@ public partial class MainWindow
         var saved = false;
         try
         {
-            PerformanceStatusText.Text = "Coleta de desempenho em andamento. Leitura somente, sem alterações no Windows.";
+            PerformanceStatusText.Text = Loc.T("Coleta de desempenho em andamento. Leitura somente, sem alterações no Windows.");
             var progress = new Progress<PerformanceProgress>(OnPerformanceProgress);
             var session = await performanceRunner.RunAsync(preset, hardware, progress, performanceCancellation.Token);
             unsavedPerformance = session;
             ApplyPerformanceSession(session);
             performanceSaving = true;
             UpdatePerformanceButtons();
-            PerformanceStatusText.Text = "Salvando sessão e relatório na memória local…";
+            PerformanceStatusText.Text = Loc.T("Salvando sessão e relatório na memória local…");
             await SavePerformanceAsync(session);
             saved = true;
             unsavedPerformance = null;
             await ReloadPerformanceAsync(session.Id);
-            PerformanceStatusText.Text = $"Sessão {ExecutionName(Coverage(session).Execution).ToLowerInvariant()} salva. " +
-                $"{session.Statistics.TotalSamples} amostra(s), {session.Statistics.Processes.Count} processo(s), " +
-                $"{session.Observations.Count} observação(ões). Causalidade não avaliada.";
+            PerformanceStatusText.Text = Loc.F($"Sessão {ExecutionName(Coverage(session).Execution).ToLowerInvariant()} salva. ") +
+                Loc.F($"{session.Statistics.TotalSamples} amostra(s), {session.Statistics.Processes.Count} processo(s), ") +
+                Loc.F($"{session.Observations.Count} observação(ões). Causalidade não avaliada.");
         }
         catch (Exception error)
         {
@@ -321,7 +322,7 @@ public partial class MainWindow
         {
             performanceBusy = false; performanceSaving = false;
             performanceCancellation?.Dispose(); performanceCancellation = null;
-            PerformanceRunButton.Content = unsavedPerformance is null ? "Iniciar sessão" : "Tentar salvar sessão";
+            PerformanceRunButton.Content = unsavedPerformance is null ? Loc.T("Iniciar sessão") : Loc.T("Tentar salvar sessão");
             RunButton.IsEnabled = true;
             UpdatePerformanceButtons(); UpdateHardwareButtons();
             var closeNow = performanceClosingAfterSave && unsavedPerformance is null;
@@ -336,31 +337,31 @@ public partial class MainWindow
         if (performanceSaving) return;
         PerformanceProgress.Maximum = Math.Max(1, update.ExpectedSamples);
         PerformanceProgress.Value = update.SamplesCollected;
-        PerformanceStatusText.Text = $"Coletando — {update.SamplesCollected}/{update.ExpectedSamples} amostras · " +
-            $"{update.Elapsed.TotalSeconds.ToString("F0", CultureInfo.CurrentCulture)}/" +
-            $"{update.Requested.TotalSeconds.ToString("F0", CultureInfo.CurrentCulture)} s · leitura somente";
+        PerformanceStatusText.Text = Loc.F($"Coletando — {update.SamplesCollected}/{update.ExpectedSamples} amostras · ") +
+            Loc.F($"{update.Elapsed.TotalSeconds.ToString("F0", CultureInfo.CurrentCulture)}/") +
+            Loc.F($"{update.Requested.TotalSeconds.ToString("F0", CultureInfo.CurrentCulture)} s · leitura somente");
         if (update.Latest is not { } sample) return;
         if (sample.Cpu is { Valid: true } cpu)
         {
             PerformanceCpuValue.Text = Percent(cpu.TotalPercent);
-            PerformanceCpuDetail.Text = $"usuário {Percent(cpu.UserPercent)} · kernel {Percent(cpu.KernelPercent)}";
+            PerformanceCpuDetail.Text = Loc.F($"usuário {Percent(cpu.UserPercent)} · kernel {Percent(cpu.KernelPercent)}");
         }
         if (sample.Memory is { Valid: true } memory)
         {
             PerformanceMemoryValue.Text = memory.AvailablePercent is { } percent ? Percent(percent) : "—";
-            PerformanceMemoryDetail.Text = $"{Bytes(memory.AvailableBytes)} disponíveis";
+            PerformanceMemoryDetail.Text = Loc.F($"{Bytes(memory.AvailableBytes)} disponíveis");
         }
         PerformanceProcessValue.Text = sample.Processes.Count.ToString(CultureInfo.InvariantCulture);
-        PerformanceProcessDetail.Text = "processos observados";
+        PerformanceProcessDetail.Text = Loc.T("processos observados");
         PerformanceStorageValue.Text = sample.Storage.Count.ToString(CultureInfo.InvariantCulture);
-        PerformanceStorageDetail.Text = "dispositivos observados";
+        PerformanceStorageDetail.Text = Loc.T("dispositivos observados");
     }
 
     private void OnPerformanceCancel(object sender, RoutedEventArgs e)
     {
         performanceCancellation?.Cancel();
         PerformanceCancelButton.IsEnabled = false;
-        PerformanceStatusText.Text = "Cancelamento solicitado. Aguardando a última leitura somente de desempenho…";
+        PerformanceStatusText.Text = Loc.T("Cancelamento solicitado. Aguardando a última leitura somente de desempenho…");
     }
 
     private async void OnPerformanceReport(object sender, RoutedEventArgs e)
@@ -373,7 +374,7 @@ public partial class MainWindow
         }
         catch (Exception error)
         {
-            ShowPerformanceFailure("Não foi possível abrir a localização do relatório de desempenho", error);
+            ShowPerformanceFailure(Loc.T("Não foi possível abrir a localização do relatório de desempenho"), error);
         }
         finally { UpdatePerformanceButtons(); }
     }
@@ -395,30 +396,30 @@ public partial class MainWindow
         var observation = row.Observation;
         var text = new StringBuilder();
         text.AppendLine(observation.Title);
-        text.AppendLine($"Regra: {observation.RuleId} {observation.RuleVersion} · tipo: {KindName(observation.Kind)}");
-        text.AppendLine($"Severidade: {EventCatalog.SeverityName(observation.Severity)} · " +
-            $"confiança: {EventCatalog.ConfidenceName(observation.Confidence)} · causalidade: não avaliada");
+        text.AppendLine(Loc.F($"Regra: {observation.RuleId} {observation.RuleVersion} · tipo: {KindName(observation.Kind)}"));
+        text.AppendLine(Loc.F($"Severidade: {EventCatalog.SeverityName(observation.Severity)} · ") +
+            Loc.F($"confiança: {EventCatalog.ConfidenceName(observation.Confidence)} · causalidade: não avaliada"));
         text.AppendLine();
         text.AppendLine(observation.Statement);
         text.AppendLine();
-        text.AppendLine($"Métrica: {observation.Metric} ({observation.Unit})" +
-            (observation.Threshold is { } threshold ? $" · limiar: {FormatValue(observation.Unit, threshold)}" : string.Empty));
+        text.AppendLine(Loc.F($"Métrica: {observation.Metric} ({observation.Unit})") +
+            (observation.Threshold is { } threshold ? Loc.F($" · limiar: {FormatValue(observation.Unit, threshold)}") : string.Empty));
         if (observation.Subject is not null || observation.SubjectName is not null)
-            text.AppendLine($"Sujeito: {observation.Subject ?? "Indisponível"}" +
-                (observation.SubjectName is null ? string.Empty : $" ({observation.SubjectName})"));
-        text.AppendLine($"Janela: {Local(observation.WindowFromUtc)} até {Local(observation.WindowToUtc)} · " +
-            $"{observation.Duration.TotalSeconds.ToString("F0", CultureInfo.CurrentCulture)} s");
-        text.AppendLine($"Amostras de suporte: {observation.SupportingSampleCount} de {observation.EvaluatedSampleCount}");
-        text.AppendLine($"Valores observados — mínimo: {FormatValue(observation.Unit, observation.ObservedMin)}; " +
-            $"máximo: {FormatValue(observation.Unit, observation.ObservedMax)}; " +
-            $"média: {FormatValue(observation.Unit, observation.ObservedMean)}; " +
-            $"P95: {FormatValue(observation.Unit, observation.ObservedP95)}");
-        text.AppendLine($"Fonte: {observation.Source}");
+            text.AppendLine(Loc.F($"Sujeito: {observation.Subject ?? "Indisponível"}") +
+                (observation.SubjectName is null ? string.Empty : Loc.F($" ({observation.SubjectName})")));
+        text.AppendLine(Loc.F($"Janela: {Local(observation.WindowFromUtc)} até {Local(observation.WindowToUtc)} · ") +
+            Loc.F($"{observation.Duration.TotalSeconds.ToString("F0", CultureInfo.CurrentCulture)} s"));
+        text.AppendLine(Loc.F($"Amostras de suporte: {observation.SupportingSampleCount} de {observation.EvaluatedSampleCount}"));
+        text.AppendLine(Loc.F($"Valores observados — mínimo: {FormatValue(observation.Unit, observation.ObservedMin)}; ") +
+            Loc.F($"máximo: {FormatValue(observation.Unit, observation.ObservedMax)}; ") +
+            Loc.F($"média: {FormatValue(observation.Unit, observation.ObservedMean)}; ") +
+            Loc.F($"P95: {FormatValue(observation.Unit, observation.ObservedP95)}"));
+        text.AppendLine(Loc.F($"Fonte: {observation.Source}"));
         if (observation.Limitations.Count > 0)
         {
             text.AppendLine();
-            text.AppendLine("Limitações");
-            foreach (var limitation in observation.Limitations) text.AppendLine($"• {limitation}");
+            text.AppendLine(Loc.T("Limitações"));
+            foreach (var limitation in observation.Limitations) text.AppendLine(Loc.F($"• {limitation}"));
         }
         PerformanceObservationDetail.Text = text.ToString();
     }
@@ -446,7 +447,7 @@ public partial class MainWindow
     {
         logFailure(error);
         PerformanceStatusText.Text = message + ".";
-        ShowWarning($"{message}. {error.GetType().Name}: {error.Message}");
+        ShowWarning(Loc.F($"{message}. {error.GetType().Name}: {error.Message}"));
     }
 
     private static string ExecutionName(PerformanceExecutionStatus execution) => execution switch

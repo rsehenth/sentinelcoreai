@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using SentinelCore.Application;
 using SentinelCore.Domain;
+using SentinelCore.App.Localization;
 
 namespace SentinelCore.App;
 
@@ -62,7 +63,7 @@ public partial class DebloatView : UserControl
         if (manager is not null) throw new InvalidOperationException("Debloat já foi composto.");
         manager = debloatManager;
         nativeObserver = observer;
-        if (observer is null) NativeInventoryStatus.Text = "Leitor nativo indisponível nesta composição.";
+        if (observer is null) NativeInventoryStatus.Text = Loc.T("Leitor nativo indisponível nesta composição.");
         UpdateButtons();
         if (IsLoaded) _ = RefreshAsync();
     }
@@ -94,7 +95,7 @@ public partial class DebloatView : UserControl
         nativeObservation = null;
         nativeRows = [];
         ApplyNativeFilter();
-        NativeSummary.Text = "Leitura em andamento…";
+        NativeSummary.Text = Loc.T("Leitura em andamento…");
         NativeWarnings.Visibility = Visibility.Collapsed;
         var token = cancellation!.Token;
         try
@@ -115,12 +116,12 @@ public partial class DebloatView : UserControl
         }
         catch (OperationCanceledException)
         {
-            NativeInventoryStatus.Text = "Consulta interrompida. Nenhuma ausência foi confirmada.";
+            NativeInventoryStatus.Text = Loc.T("Consulta interrompida. Nenhuma ausência foi confirmada.");
             ApplyNativeFilter();
         }
         catch (Exception error) when (error is not OutOfMemoryException)
         {
-            NativeInventoryStatus.Text = $"Consulta indisponível (0x{error.HResult:X8}). Nenhuma ausência foi confirmada.";
+            NativeInventoryStatus.Text = Loc.F($"Consulta indisponível (0x{error.HResult:X8}). Nenhuma ausência foi confirmada.");
             ApplyNativeFilter();
         }
         finally
@@ -131,14 +132,14 @@ public partial class DebloatView : UserControl
     }
 
     private static string ScopeStatus(DebloatScope scope, DebloatInventoryQueryState state, int count) =>
-        $"{DebloatPresentation.Scope(scope)} · {DebloatPresentation.QueryState(state)}" +
+        $"{Loc.T(DebloatPresentation.Scope(scope))} · {Loc.T(DebloatPresentation.QueryState(state))}" +
         (count > 0 ? $" {count} pacote(s) observado(s)." : "");
 
     private void OnNativeCancel(object sender, RoutedEventArgs e)
     {
         Cancel();
         NativeCancelButton.IsEnabled = false;
-        NativeInventoryStatus.Text = "Aguardando o encerramento da consulta…";
+        NativeInventoryStatus.Text = Loc.T("Aguardando o encerramento da consulta…");
     }
 
     private void OnNativeFilter(object sender, RoutedEventArgs e)
@@ -157,9 +158,9 @@ public partial class DebloatView : UserControl
             (term.Length == 0 || row.Search.Contains(term, StringComparison.CurrentCultureIgnoreCase))).ToArray();
         NativeGrid.ItemsSource = rows;
         if (selected is NativeRow row && rows.Contains(row)) NativeGrid.SelectedItem = selected;
-        NativeSummary.Text = nativeObservation is null ? "Consulte o inventário para carregar a lista."
-            : rows.Length == 0 ? "Nenhum pacote observado corresponde aos filtros. Confira a cobertura acima."
-            : $"{rows.Length} de {nativeRows.Count} pacote(s) observado(s).";
+        NativeSummary.Text = nativeObservation is null ? Loc.T("Consulte o inventário para carregar a lista.")
+            : rows.Length == 0 ? Loc.T("Nenhum pacote observado corresponde aos filtros. Confira a cobertura acima.")
+            : Loc.F($"{rows.Length} de {nativeRows.Count} pacote(s) observado(s).");
         ShowNativeSelection();
     }
 
@@ -173,18 +174,18 @@ public partial class DebloatView : UserControl
         NativePreview.Visibility = Visibility.Collapsed;
         if (NativeGrid.SelectedItem is not NativeRow row)
         {
-            NativeDetails.Text = "Selecione um pacote para consultar identidade, dependências e bloqueios.";
+            NativeDetails.Text = Loc.T("Selecione um pacote para consultar identidade, dependências e bloqueios.");
         }
         else
         {
             var p = row.Package;
-            NativeDetails.Text = $"{row.Name}\nNome técnico: {Available(p.TechnicalName)}\nPFN: {Available(p.PackageFamilyName)}\n" +
-                $"Package Full Name: {Available(p.PackageFullName)}\nEditor: {Available(p.Publisher)}\n" +
-                $"Versão: {Available(p.Version)} · Arquitetura: {Available(p.Architecture)}\n" +
-                $"Tipo: {row.Kind} · Assinatura: {row.Signature} · Categoria: {row.Category}\n" +
-                $"Escopo: {row.Scope} · Estado: {row.InstallState} · Provisionado: {NullableLabel(p.Provisioned)}\n" +
-                $"Dependências informadas pelo Windows: {NativeDependencyLabel(p.DependencyFullNames, p.DependencyFullNames is not null)}\n" +
-                $"Risco T0: {row.Risk} · Remoção real bloqueada\n" + string.Join("\n", row.Assessment.Blockers);
+            NativeDetails.Text = Loc.F($"{row.Name}\nNome técnico: {Available(p.TechnicalName)}\nPFN: {Available(p.PackageFamilyName)}\n") +
+                Loc.F($"Package Full Name: {Available(p.PackageFullName)}\nEditor: {Available(p.Publisher)}\n") +
+                Loc.F($"Versão: {Available(p.Version)} · Arquitetura: {Available(p.Architecture)}\n") +
+                Loc.F($"Tipo: {row.Kind} · Assinatura: {row.Signature} · Categoria: {row.Category}\n") +
+                Loc.F($"Escopo: {row.Scope} · Estado: {row.InstallState} · Provisionado: {NullableLabel(p.Provisioned)}\n") +
+                Loc.F($"Dependências informadas pelo Windows: {NativeDependencyLabel(p.DependencyFullNames, p.DependencyFullNames is not null)}\n") +
+                Loc.F($"Risco T0: {row.Risk} · Remoção real bloqueada\n") + string.Join(Loc.T("\n"), row.Assessment.Blockers);
         }
         UpdateButtons();
     }
@@ -193,16 +194,16 @@ public partial class DebloatView : UserControl
     {
         if (busy || nativeObservation is null || NativeGrid.SelectedItem is not NativeRow row) return;
         var plan = DebloatRemovalPreflightEngine.PreviewNative(nativeObservation, row.Assessment);
-        NativePreview.Text = $"Prévia individual · {row.Scope} · {plan.ObservedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}\n" +
-            $"{Available(plan.Package.PackageFullName)}\nRisco T0: {RiskLabel(plan.Preflight.RealRisk)}\n" +
-            $"Dependências informadas: {NativeDependencyLabel(plan.Dependencies, plan.Dependencies is not null)}\n" +
-            $"Dependentes observados: {NativeDependencyLabel(plan.Dependents, plan.DependenciesComplete)}\n" +
-            $"Dependências compartilhadas observadas: {NativeDependencyLabel(plan.SharedDependencies, plan.DependenciesComplete)}\n" +
-            $"Impacto observado: {plan.PotentiallyAffected.Count} identidade(s), incluindo o alvo. " +
-            (plan.DependenciesComplete ? "O Windows pode produzir efeitos indiretos.\n" : "O impacto total permanece indeterminado.\n") +
-            NativeDependencyLabel(plan.PotentiallyAffected, false) + "\n\n" +
-            string.Join("\n", plan.Consequences) + "\n\nBloqueios\n" +
-            string.Join("\n", plan.Preflight.RealBlockers) + "\n\n" + plan.Reinstallation;
+        NativePreview.Text = Loc.F($"Prévia individual · {row.Scope} · {plan.ObservedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}\n") +
+            Loc.F($"{Available(plan.Package.PackageFullName)}\nRisco T0: {RiskLabel(plan.Preflight.RealRisk)}\n") +
+            Loc.F($"Dependências informadas: {NativeDependencyLabel(plan.Dependencies, plan.Dependencies is not null)}\n") +
+            Loc.F($"Dependentes observados: {NativeDependencyLabel(plan.Dependents, plan.DependenciesComplete)}\n") +
+            Loc.F($"Dependências compartilhadas observadas: {NativeDependencyLabel(plan.SharedDependencies, plan.DependenciesComplete)}\n") +
+            Loc.F($"Impacto observado: {plan.PotentiallyAffected.Count} identidade(s), incluindo o alvo. ") +
+            (plan.DependenciesComplete ? Loc.T("O Windows pode produzir efeitos indiretos.\n") : Loc.T("O impacto total permanece indeterminado.\n")) +
+            NativeDependencyLabel(plan.PotentiallyAffected, false) + Loc.T("\n\n") +
+            string.Join(Loc.T("\n"), plan.Consequences) + Loc.T("\n\nBloqueios\n") +
+            string.Join(Loc.T("\n"), plan.Preflight.RealBlockers) + Loc.T("\n\n") + plan.Reinstallation;
         NativePreview.Visibility = Visibility.Visible;
         NativePreview.BringIntoView();
     }
@@ -232,15 +233,15 @@ public partial class DebloatView : UserControl
             await LoadInventoryAsync(cancellation!.Token);
             await LoadHistoryAsync(cancellation.Token);
             loaded = true;
-            StatusText.Text = "Inventário sintético atualizado. Atualizar não restaura fixtures já removidas nesta sessão.";
+            StatusText.Text = Loc.T("Inventário sintético atualizado. Atualizar não restaura fixtures já removidas nesta sessão.");
         }
         catch (OperationCanceledException)
         {
-            StatusText.Text = "Leitura cancelada. Nenhum aplicativo real foi consultado ou removido.";
+            StatusText.Text = Loc.T("Leitura cancelada. Nenhum aplicativo real foi consultado ou removido.");
         }
         catch (Exception error)
         {
-            StatusText.Text = "Não foi possível atualizar o inventário ou histórico: " + error.Message;
+            StatusText.Text = Loc.T("Não foi possível atualizar o inventário ou histórico: ") + error.Message;
         }
         finally { EndWork(); }
     }
@@ -265,10 +266,10 @@ public partial class DebloatView : UserControl
         HistoryList.ItemsSource = rows;
         HistoryList.SelectedItem = rows.FirstOrDefault(row => row.Item.Id == selectedId);
         HistorySummary.Text = warnings.Count > 0
-            ? $"Histórico incompleto: {rows.Length} registro(s) válido(s) carregado(s). O total não foi determinado; examine os avisos."
+            ? Loc.F($"Histórico incompleto: {rows.Length} registro(s) válido(s) carregado(s). O total não foi determinado; examine os avisos.")
             : rows.Length == 0
-                ? "Nenhuma simulação persistida. Registros futuros aparecerão aqui após a execução."
-                : $"{rows.Length} registro(s) sintético(s). Horários exibidos no fuso local.";
+                ? Loc.T("Nenhuma simulação persistida. Registros futuros aparecerão aqui após a execução.")
+                : Loc.F($"{rows.Length} registro(s) sintético(s). Horários exibidos no fuso local.");
         HistoryWarnings.Text = string.Join(Environment.NewLine, warnings);
     }
 
@@ -289,8 +290,8 @@ public partial class DebloatView : UserControl
         InventoryGrid.SelectedItem = rows.FirstOrDefault(row => row.Assessment.Package.CatalogId == selectedId);
         updating = false;
         InventorySummary.Text = rows.Length == 0
-            ? "Nenhum aplicativo corresponde à busca e ao filtro. Altere os critérios."
-            : $"{rows.Length} de {inventory.Count} entrada(s). Todos os estados e identidades abaixo são sintéticos.";
+            ? Loc.T("Nenhum aplicativo corresponde à busca e ao filtro. Altere os critérios.")
+            : Loc.F($"{rows.Length} de {inventory.Count} entrada(s). Todos os estados e identidades abaixo são sintéticos.");
         ShowSelection();
     }
 
@@ -334,8 +335,8 @@ public partial class DebloatView : UserControl
         updating = false;
         if (InventoryGrid.SelectedItem is not InventoryRow row)
         {
-            DetailsText.Text = "Selecione um aplicativo no inventário sintético.";
-            ReinstallText.Text = "Selecione um aplicativo ou registro do histórico para consultar as informações disponíveis.";
+            DetailsText.Text = Loc.T("Selecione um aplicativo no inventário sintético.");
+            ReinstallText.Text = Loc.T("Selecione um aplicativo ou registro do histórico para consultar as informações disponíveis.");
             UpdateButtons();
             return;
         }
@@ -343,32 +344,32 @@ public partial class DebloatView : UserControl
         var package = assessment.Package;
         var entry = assessment.CatalogEntry;
         var text = new StringBuilder();
-        text.AppendLine("FIXTURE SINTÉTICA — não descreve os aplicativos reais deste computador.");
-        text.AppendLine($"Aplicativo: {package.FriendlyName}\nID de catálogo: {package.CatalogId}");
-        text.AppendLine($"Nome técnico: {package.TechnicalName}\nFamília: {package.PackageFamilyName}");
-        text.AppendLine($"Identidade completa: {package.PackageFullName}\nEditor: {package.Publisher}");
-        text.AppendLine($"Versão: {package.Version}\nArquitetura: {package.Architecture}\nSID sintético: {package.UserId}");
-        text.AppendLine($"Tipo: {package.Kind}\nEscopo: {ScopeLabel(package.Scope)}");
-        text.AppendLine($"Presença: {DebloatPresentation.Presence(assessment.Presence)}");
-        text.AppendLine($"Origem do registro: {DebloatPresentation.Origin(assessment.Presence)}");
-        text.AppendLine($"Elegibilidade: {DebloatPresentation.Eligibility(assessment.Eligibility)}");
-        text.AppendLine($"Estado técnico do pacote: {InstallLabel(package.State)}");
-        text.AppendLine($"Provisionado: {NullableLabel(package.Provisioned)}\nProtegido: {YesNo(package.Protected)}\nPacote de sistema: {YesNo(package.SystemPackage)}");
-        text.AppendLine($"Risco preliminar documental: {(entry is null ? "Não catalogado" : RiskLabel(entry.PreliminaryRisk))}");
-        text.AppendLine($"Risco efetivo sintético: {RiskLabel(assessment.EffectiveRisk)}");
-        text.AppendLine($"Risco de execução real: {(entry is null ? "Não validado" : RiskLabel(entry.RealRisk))}; execução real indisponível.");
-        text.AppendLine($"Dependências: {DependencyLabel(package.DependencyStatus)}");
+        text.AppendLine(Loc.T("FIXTURE SINTÉTICA — não descreve os aplicativos reais deste computador."));
+        text.AppendLine(Loc.F($"Aplicativo: {package.FriendlyName}\nID de catálogo: {package.CatalogId}"));
+        text.AppendLine(Loc.F($"Nome técnico: {package.TechnicalName}\nFamília: {package.PackageFamilyName}"));
+        text.AppendLine(Loc.F($"Identidade completa: {package.PackageFullName}\nEditor: {package.Publisher}"));
+        text.AppendLine(Loc.F($"Versão: {package.Version}\nArquitetura: {package.Architecture}\nSID sintético: {package.UserId}"));
+        text.AppendLine(Loc.F($"Tipo: {package.Kind}\nEscopo: {ScopeLabel(package.Scope)}"));
+        text.AppendLine(Loc.F($"Presença: {Loc.T(DebloatPresentation.Presence(assessment.Presence))}"));
+        text.AppendLine(Loc.F($"Origem do registro: {Loc.T(DebloatPresentation.Origin(assessment.Presence))}"));
+        text.AppendLine(Loc.F($"Elegibilidade: {Loc.T(DebloatPresentation.Eligibility(assessment.Eligibility))}"));
+        text.AppendLine(Loc.F($"Estado técnico do pacote: {InstallLabel(package.State)}"));
+        text.AppendLine(Loc.F($"Provisionado: {NullableLabel(package.Provisioned)}\nProtegido: {YesNo(package.Protected)}\nPacote de sistema: {YesNo(package.SystemPackage)}"));
+        text.AppendLine(Loc.F($"Risco preliminar documental: {(entry is null ? "Não catalogado" : RiskLabel(entry.PreliminaryRisk))}"));
+        text.AppendLine(Loc.F($"Risco efetivo sintético: {RiskLabel(assessment.EffectiveRisk)}"));
+        text.AppendLine(Loc.F($"Risco de execução real: {(entry is null ? "Não validado" : RiskLabel(entry.RealRisk))}; execução real indisponível."));
+        text.AppendLine(Loc.F($"Dependências: {DependencyLabel(package.DependencyStatus)}"));
         AppendItems(text, package.Dependencies.Select(value => $"{value.PackageFamilyName}; crítica: {YesNo(value.Critical)}; exigida por outro pacote: {YesNo(value.RequiredByOtherPackage)}"));
-        text.AppendLine($"Consequência documental: {entry?.Consequence ?? "Indisponível"}");
-        text.AppendLine($"Dados e preferências: {entry?.DataLossWarning ?? "Recuperação não garantida"}");
-        text.AppendLine($"Método documental: {entry?.RemovalMethod ?? "Indisponível"}; não executável no Windows nesta fase.");
-        text.AppendLine($"Fonte do inventário: {package.Source}\nReferência: {entry?.UpstreamSource ?? "Indisponível"}\nCommit de referência: {entry?.UpstreamCommit ?? "Indisponível"}");
-        text.AppendLine("Bloqueios:");
+        text.AppendLine(Loc.F($"Consequência documental: {entry?.Consequence ?? "Indisponível"}"));
+        text.AppendLine(Loc.F($"Dados e preferências: {entry?.DataLossWarning ?? "Recuperação não garantida"}"));
+        text.AppendLine(Loc.F($"Método documental: {entry?.RemovalMethod ?? "Indisponível"}; não executável no Windows nesta fase."));
+        text.AppendLine(Loc.F($"Fonte do inventário: {package.Source}\nReferência: {entry?.UpstreamSource ?? "Indisponível"}\nCommit de referência: {entry?.UpstreamCommit ?? "Indisponível"}"));
+        text.AppendLine(Loc.T("Bloqueios:"));
         AppendItems(text, assessment.Blockers);
-        text.AppendLine("Limitações:");
+        text.AppendLine(Loc.T("Limitações:"));
         AppendItems(text, package.Limitations.Concat(assessment.Limitations).Distinct());
         DetailsText.Text = text.ToString();
-        ReinstallText.Text = entry?.ReinstallInformation ?? "Informação documental de reinstalação indisponível.";
+        ReinstallText.Text = entry?.ReinstallInformation ?? Loc.T("Informação documental de reinstalação indisponível.");
         UpdateButtons();
     }
 
@@ -384,8 +385,8 @@ public partial class DebloatView : UserControl
         RemovalPresentation.Present(DebloatRemovalPresentation.Unavailable());
         preparedPlan = null;
         ConfirmationText.Text = string.Empty;
-        ConfirmationHint.Text = "A confirmação exata será exibida após preparar um plano elegível.";
-        PlanText.Text = "Prepare um plano após revisar os detalhes. Alterações de aplicativo, cenário ou revisão invalidam o plano.";
+        ConfirmationHint.Text = Loc.T("A confirmação exata será exibida após preparar um plano elegível.");
+        PlanText.Text = Loc.T("Prepare um plano após revisar os detalhes. Alterações de aplicativo, cenário ou revisão invalidam o plano.");
         if (initialized) UpdateButtons();
     }
 
@@ -406,11 +407,11 @@ public partial class DebloatView : UserControl
             preparedPlan = plan;
             ShowPlan(plan);
             StatusText.Text = plan.Simulation.CanExecute
-                ? "Plano preparado. Revise as consequências e digite a confirmação exata para autorizar somente esta simulação."
-                : "Plano bloqueado. Consulte os motivos; autorização indisponível.";
+                ? Loc.T("Plano preparado. Revise as consequências e digite a confirmação exata para autorizar somente esta simulação.")
+                : Loc.T("Plano bloqueado. Consulte os motivos; autorização indisponível.");
         }
-        catch (OperationCanceledException) { StatusText.Text = "Preparação cancelada. Prepare um novo plano para continuar."; }
-        catch (Exception error) { StatusText.Text = "Plano não preparado: " + error.Message; }
+        catch (OperationCanceledException) { StatusText.Text = Loc.T("Preparação cancelada. Prepare um novo plano para continuar."); }
+        catch (Exception error) { StatusText.Text = Loc.T("Plano não preparado: ") + error.Message; }
         finally { EndWork(); }
     }
 
@@ -420,20 +421,20 @@ public partial class DebloatView : UserControl
         var simulation = plan.Simulation;
         var text = new StringBuilder();
         text.AppendLine(DebloatLimits.SyntheticWarning);
-        text.AppendLine($"Aplicativo: {plan.Package.FriendlyName}\nIdentidade: {plan.Package.PackageFullName}\nSID sintético: {plan.Package.UserId}");
-        text.AppendLine($"Escopo: {ScopeLabel(plan.Package.Scope)}\nCenário: {ScenarioLabel(plan.Scenario)}");
-        text.AppendLine($"Risco efetivo sintético: {RiskLabel(plan.Risk)}\nRevisão individual de risco médio: {YesNo(plan.MediumReviewConfirmed)}");
-        text.AppendLine($"Plano: {plan.Id}\nHash: {plan.PlanHash}\nElegível: {YesNo(simulation.CanExecute)}");
-        text.AppendLine($"Resultado esperado da fixture: {simulation.ExpectedResult}");
-        text.AppendLine("Consequências:"); AppendItems(text, plan.Consequences.Concat(simulation.Consequences).Distinct());
-        text.AppendLine("Riscos:"); AppendItems(text, simulation.Risks);
-        text.AppendLine("Dependências:"); AppendItems(text, simulation.Dependencies);
-        text.AppendLine("Proteções do fluxo sintético:"); AppendItems(text, simulation.Protections);
-        text.AppendLine("Bloqueios:"); AppendItems(text, simulation.Blockers.Select(value => value.ToString()));
-        text.AppendLine("Limitações:"); AppendItems(text, plan.Limitations.Concat(simulation.Limitations).Distinct());
+        text.AppendLine(Loc.F($"Aplicativo: {plan.Package.FriendlyName}\nIdentidade: {plan.Package.PackageFullName}\nSID sintético: {plan.Package.UserId}"));
+        text.AppendLine(Loc.F($"Escopo: {ScopeLabel(plan.Package.Scope)}\nCenário: {ScenarioLabel(plan.Scenario)}"));
+        text.AppendLine(Loc.F($"Risco efetivo sintético: {RiskLabel(plan.Risk)}\nRevisão individual de risco médio: {YesNo(plan.MediumReviewConfirmed)}"));
+        text.AppendLine(Loc.F($"Plano: {plan.Id}\nHash: {plan.PlanHash}\nElegível: {YesNo(simulation.CanExecute)}"));
+        text.AppendLine(Loc.F($"Resultado esperado da fixture: {simulation.ExpectedResult}"));
+        text.AppendLine(Loc.T("Consequências:")); AppendItems(text, plan.Consequences.Concat(simulation.Consequences).Distinct());
+        text.AppendLine(Loc.T("Riscos:")); AppendItems(text, simulation.Risks);
+        text.AppendLine(Loc.T("Dependências:")); AppendItems(text, simulation.Dependencies);
+        text.AppendLine(Loc.T("Proteções do fluxo sintético:")); AppendItems(text, simulation.Protections);
+        text.AppendLine(Loc.T("Bloqueios:")); AppendItems(text, simulation.Blockers.Select(value => value.ToString()));
+        text.AppendLine(Loc.T("Limitações:")); AppendItems(text, plan.Limitations.Concat(simulation.Limitations).Distinct());
         text.AppendLine(DebloatLimits.RecoveryWarning);
         PlanText.Text = text.ToString();
-        ConfirmationHint.Text = simulation.CanExecute ? "Digite exatamente: " + plan.Confirmation : "Plano bloqueado; confirmação indisponível.";
+        ConfirmationHint.Text = simulation.CanExecute ? Loc.T("Digite exatamente: ") + plan.Confirmation : Loc.T("Plano bloqueado; confirmação indisponível.");
     }
 
     private void OnConfirmationChanged(object sender, TextChangedEventArgs e)
@@ -459,18 +460,18 @@ public partial class DebloatView : UserControl
             historyId = result.Transaction.Transaction?.TransactionId;
             var transaction = result.Transaction.Transaction;
             var state = transaction is null ? "Resultado sem registro final" : StateLabel(transaction.State.ToString(), transaction.Succeeded, transaction.IsIndeterminate);
-            StatusText.Text = $"SIMULAÇÃO: {state}. {result.Summary}";
+            StatusText.Text = Loc.F($"SIMULAÇÃO: {state}. {result.Summary}");
             PlanText.Text += Environment.NewLine + Environment.NewLine + "Resultado sintético:" + Environment.NewLine +
                 state + Environment.NewLine + result.Summary + Environment.NewLine +
                 string.Join(Environment.NewLine, result.Transaction.Blockers);
         }
         catch (OperationCanceledException)
         {
-            StatusText.Text = "Simulação cancelada. O histórico identifica estados persistidos; cancelamento não equivale a sucesso.";
+            StatusText.Text = Loc.T("Simulação cancelada. O histórico identifica estados persistidos; cancelamento não equivale a sucesso.");
         }
         catch (Exception error)
         {
-            StatusText.Text = "Simulação não concluída: " + error.Message + " Consulte o histórico e seus avisos antes de preparar outro plano.";
+            StatusText.Text = Loc.T("Simulação não concluída: ") + error.Message + Loc.T(" Consulte o histórico e seus avisos antes de preparar outro plano.");
         }
         finally
         {
@@ -483,11 +484,11 @@ public partial class DebloatView : UserControl
             }
             catch (Exception error)
             {
-                HistoryWarnings.Text = "Não foi possível reler os registros: " + error.Message +
-                    " Resultado persistido não confirmado. Use Atualizar inventário sintético.";
+                HistoryWarnings.Text = Loc.T("Não foi possível reler os registros: ") + error.Message +
+                    Loc.T(" Resultado persistido não confirmado. Use Atualizar inventário sintético.");
             }
             PlanText.Text = executionDetails;
-            ConfirmationHint.Text = "A autorização foi encerrada. Prepare um novo plano para outra simulação.";
+            ConfirmationHint.Text = Loc.T("A autorização foi encerrada. Prepare um novo plano para outra simulação.");
             HistoryChanged?.Invoke();
             EndWork();
         }
@@ -497,21 +498,21 @@ public partial class DebloatView : UserControl
     {
         Cancel();
         CancelButton.IsEnabled = false;
-        StatusText.Text = "Cancelamento solicitado; aguardando o registro do estado sintético…";
+        StatusText.Text = Loc.T("Cancelamento solicitado; aguardando o registro do estado sintético…");
     }
 
     private void OnHistorySelected(object sender, SelectionChangedEventArgs e)
     {
         if (HistoryList.SelectedItem is not HistoryRow row)
         {
-            HistoryDetails.Text = "Selecione uma simulação para consultar identidade, estado e limitações persistidas.";
+            HistoryDetails.Text = Loc.T("Selecione uma simulação para consultar identidade, estado e limitações persistidas.");
             return;
         }
         var item = row.Item;
-        HistoryDetails.Text = $"REGISTRO SINTÉTICO\nID: {item.Id}\nAplicativo: {item.Name}\nIdentidade: {item.PackageFullName}\n" +
-            $"Editor: {item.Publisher}\nVersão anterior: {item.PreviousVersion}\nSID sintético: {item.UserId}\n" +
-            $"Horário local: {item.AtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss zzz}\nEstado: {StateLabel(item.State, item.Succeeded, item.Indeterminate)}\n" +
-            $"Estado técnico: {item.State}\nLimitações: {item.Limitations}\nRelatório local: {item.ReportPath}\n" + DebloatLimits.RecoveryWarning;
+        HistoryDetails.Text = Loc.F($"REGISTRO SINTÉTICO\nID: {item.Id}\nAplicativo: {item.Name}\nIdentidade: {item.PackageFullName}\n") +
+            Loc.F($"Editor: {item.Publisher}\nVersão anterior: {item.PreviousVersion}\nSID sintético: {item.UserId}\n") +
+            Loc.F($"Horário local: {item.AtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss zzz}\nEstado: {StateLabel(item.State, item.Succeeded, item.Indeterminate)}\n") +
+            Loc.F($"Estado técnico: {item.State}\nLimitações: {item.Limitations}\nRelatório local: {item.ReportPath}\n") + DebloatLimits.RecoveryWarning;
         if (item.Evidence is { } evidence) HistoryDetails.Text += "\n\n" + evidence;
         ReinstallText.Text = item.ReinstallInformation;
     }
@@ -562,7 +563,7 @@ public partial class DebloatView : UserControl
     private static void AppendItems(StringBuilder text, IEnumerable<string> values)
     {
         var items = values.ToArray();
-        if (items.Length == 0) text.AppendLine("• Nenhum informado; ausência de evidência não comprova segurança.");
+        if (items.Length == 0) text.AppendLine(Loc.T("• Nenhum informado; ausência de evidência não comprova segurança."));
         else foreach (var value in items) text.AppendLine("• " + value);
     }
 
@@ -629,8 +630,8 @@ public partial class DebloatView : UserControl
     private sealed record NativeRow(DebloatNativeAssessment Assessment, DebloatNativePackageMetadata Package)
     {
         public string Name => Available(string.IsNullOrWhiteSpace(Package.DisplayName) ? Package.TechnicalName : Package.DisplayName);
-        public string Category => DebloatPresentation.Category(Assessment.Category);
-        public string Scope => DebloatPresentation.Scope(Package.Scope);
+        public string Category => Loc.T(DebloatPresentation.Category(Assessment.Category));
+        public string Scope => Loc.T(DebloatPresentation.Scope(Package.Scope));
         public string Risk => RiskLabel(Assessment.EffectiveRisk);
         public string Eligibility => "Bloqueada";
         public string InstallState => Package.InstallState switch
@@ -667,11 +668,11 @@ public partial class DebloatView : UserControl
         public string Publisher => Assessment.Package.Publisher;
         public string Version => Assessment.Package.Version;
         public string Category => Assessment.CatalogEntry?.Category ?? "Não catalogado";
-        public string Origin => DebloatPresentation.Origin(Assessment.Presence);
-        public string State => DebloatPresentation.Presence(Assessment.Presence);
+        public string Origin => Loc.T(DebloatPresentation.Origin(Assessment.Presence));
+        public string State => Loc.T(DebloatPresentation.Presence(Assessment.Presence));
         public string Risk => RiskLabel(Assessment.EffectiveRisk);
         public string Dependencies => DependencyLabel(Assessment.Package.DependencyStatus);
-        public string Eligibility => DebloatPresentation.Eligibility(Assessment.Eligibility) +
+        public string Eligibility => Loc.T(DebloatPresentation.Eligibility(Assessment.Eligibility)) +
             (Assessment.CanSimulate ? string.Empty : " " + string.Join("; ", Assessment.Blockers));
         public string Search => string.Join(" ", Name, Publisher, Version, Category, Assessment.Package.CatalogId,
             Assessment.Package.TechnicalName, Assessment.Package.PackageFamilyName, Assessment.Package.PackageFullName,
