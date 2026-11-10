@@ -72,7 +72,9 @@ public sealed class TweakManager
             {
                 views.Add(new TweakOperationView(operation.Id, operation.DisplayName, operation.Category,
                     string.Join(" ", operation.Consequences), operation.Risk, Compatibility(operation),
-                    "indisponível", "indisponível", [], false, RealExecutionEnabled, [],
+                    "indisponível", string.Join(" · ", operation.Changes.Select(change =>
+                        $"{change.Target.ValueName}: {VerificationEngine.Describe(change.DesiredValue)}")),
+                    [], false, RealExecutionEnabled, [],
                     operation.Limitations,
                     "Estado atual não pôde ser lido com segurança.", error.Message));
             }
@@ -97,16 +99,25 @@ public sealed class TweakManager
 
     public Task<RecoveryResult> RollbackAsync(Guid transactionId, RecoveryOptions options,
         CancellationToken cancellationToken = default) =>
-        recovery.RollbackAsync(transactionId, options, cancellationToken);
+        mode != TweakExecutionMode.RealDisabled
+            ? recovery.RollbackAsync(transactionId, options, cancellationToken)
+            : Task.FromResult(new RecoveryResult(Guid.NewGuid(), transactionId, RecoveryOutcome.Blocked,
+                false, false, [], [], "Rollback desabilitado nesta distribuição.", DateTimeOffset.UtcNow,
+                DateTimeOffset.UtcNow, []));
 
     public async Task<IReadOnlyList<TransactionRecord>> LoadHistoryAsync(
+        CancellationToken cancellationToken = default) =>
+        (await LoadHistorySnapshotAsync(cancellationToken)).Transactions;
+
+    public async Task<TransactionJournalSnapshot> LoadHistorySnapshotAsync(
         CancellationToken cancellationToken = default)
     {
         var snapshot = await journal.LoadTransactionsAsync(cancellationToken);
-        return snapshot.Transactions
+        var records = snapshot.Transactions
             .Where(item => catalog.TryGet(item.OperationId, out _))
             .OrderByDescending(item => item.UpdatedAtUtc)
-            .ToList();
+            .ToArray();
+        return snapshot with { Transactions = records };
     }
 
     public static string BuildConfirmationText(OperationPlan plan)

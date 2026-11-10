@@ -37,23 +37,18 @@ public sealed class DebloatInventoryObserver
 
     public async Task<DebloatInventoryObservation> ObserveAsync(CancellationToken cancellationToken = default)
     {
-        var query = await reader.ReadCurrentUserAsync(cancellationToken);
+        var query = await reader.ReadInventoryAsync(cancellationToken).ConfigureAwait(false);
         Validate(query);
         if (query.Packages.Count > DebloatNativeLimits.MaximumPackages)
             throw new InvalidOperationException("Inventário nativo excede o limite; observação recusada.");
 
-        var complete = query.State is DebloatInventoryQueryState.Completed or DebloatInventoryQueryState.CompletedNoResults &&
-            query.Completeness == DebloatObservationCompleteness.Complete &&
-            query.Errors.Count == 0;
+        var complete = new DebloatInventoryScopeResult(DebloatScope.CurrentUser, query.State,
+            query.Completeness, query.Packages, query.Errors).Complete;
 
         var assessments = new List<DebloatNativeAssessment>(query.Packages.Count + catalog.All.Count);
-        foreach (var package in query.Packages)
-        {
-            var ambiguity = query.Packages.Count(other =>
-                string.Equals(other.TechnicalName, package.TechnicalName, StringComparison.Ordinal) ||
-                string.Equals(other.PackageFamilyName, package.PackageFamilyName, StringComparison.Ordinal));
-            assessments.Add(DebloatNativePolicy.Assess(catalog, package, ambiguity, query.State));
-        }
+        var provisioned = query.AdditionalScopes.SingleOrDefault(scope => scope.Scope == DebloatScope.Provisioned);
+        AddAssessments(query.Packages, query.State);
+        foreach (var scope in query.AdditionalScopes) AddAssessments(scope.Packages, scope.State);
 
         var observedNames = query.Packages.Select(package => package.TechnicalName)
             .ToHashSet(StringComparer.Ordinal);
@@ -80,12 +75,37 @@ public sealed class DebloatInventoryObserver
             warnings.Add("Identidades completas duplicadas observadas; operações permanecem bloqueadas.");
         if (query.State == DebloatInventoryQueryState.Partial)
             warnings.Add("Observação parcial: aplicativos não vistos permanecem indeterminados, nunca ausentes.");
+        foreach (var scope in query.AdditionalScopes)
+            warnings.AddRange(scope.Errors.Select(error =>
+                $"{DebloatPresentation.Scope(scope.Scope)} — {DebloatInventoryText.Safe(error.Message)}"));
 
         return new(query,
             assessments.OrderBy(value => value.CatalogEntry?.FriendlyName ?? value.Package!.TechnicalName,
                 StringComparer.CurrentCultureIgnoreCase).ToArray(),
             warnings.Distinct(StringComparer.Ordinal).ToArray(),
             complete, query.Packages.Count, catalogOnly);
+
+        void AddAssessments(IReadOnlyList<DebloatNativePackageMetadata> packages, DebloatInventoryQueryState state)
+        {
+            var names = packages.ToLookup(p => p.TechnicalName, StringComparer.OrdinalIgnoreCase);
+            var families = packages.ToLookup(p => p.PackageFamilyName, StringComparer.OrdinalIgnoreCase);
+            var provisionedFamilies = provisioned?.Packages.ToLookup(p => p.PackageFamilyName, StringComparer.OrdinalIgnoreCase);
+            foreach (var package in packages)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var ambiguity = names[package.TechnicalName].Count() +
+                    families[package.PackageFamilyName].Count(other =>
+                        !string.Equals(other.TechnicalName, package.TechnicalName, StringComparison.OrdinalIgnoreCase));
+                var assessed = package;
+                if (package.Scope != DebloatScope.Provisioned && provisionedFamilies is not null)
+                {
+                    var family = provisionedFamilies[package.PackageFamilyName];
+                    assessed = package with { Provisioned = family.Any(p => p.PackageFullName == package.PackageFullName)
+                        ? true : provisioned?.Complete == true && !family.Any() ? false : null };
+                }
+                assessments.Add(DebloatNativePolicy.Assess(catalog, assessed, ambiguity, state));
+            }
+        }
     }
 
     private static void Validate(DebloatInventoryQueryResult query)
@@ -96,6 +116,11 @@ public sealed class DebloatInventoryObserver
             throw new InvalidOperationException("Consulta fora do usuário atual recusada.");
         if (query.Packages.Any(package => package.Scope != DebloatScope.CurrentUser))
             throw new InvalidOperationException("Somente pacotes do usuário atual são aceitos.");
+        if (query.AdditionalScopes.Select(scope => scope.Scope).Distinct().Count() != query.AdditionalScopes.Count ||
+            query.AdditionalScopes.Any(scope => scope.Scope is not (DebloatScope.OtherUser or DebloatScope.Provisioned) ||
+                scope.Packages.Count > DebloatNativeLimits.MaximumPackages ||
+                scope.Packages.Any(p => p.Scope != scope.Scope || p.UserSecurityId.Length != 0)))
+            throw new InvalidOperationException("Observação adicional contém escopo inválido ou identidade de outro usuário.");
         if (!string.IsNullOrEmpty(query.UserSecurityId) &&
             query.Packages.Any(package => !string.Equals(package.UserSecurityId, query.UserSecurityId, StringComparison.Ordinal)))
             throw new InvalidOperationException("Pacotes de outro usuário ou SID inconsistente recusados.");
@@ -121,8 +146,7 @@ public sealed class DebloatInventoryObserver
 }
 
 /// <summary>
-/// The native adapter compiles into its own Windows-targeted assembly. This gate documents that it is
-/// not operational, not composed and not activated by any argument during T3B.
+/// The experimental T3B activation remains closed. The read-only management page has no activation argument.
 /// </summary>
 public static class NativeDebloatInventoryGate
 {

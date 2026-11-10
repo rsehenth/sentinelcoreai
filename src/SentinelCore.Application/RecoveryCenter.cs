@@ -3,21 +3,25 @@ using SentinelCore.Domain;
 
 namespace SentinelCore.Application;
 
-/// <summary>Read-only aggregation. Optional recovery is restricted in the existing service to Synthetic targets.</summary>
+/// <summary>Read-only aggregation with recovery delegated to the configured Tweaks flow.</summary>
 public sealed class RecoveryCenter
 {
     private readonly IRecoveryHistoryReader history;
     private readonly RecoveryService? recovery;
+    private readonly TweakManager? tweaks;
     private readonly DebloatCatalog debloatCatalog = DebloatCatalog.CreateDefault();
     private readonly System.Collections.Concurrent.ConcurrentDictionary<Guid, string> analyzedPlans = new();
     public bool SyntheticRecoveryAvailable => recovery is not null;
+    public bool RealRecoveryAvailable => tweaks?.RealExecutionEnabled == true;
 
-    public RecoveryCenter(IRecoveryHistoryReader history, RecoveryService? syntheticRecovery = null)
+    public RecoveryCenter(IRecoveryHistoryReader history, RecoveryService? syntheticRecovery = null,
+        TweakManager? tweaks = null)
     {
         this.history = history;
         if (syntheticRecovery is { SyntheticOnly: false })
             throw new ArgumentException("A central aceita somente RecoveryService restrito a alvos sintéticos.", nameof(syntheticRecovery));
         recovery = syntheticRecovery;
+        this.tweaks = tweaks;
     }
 
     public async Task<RecoveryCenterSnapshot> LoadAsync(CancellationToken cancellationToken = default)
@@ -96,8 +100,11 @@ public sealed class RecoveryCenter
             }
             unique.Add(group.First());
         }
+        var audits = history is IAuditCheckpointStore auditCheckpoints
+            ? await auditCheckpoints.ReadInterruptedAuditsAsync(cancellationToken).ConfigureAwait(false)
+            : null;
         return new(unique.OrderByDescending(o => o.AtUtc).ThenBy(o => o.Module).ThenBy(o => o.Id).ToArray(),
-            sources, warnings.Distinct().ToArray());
+            sources, warnings.Distinct().ToArray()) { InterruptedAudits = audits };
     }
 
     public static IReadOnlyList<RecoveryOperation> Filter(RecoveryCenterSnapshot snapshot, RecoveryCenterFilter filter)
@@ -138,25 +145,31 @@ public sealed class RecoveryCenter
     public async Task<RecoveryOperation> AnalyzeAsync(RecoveryOperation operation, CancellationToken cancellationToken = default)
     {
         analyzedPlans.TryRemove(operation.Id, out _);
-        var current = await ResolveSyntheticAsync(operation, cancellationToken);
-        var preview = await recovery!.PreviewAsync(current.Id, cancellationToken);
+        var current = await ResolveTweakAsync(operation, cancellationToken);
+        var preview = IsSyntheticTweak(current)
+            ? await recovery!.PreviewAsync(current.Id, cancellationToken)
+            : await tweaks!.PreviewRecoveryAsync(current.Id, cancellationToken);
         var conflict = current.HasConflict || preview.Conflicts.Count > 0;
-        var capability = preview.CanRecover && preview.Outcome != RecoveryOutcome.AlreadyRestored
+        var capability = preview.CanRecover && (preview.Outcome != RecoveryOutcome.AlreadyRestored ||
+                current is { Origin: RecoveryOrigin.Real, Transaction.IsIndeterminate: true })
             ? RecoveryCapability.PotentiallyAvailable : RecoveryCapability.Blocked;
-        if (capability == RecoveryCapability.PotentiallyAvailable)
+        if (IsSyntheticTweak(current) && capability == RecoveryCapability.PotentiallyAvailable)
             analyzedPlans[current.Id] = current.Transaction!.PlanHash;
         return current with { Preview = preview, HasConflict = conflict,
             RequiresIntervention = conflict || current.RequiresIntervention, Capability = capability,
             Limitations = current.Limitations.Concat(preview.Limitations).Distinct().ToArray(),
             Guidance = current.Guidance.Append(preview.Reason ?? (preview.Outcome == RecoveryOutcome.AlreadyRestored
                 ? "Estado anterior já confirmado; nenhuma recuperação necessária."
-                : "Prévia sintética; estado e backup serão revalidados no momento do uso.")).ToArray() };
+                : "Estado e backup serão revalidados no momento do uso.")).ToArray() };
     }
 
     public async Task<RecoveryResult> RecoverAsync(RecoveryOperation operation, string confirmation,
         CancellationToken cancellationToken = default)
     {
-        var current = await ResolveSyntheticAsync(operation, cancellationToken);
+        var current = await ResolveTweakAsync(operation, cancellationToken);
+        if (!IsSyntheticTweak(current))
+            return await tweaks!.RollbackAsync(current.Id, new RecoveryOptions(confirmation)
+                { Preview = operation.Preview }, cancellationToken);
         if (confirmation != TweakManager.BuildRecoveryConfirmationText(current.Id) ||
             !analyzedPlans.TryRemove(current.Id, out var planHash) || planHash != current.Transaction!.PlanHash)
             return Blocked(current.Id, "Confirmação específica inválida ou prévia sintética ausente; analisar novamente.");
@@ -164,13 +177,18 @@ public sealed class RecoveryCenter
         return await recovery!.RollbackAsync(current.Id, new RecoveryOptions(confirmation), cancellationToken);
     }
 
-    private async Task<RecoveryOperation> ResolveSyntheticAsync(RecoveryOperation selected, CancellationToken token)
+    public bool CanAnalyze(RecoveryOperation? operation) => operation is not null &&
+        (SyntheticRecoveryAvailable && IsSyntheticTweak(operation) ||
+            RealRecoveryAvailable && operation is { Module: RecoveryModule.Tweaks,
+                Origin: RecoveryOrigin.Real, Transaction.Plan.HkcuContextHash: not null });
+
+    private async Task<RecoveryOperation> ResolveTweakAsync(RecoveryOperation selected, CancellationToken token)
     {
-        if (recovery is null || !IsSyntheticTweak(selected))
-            throw new InvalidOperationException("Recuperação disponível somente para Tweaks em host sintético isolado.");
+        if (!CanAnalyze(selected))
+            throw new InvalidOperationException("Recuperação indisponível para este registro ou nesta composição.");
         var snapshot = await LoadAsync(token);
         var current = snapshot.Operations.SingleOrDefault(o => o.Id == selected.Id && o.Module == RecoveryModule.Tweaks);
-        if (current is null || !IsSyntheticTweak(current) || current.Transaction!.PlanHash != selected.Transaction!.PlanHash ||
+        if (current is null || !CanAnalyze(current) || current.Transaction!.PlanHash != selected.Transaction!.PlanHash ||
             snapshot.Sources.Single(s => s.Module == RecoveryModule.Tweaks).Status != RecoveryEvidenceStatus.Complete)
             throw new InvalidOperationException("Evidências indisponíveis, alteradas ou incompletas; recuperação bloqueada.");
         return current;
@@ -223,8 +241,10 @@ public sealed class RecoveryCenter
         var consequences = t.Steps.SelectMany(s => s.Effects).ToList();
         var target = string.Join("; ", t.Plan?.Changes.Select(c => c.TargetIdentity) ?? []);
         var synthetic = t.Plan?.Changes is { Count: > 0 } changes && changes.All(c => c.Target.Root == OperationTargetRoots.Synthetic);
-        var origin = synthetic ? RecoveryOrigin.Synthetic : RecoveryOrigin.Unknown;
-        if (!synthetic) limitations.Add("O modo sintético/real não foi registrado neste contrato histórico; origem desconhecida. Nenhuma consulta atual foi realizada.");
+        var origin = synthetic ? RecoveryOrigin.Synthetic
+            : t.Plan?.HkcuContextHash is not null ? RecoveryOrigin.Real : RecoveryOrigin.Unknown;
+        if (origin == RecoveryOrigin.Unknown)
+            limitations.Add("O modo sintético/real não foi registrado neste contrato histórico; origem desconhecida. Nenhuma consulta atual foi realizada.");
         var type = string.Join(" + ", t.Plan?.Changes.Select(c => c.Kind.ToString()).Distinct() ?? []);
         if (module == RecoveryModule.Debloat)
         {
@@ -233,8 +253,9 @@ public sealed class RecoveryCenter
             type = "Simulação de Debloat";
             consequences.AddRange([state.CatalogEntry.Consequence, state.CatalogEntry.DataLossWarning,
                 "Dependências: " + state.Package.DependencyStatus + "; " + string.Join(", ", state.Package.Dependencies.Select(d => d.PackageFamilyName)),
-                "Estado anterior conhecido: " + state.Package.State]);
-            guidance.Add("Informação documental de reinstalação: " + state.CatalogEntry.ReinstallInformation);
+                $"Escopo anterior: {DebloatPresentation.Scope(state.Package.Scope)} (fixture)",
+                $"Estado anterior conhecido: {state.Package.State} · PFN: {state.Package.PackageFamilyName} · versão: {state.Package.Version} · arquitetura: {state.Package.Architecture}"]);
+            guidance.Add("Reinstalação real indisponível. Orientação documental: " + state.CatalogEntry.ReinstallInformation);
             limitations.Add($"Risco preliminar histórico: {RecoveryCenterPresentation.Label(state.CatalogEntry.PreliminaryRisk)}; efetivo do plano: {RecoveryCenterPresentation.Label(t.Plan!.Risk)}; risco real T0: {RecoveryCenterPresentation.Label(state.CatalogEntry.RealRisk)}. Simulação não autoriza remoção real.");
         }
         if (module == RecoveryModule.ControlledRemoval)
@@ -242,32 +263,33 @@ public sealed class RecoveryCenter
             var state = DebloatHistoryValidation.ReadRemoval(t, debloatCatalog);
             var package = state.Observation.SelectedPackage;
             origin = state.Observation.Synthetic ? RecoveryOrigin.Synthetic : RecoveryOrigin.Real;
-            target = $"{package.TechnicalName} | {package.PackageFullName} | {package.Publisher} | {package.UserSecurityId}";
+            target = $"{state.CatalogEntry.FriendlyName} | {package.PackageFullName} | {package.Publisher} | {package.UserSecurityId}";
             type = "Remoção controlada T3C";
             consequences.AddRange(state.Observation.Consequences);
-            consequences.Add("Estado anterior conhecido: pacote identificado no snapshot de metadados; conteúdo não preservado.");
+            consequences.AddRange(DebloatRemovalPresentation.HistoricalEvidence(state, receipt, t).Split('\n'));
             var dependencies = state.Observation.Dependencies;
-            consequences.Add($"Dependências {dependencies.Completeness}: diretas {dependencies.Direct.Count}, reversas {dependencies.Reverse.Count}, compartilhadas {dependencies.Shared.Count}, potencialmente afetadas {dependencies.PotentiallyAffected.Count}.");
             consequences.AddRange(dependencies.UnknownConsequences);
             consequences.AddRange(dependencies.ApplicationsMayClose.Select(a => "Aplicativo pode ser encerrado: " + a));
-            guidance.Add("Informação documental de reinstalação: " + state.Observation.ReinstallInformation);
+            guidance.Add("Reinstalação real indisponível. Orientação documental: " + state.Observation.ReinstallInformation);
             limitations.Add($"Risco preliminar histórico: {RecoveryCenterPresentation.Label(state.CatalogEntry.PreliminaryRisk)}; efetivo do plano: {RecoveryCenterPresentation.Label(t.Plan!.Risk)}; risco real T0: {RecoveryCenterPresentation.Label(state.CatalogEntry.RealRisk)}. T0 permanece bloqueada para execução real.");
-            if (receipt is not null)
-            {
-                consequences.Add($"Receipt: {receipt.Phase}; efeito possível: {receipt.EffectMayHaveOccurred}; falha parcial: {receipt.PartialFailure}; HRESULT: {receipt.HResult?.ToString() ?? "indisponível"}; erro: {receipt.ErrorText ?? "não registrado"}.");
-                limitations.AddRange(receipt.Limitations);
-            }
+            if (receipt is not null) limitations.AddRange(receipt.Limitations);
         }
         var intervention = unresolved || conflict || blockedTarget ||
             recoveries.Any(r => r.Outcome is RecoveryOutcome.PartiallyCompleted or RecoveryOutcome.Failed or RecoveryOutcome.Interrupted);
         RecoveryCapability capability;
         if (unresolved) capability = RecoveryCapability.Indeterminate;
         else if (intervention) capability = RecoveryCapability.InterventionRequired;
-        else capability = module == RecoveryModule.Tweaks ? RecoveryCapability.Blocked : RecoveryCapability.Unsupported;
+        else if (module != RecoveryModule.Tweaks) capability = RecoveryCapability.Unsupported;
+        else capability = origin == RecoveryOrigin.Real && RealRecoveryAvailable && t.BackupPath is not null && effect &&
+            t.Recovery?.FullyRecovered != true ? RecoveryCapability.RequiresAnalysis : RecoveryCapability.Blocked;
         if (module == RecoveryModule.Tweaks)
         {
             guidance.Add("Recuperação pelo RecoveryService; sem rollback forçado ou sobrescrita de conflitos.");
-            guidance.Add("Estado atual não consultado; pós-estado histórico não prova o estado atual. Recuperação bloqueada até prévia sintética válida.");
+            guidance.Add(origin == RecoveryOrigin.Real && RealRecoveryAvailable
+                ? "Analise o backup e o estado atual do alvo antes de confirmar."
+                : origin == RecoveryOrigin.Unknown
+                    ? "Origem sem vínculo de contexto. Consulte o registro para investigação."
+                    : "O estado atual exige prévia em composição com recuperação habilitada.");
             if (t.Recovery?.FullyRecovered == true) guidance.Add("Recuperação anterior integral registrada; não presume estado atual inalterado.");
         }
         else
@@ -280,7 +302,8 @@ public sealed class RecoveryCenter
             string.IsNullOrEmpty(target) ? "Alvo não registrado" : target, t.UpdatedAtUtc, t.State.ToString(), outcome, origin,
             t.Plan?.Risk, capability, conflict, intervention, effect, blockedTarget,
             t.Authorization is { } auth ? $"{auth.AuthorizationId:D}; confirmação: {auth.UserConfirmationId}; consumida: {auth.Consumed}" : "Não registrada",
-            t.BackupPath is null ? "Backup persistido não registrado" : $"Referência: {t.BackupPath}; integridade atual exige revalidação",
+            t.BackupPath is null ? "Backup persistido não registrado" :
+                $"{t.Backup?.BackupId:D} · {(t.Events.Any(e => e.State == TransactionState.BackupVerified) ? "Conferido na aplicação" : "Conferência não registrada")}. {t.BackupPath}. Integridade atual exige revalidação.",
             t.Verification is null ? "Pós-verificação não registrada" : t.Verification.Passed ? "Pós-verificação histórica aprovada" : "Pós-verificação histórica falhou",
             consequences.Distinct().ToArray(), limitations.Distinct().ToArray(), guidance,
             t.Events.OrderBy(e => e.Sequence).Select(e => new RecoveryTimelineEvent(e.Sequence, e.AtUtc, e.State.ToString(), e.Detail, e.Error)).ToArray(),
@@ -298,6 +321,7 @@ public sealed class RecoveryCenter
         var outcome = incomplete ? RecoveryOperationOutcome.Indeterminate : r.State switch
         {
             RepairState.Completed when r.VerifiedSuccess ||
+                r.Native?.Status == RepairBrokerStatus.ProcessExited ||
                 r.Confidence is RepairConfidence.High or RepairConfidence.Medium &&
                 r.Result is RepairResultClassification.CorruptionDetected or RepairResultClassification.RestartRequired
                 => RecoveryOperationOutcome.Completed,
@@ -314,14 +338,20 @@ public sealed class RecoveryCenter
             $"Confiabilidade: {r.Confidence}; reinicialização requerida: {r.RequiresRestart}",
             "Evidências: " + JsonSerializer.Serialize(r.Evidence), "Saída: " + r.OutputSummary
         };
+        if (r.Native is { } native)
+            details.Add($"Broker: {RepairPresentation.BrokerStatusName(native.Status)} · UAC solicitado: " +
+                (native.ElevationRequested ? "sim" : "não"));
         return new(r.Id, RecoveryModule.WindowsRepair, r.OperationId, r.Kind.ToString(),
             r.Volume?.DisplayName ?? r.DisplayName, r.CompletedUtc, r.State.ToString(), outcome,
             r.IsSynthetic && r.ExecutionMode == RepairExecutionMode.Simulation ? RecoveryOrigin.Synthetic
                 : !r.IsSynthetic && r.ExecutionMode == RepairExecutionMode.Real ? RecoveryOrigin.Real : RecoveryOrigin.Unknown,
             r.Risk, incomplete ? RecoveryCapability.Indeterminate : intervention ? RecoveryCapability.InterventionRequired : RecoveryCapability.Unsupported,
-            false, intervention, r.Steps.Any(s => s.State == RepairState.Running), false,
+            false, intervention, r.Steps.Any(s => s.State == RepairState.Running) ||
+                r.Native?.Status == RepairBrokerStatus.Indeterminate, false,
             $"{r.AuthorizationId:D}; confirmação: {r.ConfirmationId}", "Rollback equivalente não suportado; backup de reversão não disponível",
-            $"Resultado {r.Result}; confiabilidade {r.Confidence}; conclusão suficientemente documentada: {outcome == RecoveryOperationOutcome.Completed}", details, r.Limitations,
+            r.Native is null
+                ? $"Resultado {r.Result}; confiabilidade {r.Confidence}; conclusão suficientemente documentada: {outcome == RecoveryOperationOutcome.Completed}"
+                : "Evidência da ferramenta. Verificação independente posterior não realizada.", details, r.Limitations,
             r.AdditionalActions.Append("Sem rollback de SFC/DISM/CHKDSK/WinRE. Ponto de restauração não garante reversão. Esta central não repete reparos.").ToArray(),
             r.Steps.OrderBy(s => s.Sequence).Select(s => new RecoveryTimelineEvent(s.Sequence, s.AtUtc, s.State.ToString(), s.Detail, null)).ToArray(),
             [], history.GetRecoveryReportPath(RecoveryModule.WindowsRepair, r.Id), Repair: r);
@@ -334,7 +364,9 @@ public sealed class RecoveryCenter
         intent.Risk, RecoveryCapability.Indeterminate, false, true, false, false,
         $"{intent.AuthorizationId:D}; confirmação: {intent.ConfirmationId}", "Não registrado",
         "Resultado e pós-verificação indisponíveis", ["Comando planejado: " + intent.InvocationDisplay], intent.Limitations,
-        ["Intenção durável não comprova execução iniciada. Investigar antes de qualquer nova tentativa; sem rollback ou repetição nesta central."],
+        [intent.IsSynthetic
+            ? "Intenção durável não comprova execução iniciada. Investigar antes de qualquer nova tentativa; sem rollback ou repetição nesta central."
+            : "A ferramenta pode continuar após o encerramento do aplicativo. Investigue o estado antes de preparar e autorizar uma nova operação."],
         [new(1, intent.CreatedAtUtc, "Intenção durável", "Sem registro final; não se presume início nem sucesso.", null)],
         [], history.GetRecoveryReportPath(RecoveryModule.WindowsRepair, intent.Id));
 

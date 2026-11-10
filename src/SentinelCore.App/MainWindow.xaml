@@ -46,9 +46,9 @@
                     <ListBoxItem Content="Correlação" Tag="{StaticResource IconCompare}" ToolTip="Correlação — evidências históricas relacionadas (Ctrl+8)"/>
                     <ListBoxItem Content="Histórico" local:Nav.Group="Registros" Tag="{StaticResource IconHistory}" ToolTip="Histórico — auditorias salvas neste computador (Ctrl+9)"/>
                     <ListBoxItem Content="Monitoramento" Tag="{StaticResource IconPerformance}" ToolTip="Monitoramento — sessões autorizadas e incidentes"/>
-                    <ListBoxItem Content="Personalização &amp; Debloat" local:Nav.Group="Manutenção · execução real bloqueada" Tag="{StaticResource IconShieldCheck}" ToolTip="Personalização &amp; Debloat — Tweaks HKCU e Debloat em simulação, com histórico separado"/>
-                    <ListBoxItem Content="Reparos do Windows" Tag="{StaticResource IconShieldCheck}" ToolTip="Reparos do Windows — ferramentas oficiais em modo de simulação"/>
-                    <ListBoxItem Content="Central de Recuperação" Tag="{StaticResource IconHistory}" ToolTip="Central de Recuperação — histórico unificado, consequências e conflitos"/>
+                    <ListBoxItem x:Name="TweaksNav" Content="Personalização &amp; Debloat" local:Nav.Group="Manutenção · execução real bloqueada" Tag="{StaticResource IconShieldCheck}" ToolTip="Personalização, inventário Appx/MSIX e simulação Debloat"/>
+                    <ListBoxItem x:Name="RepairsNav" Content="Reparos do Windows" Tag="{StaticResource IconShieldCheck}" ToolTip="Reparos do Windows — ferramentas oficiais em modo de simulação"/>
+                    <ListBoxItem x:Name="RecoveryNav" Content="Central de Recuperação" Tag="{StaticResource IconHistory}" ToolTip="Central de Recuperação — histórico unificado, consequências e conflitos"/>
                 </ListBox>
             </Grid>
         </Border>
@@ -97,13 +97,19 @@
                                             </StackPanel>
                                         </Border>
                                         <TextBlock Text="Visão geral" FontSize="30" FontWeight="SemiBold" Margin="0,12,0,0"/>
-                                        <TextBlock Text="Auditoria básica do Windows e acesso rápido a cada área." Style="{StaticResource PageSubtitle}" Foreground="#A9C4D8" HorizontalAlignment="Left"/>
+                                        <TextBlock Text="Auditorias do Windows e acesso rápido a cada área." Style="{StaticResource PageSubtitle}" Foreground="#A9C4D8" HorizontalAlignment="Left"/>
                                         <TextBlock x:Name="ExecutionStatus" Text="Nenhuma auditoria anterior. Inicie uma coleta quando desejar." Margin="0,18,0,0"
                                                    Foreground="#C3D6E6" AutomationProperties.LiveSetting="Polite"/>
-                                        <ProgressBar x:Name="AuditProgressBar" Margin="0,10,0,0" Minimum="0" Maximum="6" Value="0" Background="#0E2234"/>
+                                        <ProgressBar x:Name="AuditProgressBar" Margin="0,10,0,0" Minimum="0" Maximum="1" Value="0" Background="#0E2234"
+                                                     AutomationProperties.Name="Etapas da auditoria processadas"/>
                                     </StackPanel>
                                     <StackPanel Grid.Column="1" Width="236" Margin="24,0,0,0" VerticalAlignment="Center">
-                                        <Button x:Name="RunButton" Content="Executar auditoria básica" Tag="{StaticResource IconPlay}" Style="{StaticResource PrimaryButton}"
+                                        <ComboBox x:Name="AuditKindCombo" SelectedIndex="0" Margin="0,0,0,8"
+                                                  AutomationProperties.Name="Tipo de auditoria">
+                                            <ComboBoxItem Content="Auditoria básica"/>
+                                            <ComboBoxItem x:Name="FullAuditOption" Content="Auditoria completa"/>
+                                        </ComboBox>
+                                        <Button x:Name="RunButton" Content="Iniciar auditoria" Tag="{StaticResource IconPlay}" Style="{StaticResource PrimaryButton}"
                                                 Click="OnRun" AutomationProperties.AutomationId="RunBasicAudit"/>
                                         <Button x:Name="CancelButton" Content="Cancelar coleta" Tag="{StaticResource IconStop}" Click="OnCancel" IsEnabled="False" Margin="0,8,0,0"/>
                                         <Button x:Name="ReportButton" Content="Localizar relatório" Tag="{StaticResource IconFolder}"
@@ -144,7 +150,7 @@
                                             <TextBlock Grid.Column="1" Text="Auditoria completa · validade de 30 dias" Style="{StaticResource Caption}" VerticalAlignment="Center"/>
                                         </Grid>
                                         <TextBlock x:Name="FullState" Text="Nenhuma auditoria" FontSize="18" FontWeight="SemiBold" Margin="0,12,0,0"/>
-                                        <TextBlock x:Name="FullDate" Text="Coleta completa prevista para fases futuras." Foreground="{StaticResource Muted}" Margin="0,6,0,0"/>
+                                        <TextBlock x:Name="FullDate" Text="Último sucesso: nunca" Foreground="{StaticResource Muted}" Margin="0,6,0,0"/>
                                     </StackPanel>
                                 </Border>
                             </UniformGrid>
@@ -284,13 +290,15 @@
                 </TabItem>
 
                 <!-- ───── Resultados ───── -->
-                <TabItem Header="Resultados">
+                <TabItem x:Name="AuditResultsTab" Header="Resultados">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                         <Border Padding="32,28,32,24" MinHeight="520" Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}"><Grid>
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                         <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Border Style="{StaticResource PageIcon}"><Viewbox Width="23" Height="23"><Canvas Width="24" Height="24"><Path Data="{StaticResource IconResults}" Stroke="{StaticResource Accent}" StrokeThickness="1.9" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Canvas></Viewbox></Border><StackPanel Grid.Column="1" VerticalAlignment="Center">
                             <TextBlock x:Name="ResultHeading" Text="Resultados da última auditoria" Style="{StaticResource PageTitle}"/>
                             <TextBlock x:Name="LastCheck" Text="Última verificação: nunca" Style="{StaticResource PageSubtitle}"/>
+                            <Button x:Name="CancelAuditResultsButton" Content="Cancelar auditoria" Click="OnCancel" HorizontalAlignment="Left"
+                                    Style="{StaticResource CompactButton}" IsEnabled="False" Margin="0,8,0,0"/>
                         </StackPanel></Grid>
                         <Grid Grid.Row="1" Margin="0,22,0,0">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="16"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
@@ -315,15 +323,23 @@
                                     </DataTemplate></ListBox.ItemTemplate>
                                 </ListBox>
                             </Border>
-                            <TextBox x:Name="CollectorDetails" Grid.Column="2" Text="Os resultados reais aparecerão aqui após a primeira coleta."
-                                     AutomationProperties.Name="Evidências do coletor selecionado"/>
+                            <DockPanel Grid.Column="2">
+                                <StackPanel x:Name="AuditEvidenceActions" DockPanel.Dock="Bottom" Margin="0,8,0,0" Visibility="Collapsed">
+                                    <Button Content="Abrir registro no módulo" HorizontalAlignment="Left" Click="OnOpenAuditEvidence"
+                                            Style="{StaticResource CompactButton}"/>
+                                    <TextBlock x:Name="AuditEvidenceStatus" TextWrapping="Wrap" Foreground="{StaticResource Warn}"
+                                               AutomationProperties.LiveSetting="Polite"/>
+                                </StackPanel>
+                                <TextBox x:Name="CollectorDetails" Text="Os resultados reais aparecerão aqui após a primeira coleta."
+                                         AutomationProperties.Name="Evidências do coletor selecionado"/>
+                            </DockPanel>
                         </Grid>
                     </Grid></Border>
                     </ScrollViewer>
                 </TabItem>
 
                 <!-- ───── Hardware ───── -->
-                <TabItem Header="Hardware">
+                <TabItem x:Name="HardwareTab" Header="Hardware">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                         <Border Padding="32,28,32,20" MinHeight="600" Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}"><Grid>
                         <Grid.RowDefinitions>
@@ -435,7 +451,7 @@
                 </TabItem>
 
                 <!-- ───── Estabilidade e Eventos ───── -->
-                <TabItem Header="Estabilidade e Eventos">
+                <TabItem x:Name="EventsTab" Header="Estabilidade e Eventos">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                         <Border Padding="32,28,32,20" MinHeight="690" Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}"><Grid>
                         <Grid.RowDefinitions>
@@ -591,7 +607,7 @@
                 </TabItem>
 
                 <!-- ───── Desempenho ───── -->
-                <TabItem Header="Desempenho">
+                <TabItem x:Name="PerformanceTab" Header="Desempenho">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                         <Border Padding="32,28,32,24" MinHeight="640" Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}"><Grid>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -873,7 +889,7 @@
                 </TabItem>
 
                 <!-- ───── Rede ───── -->
-                <TabItem Header="Rede">
+                <TabItem x:Name="NetworkTab" Header="Rede">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                         <Border Padding="32,28,32,24" MinHeight="640" Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}"><Grid>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -1179,7 +1195,7 @@
                 </TabItem>
 
                 <!-- ───── Gráficos & GPU ───── -->
-                <TabItem Header="Gráficos &amp; GPU">
+                <TabItem x:Name="GraphicsTab" Header="Gráficos &amp; GPU">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                         <Border Padding="32,28,32,24" MinHeight="640" Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}"><Grid>
                             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -1525,7 +1541,7 @@
                 </TabItem>
 
                 <!-- ───── Correlação de evidências ───── -->
-                <TabItem Header="Correlação">
+                <TabItem x:Name="CorrelationTab" Header="Correlação">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                         <Border Padding="32,28,32,20" MinHeight="700" Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}"><Grid>
                         <Grid.RowDefinitions>
@@ -1576,6 +1592,8 @@
                                 <CheckBox x:Name="CorrelationMonitoringCheck" Content="Monitoramento" IsChecked="False" VerticalAlignment="Center" Margin="0,0,12,0"
                                           Click="OnCorrelationSourceChanged"
                                           ToolTip="Inclui eventos e amostras das sessões de monitoramento persistidas"/>
+                                <CheckBox x:Name="CorrelationTweaksCheck" Content="Personalização" IsChecked="False" VerticalAlignment="Center" Margin="0,0,12,0"
+                                          Click="OnCorrelationSourceChanged" ToolTip="Inclui eventos registrados no journal de Tweaks"/>
                                 <TextBlock Text="Somente registros históricos já persistidos; nenhuma coleta nova é executada."
                                            Style="{StaticResource Caption}" VerticalAlignment="Center" Margin="16,0,0,0"/>
                             </WrapPanel>
@@ -1752,13 +1770,28 @@
                                                 </ListView>
                                             </Grid>
                                         </Border>
-                                        <TextBox x:Name="CorrelationEvidenceDetail" Grid.Row="1" Margin="0,8,0,0"
-                                                 FontSize="13" TextWrapping="Wrap" MaxHeight="150" IsReadOnly="True"
-                                                 AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
-                                                 AutomationProperties.AutomationId="CorrelationEvidenceDetail"
-                                                 Background="{StaticResource SurfaceGradient}"
-                                                 BorderBrush="{StaticResource LineStrong}" BorderThickness="1"
-                                                 Padding="14"/>
+                                        <StackPanel Grid.Row="1">
+                                            <TextBox x:Name="CorrelationEvidenceDetail" Margin="0,8,0,0"
+                                                     FontSize="13" TextWrapping="Wrap" MaxHeight="150" IsReadOnly="True"
+                                                     AcceptsReturn="True" VerticalScrollBarVisibility="Auto"
+                                                     AutomationProperties.AutomationId="CorrelationEvidenceDetail"
+                                                     Background="{StaticResource SurfaceGradient}"
+                                                     BorderBrush="{StaticResource LineStrong}" BorderThickness="1"
+                                                     Padding="14"/>
+                                            <StackPanel x:Name="CorrelationOriginPanel" Margin="0,8,0,0" Visibility="Collapsed">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                    <ComboBox x:Name="CorrelationOriginCombo" DisplayMemberPath="Label"
+                                                              AutomationProperties.Name="Registro de origem da evidência"
+                                                              SelectionChanged="OnCorrelationOriginChanged"/>
+                                                    <Button x:Name="CorrelationOriginButton" Grid.Column="1" Margin="8,0,0,0"
+                                                            Content="Abrir origem" Style="{StaticResource CompactButton}"
+                                                            Click="OnOpenCorrelationOrigin" IsEnabled="False"/>
+                                                </Grid>
+                                                <TextBlock x:Name="CorrelationOriginStatus" Foreground="{StaticResource Warn}"
+                                                           TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
+                                            </StackPanel>
+                                        </StackPanel>
                                     </Grid>
                                 </TabItem>
                                 <TabItem Header="Cobertura">
@@ -1838,7 +1871,7 @@
                 </TabItem>
 
                 <!-- ───── Histórico ───── -->
-                <TabItem Header="Histórico">
+                <TabItem x:Name="HistoryTab" Header="Histórico">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                         <Border Padding="32,28,32,24" MinHeight="520" Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}"><Grid>
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -1852,14 +1885,19 @@
                                 <ListBox x:Name="HistoryList" Tag="Nenhuma auditoria carregada." SelectionChanged="OnHistorySelected" DisplayMemberPath="Label"
                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Histórico de auditorias"/>
                             </Border>
-                            <TextBox x:Name="HistoryDetails" Grid.Column="2" Text="Nenhuma auditoria anterior." AutomationProperties.Name="Detalhes da auditoria histórica"/>
+                            <DockPanel Grid.Column="2">
+                                <Button x:Name="OpenAuditResultsButton" DockPanel.Dock="Bottom" Content="Abrir resultados da auditoria"
+                                        HorizontalAlignment="Left" Margin="0,8,0,0" Style="{StaticResource CompactButton}"
+                                        Click="OnOpenAuditResults" IsEnabled="False"/>
+                                <TextBox x:Name="HistoryDetails" Text="Nenhuma auditoria anterior." AutomationProperties.Name="Detalhes da auditoria histórica"/>
+                            </DockPanel>
                         </Grid>
                     </Grid></Border>
                     </ScrollViewer>
                 </TabItem>
 
                 <!-- ───── Monitoramento ───── -->
-                <TabItem Header="Monitoramento">
+                <TabItem x:Name="MonitoringTab" Header="Monitoramento">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                         <Border Padding="32,28,32,20" MinHeight="840" Height="{Binding ViewportHeight, RelativeSource={RelativeSource AncestorType=ScrollViewer}}"><Grid>
                         <Grid.RowDefinitions>
@@ -2137,7 +2175,7 @@
                                 </Grid>
                                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="20,2,0,0">
                                     <Button Content="Ir para Debloat" Tag="{StaticResource IconChevron}" Style="{StaticResource GhostButton}" Click="OnOpenDebloat"
-                                            ToolTip="Rolar até a seção Debloat (simulação)" AutomationProperties.AutomationId="OpenDebloatSection"/>
+                                            ToolTip="Rolar até o gerenciador Appx/MSIX" AutomationProperties.AutomationId="OpenDebloatSection"/>
                                     <Button x:Name="TweaksRefreshButton" Content="Atualizar estado" Tag="{StaticResource IconRefresh}" Margin="8,0,0,0"
                                             Style="{StaticResource GhostButton}" Click="OnTweaksRefresh"
                                             AutomationProperties.AutomationId="RefreshTweaks"/>
@@ -2438,8 +2476,8 @@
                                                  Background="{StaticResource SurfaceGradient}" BorderBrush="{StaticResource LineStrong}"
                                                  BorderThickness="1" Padding="14"
                                                  AutomationProperties.AutomationId="RepairPlan"
-                                                 Text="Selecione um cartão para ler o estado, o volume e o plano simulado."/>
-                                        <StackPanel Grid.Row="3" Margin="0,12,0,0">
+                                                 Text="Selecione um cartão para ler o estado, o volume e o plano."/>
+                                        <StackPanel x:Name="RepairsScenarioPanel" Grid.Row="3" Margin="0,12,0,0">
                                             <TextBlock Text="Demonstração sintética" FontSize="13" FontWeight="SemiBold"/>
                                             <WrapPanel Margin="0,6,0,0">
                                                 <ComboBox x:Name="RepairsScenarioCombo" Width="320" DisplayMemberPath="Label"

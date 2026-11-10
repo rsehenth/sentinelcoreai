@@ -84,6 +84,20 @@
             </Border>
 
             <TextBlock x:Name="SummaryText" Text="Históricos ainda não carregados. Contagens indisponíveis." Margin="0,16,0,8" Foreground="{DynamicResource Muted}" AutomationProperties.AutomationId="RecoverySummary" AutomationProperties.LiveSetting="Polite"/>
+            <Expander x:Name="AuditInterruptionsPanel" Header="Auditorias interrompidas" Visibility="Collapsed" Margin="0,0,0,12">
+                <StackPanel Margin="12,8">
+                    <TextBlock x:Name="AuditInterruptionsSummary" Style="{DynamicResource Caption}" TextWrapping="Wrap"/>
+                    <ListBox x:Name="AuditInterruptionsList" MaxHeight="180" Margin="0,8,0,0"
+                             AutomationProperties.Name="Auditorias interrompidas recuperadas">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Button Content="{Binding Label}" Click="OnOpenInterruptedAudit" Style="{DynamicResource CompactButton}"
+                                        AutomationProperties.Name="{Binding Label}"/>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                </StackPanel>
+            </Expander>
             <ItemsControl x:Name="SummaryCards" AutomationProperties.AutomationId="RecoveryCounters">
                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="4"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate><DataTemplate>
@@ -160,10 +174,10 @@
                     <TextBlock Text="Recuperação de Tweaks" FontSize="15" FontWeight="SemiBold"/>
                     <TextBlock x:Name="RecoveryPolicyText" Text="Execução bloqueada nesta composição. A central não consulta o estado atual do Registro nem executa rollback real." Style="{DynamicResource Caption}" Margin="0,6,0,0"/>
                     <TextBlock x:Name="ConfirmationHint" Text="Selecione um alvo sintético suportado para analisar a recuperação." Style="{DynamicResource Caption}" Margin="0,10,0,6"/>
-                    <TextBox x:Name="ConfirmationText" IsEnabled="False" TextChanged="OnConfirmationChanged" AutomationProperties.AutomationId="RecoveryConfirmation" AutomationProperties.Name="Confirmação específica de recuperação sintética"/>
+                    <TextBox x:Name="ConfirmationText" IsEnabled="False" TextChanged="OnConfirmationChanged" AutomationProperties.AutomationId="RecoveryConfirmation" AutomationProperties.Name="Confirmação específica de recuperação"/>
                     <WrapPanel Margin="0,12,0,0">
-                        <Button x:Name="AnalyzeButton" Content="Analisar recuperação sintética" IsEnabled="False" Click="OnAnalyze" Margin="0,0,10,8" AutomationProperties.AutomationId="RecoveryAnalyze"/>
-                        <Button x:Name="RecoverButton" Content="Recuperar alvo sintético" IsEnabled="False" Click="OnRecover" Margin="0,0,0,8" AutomationProperties.AutomationId="RecoveryExecuteSynthetic"/>
+                        <Button x:Name="AnalyzeButton" Content="Analisar recuperação" IsEnabled="False" Click="OnAnalyze" Margin="0,0,10,8" AutomationProperties.AutomationId="RecoveryAnalyze"/>
+                        <Button x:Name="RecoverButton" Content="Confirmar recuperação" IsEnabled="False" Click="OnRecover" Margin="0,0,0,8" AutomationProperties.AutomationId="RecoveryExecuteSynthetic"/>
                     </WrapPanel>
                 </StackPanel>
             </Border>

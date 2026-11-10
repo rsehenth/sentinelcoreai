@@ -106,7 +106,11 @@ public sealed record OperationPlan(
     string ObservedStateHash,
     string PlanHash,
     DateTimeOffset CreatedAtUtc,
-    IReadOnlyList<string> Limitations);
+    IReadOnlyList<string> Limitations)
+{
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? HkcuContextHash { get; init; }
+}
 
 public sealed record SystemProfile(
     string ProductName,
@@ -261,11 +265,18 @@ public enum RecoveryConflictKind
 public sealed record RecoveryConflict(string TargetIdentity, RecoveryConflictKind Kind,
     TargetValueState? Observed, TargetValueState? ExpectedPost, TargetValueState? Current, string Description);
 
-public sealed record RecoveryOptions(string UserConfirmationId);
+public sealed record RecoveryOptions(string UserConfirmationId)
+{
+    public RecoveryPreview? Preview { get; init; }
+}
 
 public sealed record RecoveryPreview(Guid TransactionId, bool CanRecover, RecoveryOutcome Outcome,
     IReadOnlyList<RecoveryConflict> Conflicts, string? Reason,
-    IReadOnlyList<StepResult> CurrentStates, IReadOnlyList<string> Limitations);
+    IReadOnlyList<StepResult> CurrentStates, IReadOnlyList<string> Limitations)
+{
+    public int JournalSequence { get; init; }
+    public string? PlanHash { get; init; }
+}
 
 public sealed record RecoveryResult(
     Guid RecoveryId,

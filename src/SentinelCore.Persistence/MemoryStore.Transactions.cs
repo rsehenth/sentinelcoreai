@@ -540,7 +540,8 @@ public sealed partial class MemoryStore
         {
             if (!debloatJournal || !entry.OperationId.StartsWith("DBLT-RMV-", StringComparison.Ordinal) ||
                 entry.State is not (TransactionState.ExecutionCompleted or TransactionState.ExecutionFailed or TransactionState.ExecutionIndeterminate) ||
-                !receipt.Synthetic || receipt.OperationId != entry.TransactionId ||
+                !receipt.Synthetic || receipt.Scope is not (null or DebloatScope.CurrentUser) ||
+                receipt.OperationId != entry.TransactionId ||
                 !DebloatRemovalIdentityPolicy.IsValid(receipt.Package) || !Enum.IsDefined(receipt.Phase) ||
                 receipt.Progress is null || receipt.Progress.Count > 256 || receipt.Limitations is null ||
                 receipt.Progress.Any(p => p.OperationId != receipt.OperationId || !Enum.IsDefined(p.Phase) ||
@@ -610,9 +611,7 @@ public sealed partial class MemoryStore
                 !string.Equals(plan.CatalogVersion, entry.CatalogVersion, StringComparison.Ordinal) ||
                 !string.Equals(plan.PlanHash, entry.PlanHash, StringComparison.Ordinal))
                 throw new InvalidDataException("Plano não corresponde ao evento que o contém.");
-            if (!string.Equals(SafetyHashing.PlanHash(plan.PlanId, plan.TransactionId, plan.OperationId,
-                    plan.OperationVersion, plan.CatalogVersion, plan.Risk, plan.Scope, plan.Protection,
-                    plan.ObservedStateHash, plan.Changes), plan.PlanHash, StringComparison.Ordinal))
+            if (SafetyHashing.PlanHash(plan) != plan.PlanHash)
                 throw new InvalidDataException("Hash do plano não confere com o conteúdo.");
         }
     }

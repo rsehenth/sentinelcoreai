@@ -30,6 +30,7 @@ public sealed record CorrelationEvidenceInput(
     public IReadOnlyList<MonitoringSession> MonitoringSessions { get; init; } = [];
 
     public IReadOnlyList<MonitoringSegment> MonitoringSegments { get; init; } = [];
+    public IReadOnlyList<TransactionRecord> TweakTransactions { get; init; } = [];
 
     public static CorrelationEvidenceInput Empty(IReadOnlyList<CorrelationSourceRead>? reads = null) =>
         new([], [], [], [], [], [], reads ?? []);
@@ -49,12 +50,14 @@ public sealed class CorrelationEvidenceReader
     private readonly INetworkSessionStore? network;
     private readonly IGraphicsInvestigationStore? graphics;
     private readonly IMonitoringSessionStore? monitoring;
+    private readonly IRecoveryHistoryReader? recoveryHistory;
     private readonly CorrelationLimits limits;
 
     public CorrelationEvidenceReader(IAuditStore? audits = null, IHardwareSnapshotStore? hardware = null,
         IEventInvestigationStore? events = null, IPerformanceSessionStore? performance = null,
         INetworkSessionStore? network = null, IGraphicsInvestigationStore? graphics = null,
-        CorrelationLimits? limits = null, IMonitoringSessionStore? monitoring = null)
+        CorrelationLimits? limits = null, IMonitoringSessionStore? monitoring = null,
+        IRecoveryHistoryReader? recoveryHistory = null)
     {
         this.audits = audits;
         this.hardware = hardware;
@@ -63,6 +66,7 @@ public sealed class CorrelationEvidenceReader
         this.network = network;
         this.graphics = graphics;
         this.monitoring = monitoring;
+        this.recoveryHistory = recoveryHistory;
         this.limits = limits ?? CorrelationLimits.Default;
         this.limits.Validate();
     }
@@ -80,11 +84,13 @@ public sealed class CorrelationEvidenceReader
         var graphicsRecords = new List<GraphicsInvestigation>();
         var monitoringRecords = new List<MonitoringSession>();
         var monitoringSegments = new List<MonitoringSegment>();
+        IReadOnlyList<TransactionRecord> tweakTransactions = [];
 
         foreach (var source in Enum.GetValues<CorrelationSource>())
         {
             if (!request.Sources.HasFlag(Flag(source)))
             {
+                if (source == CorrelationSource.Tweaks) continue;
                 reads.Add(new(source, CorrelationSourceStatus.Skipped, 0, false,
                     ["Fonte não selecionada nesta investigação."]));
                 continue;
@@ -161,6 +167,22 @@ public sealed class CorrelationEvidenceReader
                                 record.Coverage.Status != GraphicsCoverageStatus.Complete)));
                         break;
                     }
+                    case CorrelationSource.Tweaks:
+                    {
+                        if (recoveryHistory is null) { reads.Add(Missing(source, "personalização")); break; }
+                        var history = await recoveryHistory.ReadRecoveryHistoryAsync(cancellationToken).ConfigureAwait(false);
+                        var snapshot = history.Single(item => item.Module == RecoveryModule.Tweaks);
+                        if (snapshot.Status == RecoveryEvidenceStatus.Unavailable)
+                        {
+                            reads.Add(new(source, CorrelationSourceStatus.Unavailable, 0, false, snapshot.Warnings));
+                            break;
+                        }
+                        var (taken, hit) = TakeRecent(snapshot.Transactions, record => record.UpdatedAtUtc);
+                        tweakTransactions = taken;
+                        reads.Add(Read(source, taken.Count, hit, snapshot.Warnings,
+                            taken.Count(record => record.IsIndeterminate)));
+                        break;
+                    }
                     default:
                         if (source == CorrelationSource.Monitoring)
                         {
@@ -195,7 +217,8 @@ public sealed class CorrelationEvidenceReader
             graphicsRecords, reads)
         {
             MonitoringSessions = monitoringRecords,
-            MonitoringSegments = monitoringSegments
+            MonitoringSegments = monitoringSegments,
+            TweakTransactions = tweakTransactions
         };
     }
 
@@ -243,6 +266,7 @@ public sealed class CorrelationEvidenceReader
         CorrelationSource.Network => CorrelationSources.Network,
         CorrelationSource.Graphics => CorrelationSources.Graphics,
         CorrelationSource.Monitoring => CorrelationSources.Monitoring,
+        CorrelationSource.Tweaks => CorrelationSources.Tweaks,
         _ => throw new ArgumentOutOfRangeException(nameof(source))
     };
 }

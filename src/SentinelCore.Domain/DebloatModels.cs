@@ -83,7 +83,10 @@ public sealed record DebloatExecutionResult(
 public sealed record DebloatHistoryItem(Guid Id, string Name, string PackageFullName,
     string Publisher, string PreviousVersion, string UserId, string State,
     bool Succeeded, bool Indeterminate, DateTimeOffset AtUtc, string ReinstallInformation,
-    string Limitations, string ReportPath);
+    string Limitations, string ReportPath)
+{
+    public string? Evidence { get; init; }
+}
 
 public sealed record DebloatHistorySnapshot(IReadOnlyList<DebloatHistoryItem> Items, IReadOnlyList<string> Warnings);
 

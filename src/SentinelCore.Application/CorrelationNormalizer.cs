@@ -45,6 +45,7 @@ public sealed class CorrelationEvidenceNormalizer
         builder.AddNetwork(input.NetworkSessions, cancellationToken);
         builder.AddGraphics(input.GraphicsInvestigations, cancellationToken);
         builder.AddMonitoring(input.MonitoringSessions, input.MonitoringSegments, cancellationToken);
+        builder.AddTweaks(input.TweakTransactions, cancellationToken);
         builder.AddAudits(input.Audits);
 
         return builder.Build(input, boot);
@@ -56,21 +57,22 @@ public sealed class CorrelationEvidenceNormalizer
         // A referência só é aceita se a auditoria for recente o bastante para a janela; uma auditoria antiga não
         // prova qual inicialização estava ativa. Reinicializações posteriores à coleta também não são detectáveis.
         var oldestAcceptable = window.FromUtc - TimeSpan.FromHours(24);
-        var reference = audits
-            .Where(audit => audit.CompletedUtc <= window.ToUtc && audit.CompletedUtc >= oldestAcceptable)
-            .OrderByDescending(audit => audit.CompletedUtc)
-            .Select(audit => new
-            {
-                Audit = audit,
-                Boot = audit.Results.Select(result => result.Data?.OperatingSystem?.LastBootUtc)
-                    .FirstOrDefault(value => value is not null)
-            })
-            .FirstOrDefault(item => item.Boot is not null);
+        var reference = audits.SelectMany(audit => audit.Results
+                .Where(result => result.Data?.OperatingSystem?.LastBootUtc is not null)
+                .Select(result => new
+                {
+                    Audit = audit,
+                    Boot = result.Data!.OperatingSystem!.LastBootUtc!.Value,
+                    ObservedUtc = audit.FormatVersion == 1 ? audit.CompletedUtc : result.CompletedUtc
+                }))
+            .Where(item => item.ObservedUtc <= window.ToUtc && item.ObservedUtc >= oldestAcceptable)
+            .OrderByDescending(item => item.ObservedUtc)
+            .FirstOrDefault();
         if (reference is null)
             return new CorrelationBootReference(null, null, null,
                 "Referência de inicialização do Windows indisponível ou desatualizada nas auditorias persistidas; " +
                 "registros de inicializações diferentes podem não estar separados.");
-        var bootUtc = reference.Boot!.Value.ToUniversalTime();
+        var bootUtc = reference.Boot.ToUniversalTime();
         if (bootUtc > window.ToUtc.AddDays(1) || bootUtc.Year < 2000)
         {
             builder.Limitations.Add("O horário de inicialização informado pela auditoria está fora da faixa " +
@@ -80,7 +82,7 @@ public sealed class CorrelationEvidenceNormalizer
 
         return new CorrelationBootReference(bootUtc, reference.Audit.Id, reference.Audit.CompletedUtc,
             $"Inicialização informada pela auditoria {reference.Audit.Id:D}, coletada em " +
-            $"{reference.Audit.CompletedUtc:O}. Registros anteriores a esse instante pertencem a uma sessão " +
+            $"{reference.ObservedUtc:O}. Registros anteriores ao horário de inicialização pertencem a uma sessão " +
             "anterior; reinicializações posteriores à coleta da auditoria não são detectáveis por esta referência.");
     }
 
@@ -113,6 +115,36 @@ public sealed class CorrelationEvidenceNormalizer
 
         public readonly List<string> Limitations = [];
         private int mergedReferences;
+
+        public void AddTweaks(IReadOnlyList<TransactionRecord> transactions, CancellationToken token)
+        {
+            const CorrelationSource source = CorrelationSource.Tweaks;
+            foreach (var transaction in transactions)
+            {
+                token.ThrowIfCancellationRequested();
+                var origin = transaction.Plan?.HkcuContextHash is not null ? "HKCU"
+                    : transaction.Plan?.Changes.All(change => change.Target.Root == OperationTargetRoots.Synthetic) == true
+                        ? "Sintética" : "Desconhecida";
+                foreach (var entry in transaction.Events.Where(entry => entry.State is
+                    TransactionState.ExecutionStarted or TransactionState.ExecutionFailed or TransactionState.ExecutionIndeterminate
+                    or TransactionState.VerificationPassed or TransactionState.VerificationFailed or TransactionState.Interrupted
+                    or TransactionState.RecoveryStarted or TransactionState.RecoveryCompleted or TransactionState.RecoveryFailed))
+                {
+                    if (AddPoint(source, CorrelationEvidenceKind.TweakJournalEvent,
+                        $"tweak:{transaction.TransactionId:D}:{entry.Sequence}", transaction.TransactionId,
+                        transaction.TransactionId.ToString("D"),
+                        $"{transaction.OperationId} · {entry.State}",
+                        $"Origem {origin}. {entry.Recovery?.Outcome.ToString()} {entry.Error ?? entry.Detail}",
+                        entry.AtUtc, CorrelationTimestampPrecision.Exact, null, CorrelationIdentityKind.None,
+                        transaction.OperationId, EvidenceSeverity.Informational, EvidenceConfidence.High,
+                        ["O horário indica o evento do journal. Efeito e verificação dependem das evidências registradas na transação."]))
+                    {
+                        stats[source].RecordUsed = true;
+                        stats[source].UsedRecords.Add(transaction.TransactionId.ToString("D"));
+                    }
+                }
+            }
+        }
 
         public void AddAudits(IReadOnlyList<AuditRecord> audits)
         {

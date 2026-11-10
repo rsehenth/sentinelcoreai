@@ -11,17 +11,29 @@ public static class MarkdownReport
         text.AppendLine("# SentinelCore AI — Relatório de auditoria");
         text.AppendLine($"\n- Versão: {audit.SoftwareVersion}\n- Formato: {audit.FormatVersion}\n- ID: {audit.Id:D}\n- Tipo: {audit.Kind}\n- Status: {audit.Status}");
         text.AppendLine($"- Início UTC: {audit.StartedUtc:O}\n- Conclusão UTC: {audit.CompletedUtc:O}\n- Horário local: {audit.CompletedUtc.ToLocalTime():yyyy-MM-dd HH:mm:ss zzz}\n- Duração: {audit.Duration.TotalSeconds:F2} s");
+        if (audit.PlannedSteps is { } planned)
+            text.AppendLine($"- Etapas registradas: {audit.Results.Count}/{planned}");
+        if (audit.InterruptionReason is { } reason)
+            text.AppendLine($"- Interrupção: {Safe(reason)}");
         text.AppendLine("\n## Escopo e interpretação\n\nInventário observado pelas interfaces genéricas do Windows, sem testes de estresse ou reparos. " +
             "Esta auditoria não avalia integralmente estabilidade, drivers ou integridade do hardware. " +
             "Estados OK/Healthy são informações reportadas, não garantia de integridade. " +
             "Memória disponível e espaço livre representam apenas o instante da coleta. " +
-            "Indisponível não significa ausência de problema. Nenhum diagnóstico avançado foi realizado.");
+            "Indisponível não significa ausência de problema. " +
+            (audit.Kind == AuditKind.Full && audit.FormatVersion == 2
+                ? "Os módulos de diagnóstico têm registros próprios vinculados por fonte e identificador."
+                : "Nenhum diagnóstico avançado foi realizado."));
         foreach (var result in audit.Results)
         {
             text.AppendLine($"\n## {Safe(result.CollectorId)} — {result.Status}\n");
             text.AppendLine($"Fonte: {Safe(result.Source)}  \nColetor: {Safe(result.CollectorVersion)}  \nInício UTC: {result.StartedUtc:O}  \nConclusão UTC: {result.CompletedUtc:O}  \nDuração: {result.Duration.TotalSeconds:F2} s\n");
             foreach (var (label, value) in Fields(result.Data)) text.AppendLine($"- {label}: {Safe(value)}");
-            if (result.Data is null) text.AppendLine("- Dados: Indisponível");
+            if (result.Evidence is { } evidence)
+            {
+                text.AppendLine($"- Registro de origem: {evidence.Source} / {evidence.RecordId:D}");
+                text.AppendLine($"- Evidência: {Safe(evidence.Summary)}");
+            }
+            else if (result.Data is null) text.AppendLine("- Dados: Indisponível");
             if (result.Limitations.Count > 0)
             {
                 text.AppendLine("\n### Dados indisponíveis e limitações\n");

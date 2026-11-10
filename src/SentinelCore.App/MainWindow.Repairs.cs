@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -25,7 +26,9 @@ public partial class MainWindow
     private bool repairPersistenceFailed;
     private bool repairClosingAfterSave;
     private CancellationTokenSource? repairCancellation;
-    private DateTimeOffset repairStartedAt;
+    private readonly Stopwatch repairElapsed = new();
+    private string repairPhase = string.Empty;
+    private bool repairCommitted;
     private readonly DispatcherTimer repairElapsedTimer = new() { Interval = TimeSpan.FromSeconds(1) };
 
     private void InitializeRepairs()
@@ -48,6 +51,14 @@ public partial class MainWindow
         RepairsScenarioCombo.ItemsSource = RepairPresentation.Scenarios
             .Select(option => new RepairScenarioRow(option, option.Label)).ToArray();
         RepairsScenarioCombo.SelectedIndex = 0;
+        if (repairs.RealExecutionEnabled)
+        {
+            RepairsModeText.Text = "Execução pelo broker local";
+            RepairsModeDetail.Text = "Selecione uma operação e confirme o plano. O Windows solicita consentimento quando necessário.";
+            RepairsScenarioPanel.Visibility = Visibility.Collapsed;
+            RepairsSyntheticBanner.Visibility = Visibility.Collapsed;
+            RepairsAuthorizeButton.Content = "Autorizar e executar";
+        }
         RepairsVolumeText.Text = "Volumes ainda não lidos; a leitura ocorre ao abrir esta página ou em Atualizar.";
         RepairsStatusText.Text = "Catálogo e volumes ainda não lidos. Nenhuma ferramenta foi executada.";
         Pages.SelectionChanged += OnRepairsPageSelectionChanged;
@@ -85,6 +96,8 @@ public partial class MainWindow
         try
         {
             repairCenterView = await repairs.LoadAsync();
+            RepairsModeText.Text = repairCenterView.ModeText;
+            RepairsModeDetail.Text = repairCenterView.ModeDetail;
             repairViews = repairCenterView.Operations;
             RepairsCardsHost.ItemsSource = RepairPresentation.GroupByCategory(repairViews)
                 .Select(group => new RepairCategoryRow(group.Category,
@@ -102,7 +115,7 @@ public partial class MainWindow
             await ReloadRepairHistoryAsync(selectRecord);
             repairsLoaded = true;
             RepairsStatusText.Text = status ??
-                "Catálogo lido. Selecione 'Detalhes' em um cartão para preparar o plano simulado.";
+                "Catálogo lido. Selecione 'Detalhes' em um cartão para preparar o plano.";
             ScrollRepairsToTop();
         }
         catch (Exception error)
@@ -226,19 +239,21 @@ public partial class MainWindow
         RepairsDetailsMeta.Text = $"{plan.OperationId} v{plan.OperationVersion} · " +
             $"{RepairPresentation.KindName(plan.Kind)} · risco {RepairPresentation.RiskName(plan.Risk)} · " +
             (plan.Volume is null ? "sem volume" : "volume " + plan.Volume.Id);
-        RepairsDetailsText.Text = BuildRepairPlanText(view, plan);
+        var real = repairs?.RealExecutionEnabled == true;
+        var canExecute = CanRunRepairPlan(plan);
+        RepairsDetailsText.Text = BuildRepairPlanText(view, plan, real);
         RepairsConfirmationText.Text = string.Empty;
-        RepairsConfirmationHint.Text = plan.SimulationAllowed
+        RepairsConfirmationHint.Text = canExecute
             ? "Digite exatamente: " + RepairManager.BuildConfirmationText(plan)
             : "Plano bloqueado no backend: " + string.Join(", ",
-                plan.Preflight.SimulationBlockers.Select(RepairPresentation.BlockerName));
+                (real ? plan.Preflight.Blockers : plan.Preflight.SimulationBlockers).Select(RepairPresentation.BlockerName));
         RepairsScenarioCombo.SelectedItem = (RepairsScenarioCombo.ItemsSource as IEnumerable<RepairScenarioRow>)
             ?.FirstOrDefault(row => row.Option.Scenario == DefaultScenario(view));
-        RepairsOutputText.Text = plan.SimulationAllowed
-            ? "Plano preparado. Nenhuma execução foi iniciada; a saída só existirá após a confirmação e a fixture sintética."
+        RepairsOutputText.Text = canExecute
+            ? "Plano preparado. A saída estará disponível depois de autorizar e iniciar."
             : "Plano bloqueado; nenhuma execução será iniciada.";
-        RepairsStatusText.Text = plan.SimulationAllowed
-            ? "Plano simulado sem efeito. A execução disponível é exclusivamente sintética."
+        RepairsStatusText.Text = canExecute
+            ? real ? "Plano preparado. Aguardando confirmação específica." : "Plano simulado preparado."
             : "Plano bloqueado no backend; nenhuma ferramenta real será executada.";
         UpdateRepairButtons();
     }
@@ -258,7 +273,7 @@ public partial class MainWindow
     {
         if (repairs is null || repairsBusy || repairPlan is null) return;
         var plan = repairPlan;
-        if (!plan.SimulationAllowed)
+        if (!CanRunRepairPlan(plan))
         {
             RepairsStatusText.Text = "Plano bloqueado no backend; nenhuma execução será aceita.";
             return;
@@ -269,7 +284,9 @@ public partial class MainWindow
             RepairsStatusText.Text = "A confirmação digitada não corresponde à operação e ao plano apresentado.";
             return;
         }
-        if (RepairsScenarioCombo.SelectedItem is not RepairScenarioRow scenario)
+        var real = repairs.RealExecutionEnabled;
+        var scenario = (RepairsScenarioCombo.SelectedItem as RepairScenarioRow)?.Option.Scenario;
+        if (!real && scenario is null)
         {
             RepairsStatusText.Text = "Selecione um cenário sintético para a demonstração.";
             return;
@@ -278,10 +295,15 @@ public partial class MainWindow
         repairsBusy = true;
         repairPersistenceFailed = false;
         repairCancellation = new CancellationTokenSource();
-        repairStartedAt = DateTimeOffset.UtcNow;
+        repairCommitted = false;
+        repairElapsed.Restart();
+        repairPhase = real ? "Preparando a solicitação ao broker" : "Preparando fixture sintética";
         RepairsProgress.Visibility = Visibility.Visible;
         RepairsProgress.IsIndeterminate = true;
-        RepairsProgressLabel.Text = "Execução sintética em preparação…";
+        RepairsProgressLabel.Text = repairPhase;
+        var liveOutput = new StringBuilder();
+        var liveLines = 0;
+        var reporting = true;
         repairElapsedTimer.Start();
         UpdateRepairButtons();
         try
@@ -289,13 +311,26 @@ public partial class MainWindow
             var token = repairs.Authorize(plan, expected);
             var progress = new Progress<RepairProgress>(update =>
             {
-                if (!repairsBusy) return;
-                RepairsProgressLabel.Text = $"{update.Phase} · {FormatElapsed(update.Elapsed)}" +
-                    (update.Detail is null ? string.Empty : " · " + update.Detail);
-                RepairsStatusText.Text = "Execução sintética em andamento; nenhum processo real foi iniciado.";
+                if (!reporting) return;
+                repairCommitted |= update.ExecutionCommitted;
+                repairPhase = update.Phase + (update.Detail is null ? string.Empty : " · " + update.Detail);
+                UpdateRepairElapsed();
+                if (real && update.Output is { } line && liveLines < RepairLimits.MaxOutputLines)
+                {
+                    var text = RepairOutputLimiter.Sanitize(line.Text);
+                    if (liveOutput.Length + text.Length + 16 <= RepairLimits.MaxOutputBytes)
+                    {
+                        liveOutput.AppendLine($"[{line.Channel}] {text}");
+                        liveLines++;
+                        RepairsOutputText.Text = liveOutput.ToString();
+                    }
+                }
+                if (!real)
+                    RepairsStatusText.Text = "Execução sintética em andamento.";
             });
-            var result = await repairs.ExecuteAsync(plan, token, scenario.Option.Scenario, progress,
+            var result = await repairs.ExecuteAsync(plan, token, real ? null : scenario, progress,
                 repairCancellation.Token);
+            reporting = false;
             if (result.Record is { } record)
             {
                 repairRecord = record;
@@ -307,20 +342,24 @@ public partial class MainWindow
                 ? string.Empty
                 : " Bloqueios: " + string.Join(", ", result.Blockers.Select(RepairPresentation.BlockerName));
             RepairsStatusText.Text = result.Summary + blockers +
-                (result.Persisted ? string.Empty : " A gravação não foi concluída; use a nova tentativa.");
+                (result.Record is not null && !result.Persisted ? " A gravação não foi concluída; use a nova tentativa." : string.Empty);
         }
         catch (OperationCanceledException)
         {
-            RepairsStatusText.Text = "Cancelamento solicitado. A interrupção real da ferramenta oficial não é garantida.";
+            RepairsStatusText.Text = "Solicitação cancelada antes de iniciar.";
         }
         catch (Exception error)
         {
-            ShowFailure("A execução sintética não foi concluída", error);
-            RepairsStatusText.Text = "Falha na execução sintética; nenhum processo real foi iniciado.";
+            ShowFailure("A execução de reparo não pôde ser acompanhada", error);
+            RepairsStatusText.Text = real
+                ? "Resultado indisponível. Revise a intenção e o estado do broker antes de uma nova tentativa."
+                : "Falha na execução sintética.";
         }
         finally
         {
+            reporting = false;
             repairElapsedTimer.Stop();
+            repairElapsed.Stop();
             repairsBusy = false;
             repairCancellation?.Dispose();
             repairCancellation = null;
@@ -343,7 +382,9 @@ public partial class MainWindow
     {
         repairCancellation?.Cancel();
         RepairsCancelButton.IsEnabled = false;
-        RepairsStatusText.Text = "Cancelamento solicitado. " + RepairGuidance.CancellationLimitation;
+        RepairsStatusText.Text = repairCommitted
+            ? "A autorização já foi enviada. O broker continuará acompanhando a ferramenta até o encerramento."
+            : "Cancelamento solicitado. " + RepairGuidance.CancellationLimitation;
     }
 
     private async void OnRepairRetrySave(object sender, RoutedEventArgs e)
@@ -424,8 +465,7 @@ public partial class MainWindow
     private void UpdateRepairElapsed()
     {
         if (!repairsBusy) return;
-        RepairsProgressLabel.Text = "Execução sintética · " + FormatElapsed(DateTimeOffset.UtcNow - repairStartedAt) +
-            " · sem percentual confiável";
+        RepairsProgressLabel.Text = repairPhase + " · " + FormatElapsed(repairElapsed.Elapsed) + " · sem percentual confiável";
     }
 
     private void OnRepairConfirmationChanged(object sender, TextChangedEventArgs e) =>
@@ -437,9 +477,10 @@ public partial class MainWindow
         var idle = !repairsBusy;
         RepairsRefreshButton.IsEnabled = idle && repairs is not null;
         var expected = repairPlan is null ? string.Empty : RepairManager.BuildConfirmationText(repairPlan);
-        RepairsAuthorizeButton.IsEnabled = idle && repairs is not null &&
-            repairPlan is { SimulationAllowed: true } &&
-            RepairsScenarioCombo.SelectedItem is RepairScenarioRow &&
+        var eligible = repairs?.RealExecutionEnabled == true
+            ? repairPlan is { RealExecutionAllowed: true }
+            : repairPlan is { SimulationAllowed: true } && RepairsScenarioCombo.SelectedItem is RepairScenarioRow;
+        RepairsAuthorizeButton.IsEnabled = idle && repairs is not null && eligible &&
             string.Equals(RepairsConfirmationText.Text.Trim(), expected, StringComparison.Ordinal);
         RepairsCancelButton.IsEnabled = repairsBusy && repairCancellation is { IsCancellationRequested: false };
         RepairsRetrySaveButton.IsEnabled = idle && repairPersistenceFailed && repairRecord is not null;
@@ -450,22 +491,25 @@ public partial class MainWindow
             File.Exists(repairs.GetReportPath(record.Id));
     }
 
-    private static string BuildRepairPlanText(RepairOperationView view, RepairPlan plan)
+    private bool CanRunRepairPlan(RepairPlan plan) =>
+        repairs?.RealExecutionEnabled == true ? plan.RealExecutionAllowed : plan.SimulationAllowed;
+
+    private static string BuildRepairPlanText(RepairOperationView view, RepairPlan plan, bool real)
     {
         var text = new StringBuilder();
-        text.AppendLine(RepairGuidance.RealExecutionUnavailable);
-        text.AppendLine("A demonstração usa fixtures sintéticas; não representa resultado do Windows real.");
+        text.AppendLine(real ? "Execução pelo broker local" : RepairGuidance.RealExecutionUnavailable);
         text.AppendLine();
         text.AppendLine($"Comando oficial: {plan.Invocation.DisplayCommand}");
         text.AppendLine($"Descrição: {view.Description}");
         text.AppendLine($"Tipo: {RepairPresentation.KindName(plan.Kind)} · Risco: {RepairPresentation.RiskName(plan.Risk)}");
-        text.AppendLine(view.RequiresElevation
-            ? "Privilégios: administrador. Esta versão não solicita elevação."
-            : "Privilégios: usuário atual.");
+        text.AppendLine(view.RequiresElevation ? "Privilégios exigidos: administrador." : "Privilégios exigidos: usuário atual.");
+        text.AppendLine($"Processo atual: {(plan.Preflight.Profile.IsElevated ? "elevado" : "sem elevação")}");
+        text.AppendLine($"Hash do plano: {plan.PlanHash}");
         text.AppendLine($"Volume: {(plan.Volume is null ? "não aplicável" : plan.Volume.Id + " · " + plan.Volume.FileSystem)}");
         text.AppendLine($"Reinicialização: {(view.RequiresRestart ? "indicada pela definição" : "não indicada pela definição")}");
         text.AppendLine($"Alteração do sistema: {(view.MayChangeSystem ? "possível; não há rollback convencional" : "nenhuma alteração de arquivos protegidos esperada")}");
-        text.AppendLine($"Cancelamento seguro: {(view.CanCancelSafely ? "sim" : "não garantido")}");
+        text.AppendLine(real ? "Cancelamento disponível até enviar a autorização ao broker."
+            : $"Cancelamento seguro: {(view.CanCancelSafely ? "sim" : "não garantido")}");
         text.AppendLine();
         text.AppendLine("Consequências");
         foreach (var consequence in view.Consequences) text.AppendLine($"• {consequence}");
@@ -475,7 +519,7 @@ public partial class MainWindow
         text.AppendLine();
         text.AppendLine("Preflight");
         text.AppendLine($"• Simulação permitida: {(plan.Preflight.SimulationAllowed ? "sim" : "não")}");
-        text.AppendLine($"• Execução real: indisponível nesta fase (gate independente, sem broker de elevação)");
+        text.AppendLine("• Broker: " + (plan.RealExecutionAllowed ? "prévia elegível; revalidação ao autorizar" : "execução indisponível"));
         text.AppendLine($"• Windows 11: {(plan.Preflight.Profile.IsWindows11 ? "sim" : "não")} · build {plan.Preflight.Profile.Build}");
         text.AppendLine($"• Executável oficial: {(plan.Preflight.Tool.Available ? plan.Preflight.Tool.Path : "indisponível")}");
         foreach (var detail in plan.Preflight.Details) text.AppendLine($"• {detail}");
@@ -511,6 +555,14 @@ public partial class MainWindow
         text.AppendLine($"Início: {record.StartedUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss zzz}");
         text.AppendLine($"Conclusão: {record.CompletedUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss zzz}");
         text.AppendLine($"Duração: {record.Duration.TotalSeconds:F2} s");
+        if (record.Native is { } native)
+        {
+            text.AppendLine($"Broker: {RepairPresentation.BrokerStatusName(native.Status)}");
+            text.AppendLine($"Consentimento UAC solicitado: {(native.ElevationRequested ? "sim" : "não")}");
+            text.AppendLine($"Início da ferramenta: {native.ProcessStartedUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss zzz") ?? "indisponível"}");
+            text.AppendLine($"Término da ferramenta: {native.ProcessExitedUtc?.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss zzz") ?? "indisponível"}");
+            text.AppendLine("Verificação independente posterior: não realizada.");
+        }
         text.AppendLine();
         text.AppendLine("Evidências");
         text.AppendLine($"• Corrupção detectada: {(record.Evidence.CorruptionDetected ? "sim" : "não")}");
@@ -550,11 +602,10 @@ public partial class MainWindow
                 (record.OutputTruncated ? " — limitada localmente." : "."));
             text.AppendLine();
             foreach (var line in record.Output.OrderBy(item => item.Sequence))
-                text.AppendLine(line.Text);
+                text.AppendLine((line.Channel is { } channel ? $"[{channel}] " : string.Empty) + line.Text);
         }
         text.AppendLine();
         text.AppendLine("Interpretação: " + record.ResultSummary);
-        text.AppendLine("Esta saída não é apresentada como resultado do Windows real quando o registro é sintético.");
         return text.ToString();
     }
 
@@ -570,6 +621,8 @@ public partial class MainWindow
         text.AppendLine($"Criado: {intent.CreatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss zzz}");
         text.AppendLine();
         text.AppendLine("Estado: interrompido/indeterminado. Nenhuma conclusão é atribuída.");
+        if (!intent.IsSynthetic)
+            text.AppendLine("A ferramenta pode continuar após a desconexão. Investigue o estado antes de preparar novo plano.");
         text.AppendLine();
         text.AppendLine("Limitações");
         foreach (var limitation in intent.Limitations.Distinct()) text.AppendLine($"• {limitation}");
@@ -607,7 +660,7 @@ public partial class MainWindow
         public string KindSummary => "Tipo: " + View.KindName;
         public string RiskSummary => "Risco: " + View.RiskName;
         public string Privileges => View.RequiresElevation
-            ? "Privilégios: administrador (não solicitado)"
+            ? "Privilégios exigidos: administrador"
             : "Privilégios: usuário atual";
         public string Command => "Comando: " + View.OfficialCommand;
         public string RestartSummary => View.RequiresRestart

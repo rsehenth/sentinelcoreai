@@ -160,6 +160,7 @@ public static class TransactionProjection
             ordered.Any(e => e.RemovalReceipt is { EffectMayHaveOccurred: true })) return true;
         var states = ordered.Select(item => item.State).ToList();
         var last = states[^1];
+        var boundHkcu = ordered[0].Plan?.HkcuContextHash is not null;
         if (last is TransactionState.Planned or TransactionState.PreflightPassed
             or TransactionState.BackupPrepared or TransactionState.BackupVerified
             or TransactionState.Authorized or TransactionState.RecoveryRequested
@@ -196,6 +197,11 @@ public static class TransactionProjection
         var lastExecutionStart = states.LastIndexOf(TransactionState.ExecutionStarted);
         if (lastExecutionStart < 0) return false;
         var afterExecution = states.Skip(lastExecutionStart + 1).ToList();
+        if (boundHkcu && (last == TransactionState.Interrupted ||
+            afterExecution.Contains(TransactionState.VerificationFailed) ||
+            ordered.Any(entry => entry.State == TransactionState.ExecutionFailed &&
+                entry.Results?.Any(step => step.Applied && step.Changed) == true)))
+            return true;
         if (afterExecution.Contains(TransactionState.ExecutionFailed)) return false;
         return !afterExecution.Contains(TransactionState.VerificationPassed) &&
                !afterExecution.Contains(TransactionState.VerificationFailed);

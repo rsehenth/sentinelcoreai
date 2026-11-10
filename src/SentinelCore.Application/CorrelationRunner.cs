@@ -155,6 +155,7 @@ public sealed class EvidenceCorrelationRunner
         CorrelationSource.Network => CorrelationSources.Network,
         CorrelationSource.Graphics => CorrelationSources.Graphics,
         CorrelationSource.Monitoring => CorrelationSources.Monitoring,
+        CorrelationSource.Tweaks => CorrelationSources.Tweaks,
         _ => throw new ArgumentOutOfRangeException(nameof(source))
     };
 }

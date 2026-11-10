@@ -24,8 +24,16 @@ public sealed class RepairPreflightEngine
         this.time = time ?? TimeProvider.System;
     }
 
-    public async Task<RepairPreflightResult> EvaluateAsync(RepairOperationDescriptor operation,
-        string? volumeId, CancellationToken cancellationToken = default)
+    public Task<RepairPreflightResult> EvaluateAsync(RepairOperationDescriptor operation,
+        string? volumeId, CancellationToken cancellationToken = default) =>
+        EvaluateAsync(operation, volumeId, brokered: false, cancellationToken);
+
+    internal Task<RepairPreflightResult> EvaluateBrokeredAsync(RepairOperationDescriptor operation,
+        string? volumeId, CancellationToken cancellationToken) =>
+        EvaluateAsync(operation, volumeId, brokered: RepairCenter.BrokerExecutionEnabled, cancellationToken);
+
+    private async Task<RepairPreflightResult> EvaluateAsync(RepairOperationDescriptor operation,
+        string? volumeId, bool brokered, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(operation);
         var simulationBlockers = new List<RepairBlocker>();
@@ -103,17 +111,29 @@ public sealed class RepairPreflightEngine
             limitations.AddRange(volume.Limitations);
         }
 
-        realBlockers.Add(RepairBlocker.RealExecutionDisabled);
-        details.Add(RepairGuidance.RealExecutionUnavailable);
-        if (operation.RequiresElevation)
+        if (brokered)
         {
-            realBlockers.Add(RepairBlocker.ElevationBrokerUnavailable);
-            details.Add("A execução real exigiria elevação temporária por uma fronteira privilegiada futura.");
+            if (!profile.Is64Bit) realBlockers.Add(RepairBlocker.UnsupportedWindows);
+            if (operation.RequiresVolume && volume?.VolumeIdentity is null)
+                realBlockers.Add(RepairBlocker.VolumeUnavailable);
+            details.Add(operation.RequiresElevation && !profile.IsElevated
+                ? "O broker solicitará consentimento UAC após a confirmação e a gravação da intenção."
+                : "O broker revalidará os privilégios antes do início.");
+        }
+        else
+        {
+            realBlockers.Add(RepairBlocker.RealExecutionDisabled);
+            details.Add(RepairGuidance.RealExecutionUnavailable);
+            if (operation.RequiresElevation)
+            {
+                realBlockers.Add(RepairBlocker.ElevationBrokerUnavailable);
+                details.Add("A execução real exigiria elevação temporária por uma fronteira privilegiada futura.");
+            }
         }
 
-        limitations.AddRange(profile.Limitations);
+        limitations.AddRange(profile.Limitations.Where(item => !brokered || item != RepairGuidance.ElevationLimitation));
         limitations.AddRange(tool.Limitations);
-        limitations.Add(RepairGuidance.ElevationLimitation);
+        if (!brokered) limitations.Add(RepairGuidance.ElevationLimitation);
         limitations.Add(RepairGuidance.NoRollback);
         limitations.Add(RepairGuidance.ExitCodeLimitation);
         limitations.Add(RepairGuidance.CancellationLimitation);
@@ -125,8 +145,7 @@ public sealed class RepairPreflightEngine
         var observedHash = RepairHashing.PreflightHash(profile, tool, volume, catalog.Version,
             catalog.ContentHash, operation.Id, operation.Version);
         var simulationAllowed = simulationBlockers.Count == 0;
-        var realAllowed = simulationAllowed && !realBlockers.Contains(RepairBlocker.RealExecutionDisabled) &&
-            !realBlockers.Contains(RepairBlocker.ElevationBrokerUnavailable);
+        var realAllowed = brokered && simulationAllowed && realBlockers.Count == 0;
         return new RepairPreflightResult(simulationAllowed, realAllowed,
             realBlockers.Distinct().ToList(), simulationBlockers.Distinct().ToList(),
             details.Distinct().ToList(), profile, volume, tool, observedHash, time.GetUtcNow(),

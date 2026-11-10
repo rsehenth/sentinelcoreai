@@ -51,10 +51,11 @@ public sealed class DebloatRemovalBoundaryTests
     {
         var source = File.ReadAllText(TestRepository.Combine("src", "SentinelCore.Infrastructure.Debloat.Removal.Native", "NativeAppxRemovalExecutor.cs"));
         Assert.Contains("manager.RemovePackageAsync(request.Package.PackageFullName)", source, StringComparison.Ordinal);
+        Assert.Contains("manager.DeprovisionPackageForAllUsersAsync(request.Package.PackageFamilyName)", source, StringComparison.Ordinal);
         Assert.Contains("await operation.AsTask()", source, StringComparison.Ordinal);
         Assert.Contains("operation.Progress", source, StringComparison.Ordinal);
         Assert.Equal(3, source.Split("DebloatRemovalBuildGate.AllowsRealExecution()", StringSplitOptions.None).Length - 1);
-        foreach (var forbidden in new[] { "RemovalOptions.AllUsers", "RemovalOptions.PreserveApplicationData", "FindPackages", "ProvisionPackage", "AddPackageAsync", "Process.Start", "ProcessStartInfo",
+        foreach (var forbidden in new[] { "RemovalOptions.AllUsers", "RemovalOptions.PreserveApplicationData", "FindPackages", "manager.ProvisionPackage", "AddPackageAsync", "Process.Start", "ProcessStartInfo",
                      "powershell", "winget", "cmd.exe", "runas", "requireAdministrator", "operation.Cancel(", ".WaitAsync(" })
             Assert.DoesNotContain(forbidden, source, StringComparison.OrdinalIgnoreCase);
         var inventory = File.ReadAllText(TestRepository.Combine("src", "SentinelCore.Infrastructure.Debloat.Native", "NativeAppxInventoryReader.cs"));

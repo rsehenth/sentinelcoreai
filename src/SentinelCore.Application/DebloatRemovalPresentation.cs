@@ -14,6 +14,29 @@ public sealed record DebloatRemovalPresentation(string Plan, string Dependencies
         "Registros T3C usam o journal Debloat existente.", string.Join("\n", DebloatRemovalMessages.Limitations),
         "Informação documental; reinstalação não garante recuperação de dados.");
 
+    public static string HistoricalEvidence(DebloatRemovalSnapshot snapshot, DebloatRemovalReceipt? receipt,
+        TransactionRecord record)
+    {
+        var observation = snapshot.Observation;
+        var package = observation.SelectedPackage;
+        var previous = observation.Packages.Single(p => DebloatRemovalIdentityPolicy.From(p) == package);
+        var dependencies = observation.Dependencies;
+        static string Names(IReadOnlyList<DebloatRemovalIdentity> items) => items.Count == 0
+            ? "Nenhuma na fixture" : string.Join(", ", items.Select(p => p.PackageFullName));
+        return $"Escopo anterior: {DebloatPresentation.Scope(previous.Scope)} (fixture)\n" +
+            $"Estado anterior: {previous.InstallState} · PFN: {package.PackageFamilyName} · arquitetura: {package.Architecture}\n" +
+            $"Dependências ({DebloatPresentation.Completeness(dependencies.Completeness)})\n" +
+            $"Diretas: {Names(dependencies.Direct)}\nReversas: {Names(dependencies.Reverse)}\n" +
+            $"Compartilhadas: {Names(dependencies.Shared)}\nPotencialmente afetadas: {Names(dependencies.PotentiallyAffected)}\n" +
+            (receipt is null ? "Recibo indisponível.\n"
+                : $"Recibo: {receipt.Phase} · falha parcial: {(receipt.PartialFailure ? "sim" : "não")} · efeito possível: {(receipt.EffectMayHaveOccurred ? "sim" : "não")}\n" +
+                  $"HRESULT: {receipt.HResult?.ToString() ?? "indisponível"} · atividade: {receipt.ActivityId?.ToString() ?? "indisponível"}\n" +
+                  $"Erro: {receipt.ErrorText ?? "não registrado"}\nPós-verificação: {receipt.PostVerification?.Information ?? "indisponível"}\n") +
+            (record.IsIndeterminate || receipt?.PartialFailure == true
+                ? "Recuperação pendente de investigação. O alvo permanece bloqueado se o efeito não puder ser confirmado.\n" : "") +
+            "Reinstalação real indisponível pelo SentinelCore. A evidência histórica contém somente metadados.";
+    }
+
     public static DebloatRemovalPresentation From(DebloatRemovalPlan plan,
         DebloatRemovalProgress? progress = null, DebloatRemovalResult? result = null,
         DebloatRemovalHistory? history = null)

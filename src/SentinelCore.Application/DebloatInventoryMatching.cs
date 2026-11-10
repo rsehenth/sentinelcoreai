@@ -53,7 +53,10 @@ public sealed record DebloatNativeAssessment(
     bool CanSimulate,
     bool CanExecuteReal,
     IReadOnlyList<string> Blockers,
-    IReadOnlyList<string> Limitations);
+    IReadOnlyList<string> Limitations)
+{
+    public DebloatNativeCategory Category => DebloatNativePolicy.Classify(Package, EffectiveRisk);
+}
 
 public static class DebloatNativePolicy
 {
@@ -73,14 +76,20 @@ public static class DebloatNativePolicy
         ArgumentNullException.ThrowIfNull(package);
         var match = DebloatCatalogMatcher.Match(catalog, package, duplicateIdentities);
         var entry = match.Entry;
-        var identityValid = DebloatNativeIdentity.IsValid(package);
+        var identityValid = DebloatNativeIdentity.HasConsistentMetadata(package) &&
+            (package.Scope != DebloatScope.CurrentUser || DebloatNativeIdentity.IsValid(package)) &&
+            (!package.IsBundle && package.Architecture is not ("x86onarm64" or "unknown")
+                ? DebloatRemovalIdentityPolicy.HasExactIdentity(DebloatRemovalIdentityPolicy.From(package)) : true);
         var matchKind = identityValid ? match.Kind : DebloatCatalogMatchKind.IdentityDivergent;
         var risk = RiskFor(entry);
+        if (entry is null && catalog.All.Any(candidate => candidate.RealRisk == RiskLevel.High &&
+            string.Equals(candidate.TechnicalName, package.TechnicalName, StringComparison.OrdinalIgnoreCase)))
+            risk = RiskLevel.High;
         if (!identityValid && risk is RiskLevel.Low or RiskLevel.Medium) risk = RiskLevel.NotValidated;
         var protectedFact = !identityValid || matchKind == DebloatCatalogMatchKind.Ambiguous ||
             package.IsFramework || package.IsResourcePackage || package.IsOptional || package.IsBundle ||
             package.Kind is DebloatPackageKind.Framework or DebloatPackageKind.Resource ||
-            entry?.RealRisk == RiskLevel.High;
+            risk == RiskLevel.High || package.Signature == DebloatNativeSignature.System;
 
         var blockers = new List<string> { DebloatNativeMessages.NotHomologated };
         if (!identityValid) blockers.Add("Identidade nativa inválida ou internamente inconsistente.");
@@ -90,15 +99,16 @@ public static class DebloatNativePolicy
         if (package.IsOptional) blockers.Add("Pacote opcional exige política própria; bloqueado nesta fase.");
         if (package.IsBundle) blockers.Add("Bundle observado; a identidade do aplicativo principal não foi determinada.");
         if (package.Kind != DebloatPackageKind.Appx) blockers.Add("Somente pacotes Appx/MSIX principais são considerados.");
-        if (package.Scope != DebloatScope.CurrentUser) blockers.Add(DebloatNativeMessages.CurrentUserOnly);
-        if (package.InstallState != DebloatNativeInstallState.Available)
+        if (package.Scope == DebloatScope.OtherUser) blockers.Add("Instalação de outro usuário é somente informativa.");
+        if (package.Scope != DebloatScope.Provisioned && package.InstallState != DebloatNativeInstallState.Available)
             blockers.Add("Pacote não está totalmente disponível no estado observado.");
+        if (package.Signature is null or DebloatNativeSignature.Unsigned)
+            blockers.Add("Origem da assinatura indisponível ou pacote sem assinatura.");
+        if (package.Signature == DebloatNativeSignature.System) blockers.Add("Pacote assinado como componente do Windows.");
         if (entry is not null && entry.RemovalMethod != "Appx") blockers.Add("Entrada do catálogo não é Appx; fora do escopo.");
-        if (entry?.RealRisk is RiskLevel.High or RiskLevel.NotValidated)
+        if (risk is RiskLevel.High or RiskLevel.NotValidated)
             blockers.Add("Risco real bloqueado no backend; classificação conservadora da T0 preservada.");
-        if (queryState is DebloatInventoryQueryState.NotExecuted or DebloatInventoryQueryState.Failed or
-            DebloatInventoryQueryState.Unavailable or DebloatInventoryQueryState.AccessDenied or
-            DebloatInventoryQueryState.Interrupted)
+        if (queryState != DebloatInventoryQueryState.Completed)
             blockers.Add("Consulta de inventário não concluída; nenhuma inferência de ausência é permitida.");
 
         var limitations = new List<string>((package.Limitations ?? [])
@@ -118,6 +128,24 @@ public static class DebloatNativePolicy
             },
             protectedFact ? DebloatEligibility.ProtectedOrBlocked : DebloatEligibility.UnavailableForSimulation,
             false, false, blockers.Distinct(StringComparer.Ordinal).ToArray(), limitations.Distinct(StringComparer.Ordinal).ToArray());
+    }
+
+    public static DebloatNativeCategory Classify(DebloatNativePackageMetadata? package, RiskLevel risk)
+    {
+        if (package is null) return DebloatNativeCategory.Unknown;
+        if (package.Signature == DebloatNativeSignature.System && package.PackageFamilyName is
+            "Microsoft.Windows.ShellExperienceHost_cw5n1h2txyewy" or "Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy")
+            return DebloatNativeCategory.Essential;
+        if (package.IsFramework || package.IsResourcePackage) return DebloatNativeCategory.Dependency;
+        if (package.Signature == DebloatNativeSignature.System) return DebloatNativeCategory.SystemComponent;
+        if (risk == RiskLevel.High || package.IsBundle) return DebloatNativeCategory.Protected;
+        if (package.IsOptional) return DebloatNativeCategory.Optional;
+        if (package.Signature is DebloatNativeSignature.Store or DebloatNativeSignature.Enterprise or DebloatNativeSignature.Developer &&
+            DebloatNativeIdentity.Safe(package.Publisher) && DebloatNativeIdentity.PublisherIdPattern().IsMatch(package.PublisherId) &&
+            package.PublisherId is not ("8wekyb3d8bbwe" or "cw5n1h2txyewy") &&
+            !package.Publisher.Contains("Microsoft", StringComparison.OrdinalIgnoreCase))
+            return DebloatNativeCategory.ThirdParty;
+        return DebloatNativeCategory.Unknown;
     }
 
     /// <summary>Catalog-only entry. Absence requires a complete query; incomplete observation is indeterminate.</summary>

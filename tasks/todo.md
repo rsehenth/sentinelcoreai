@@ -1,5 +1,40 @@
 # Execução
 
+## Etapa 5 — Windows Repair Center (09/11/2026)
+
+- [x] Reutilizar catálogo, preflight, confirmação, autorização e intenção imutável do R1.
+- [x] Implementar broker separado com UAC, pipe local autenticado, nonce, prazo e revalidação privilegiada.
+- [x] Serializar as oito operações entre instâncias e preservar reserva indeterminada após falha.
+- [x] Implementar execução de System32, canais de saída limitados, encerramento e interpretação.
+- [x] Integrar estados e evidências à página Reparos, à Central e ao armazenamento R1 no esquema 12.
+- [x] Compilar Debug e Release com restore bloqueado. Manter composição sintética, cinco gates e T0.
+- [ ] Empacotamento privilegiado, pinagem da imagem Native AOT e homologação futura autorizada.
+
+Etapa 6 não iniciada. [Evidência de compilação](../docs/VALIDATION.md#etapa-5--windows-repair-center).
+
+## Etapa 4 — gerenciamento Appx/MSIX (09/11/2026)
+
+- [x] Integrar a leitura WinRT sob demanda, com cobertura por escopo e dependências estáticas observadas no usuário atual.
+- [x] Classificar os pacotes e montar prévia individual com identidade completa, impactos e bloqueios T0.
+- [x] Aproveitar o journal Debloat e a Central para histórico, evidências e recuperação pendente. Manter remoção e desprovisionamento no executor isolado, com gate fechado.
+- [x] Atualizar README, Arquitetura, Segurança e Roadmap.
+- [x] Restaurar com lockfiles e compilar a solução em Debug e Release, com 0 avisos e 0 erros. Inspecionar a saída Release do App, que inclui o leitor e exclui o executor de remoção.
+- [ ] Homologação futura da interface, dos escopos Windows, da análise de dependências e da reabertura.
+
+## Retomada do desenvolvimento funcional (09/11/2026)
+
+- [x] Levantar as 13 páginas, separar capacidades operacionais no código de fluxos sintéticos e ordenar as lacunas no [roadmap](../docs/ROADMAP.md#retomada-do-desenvolvimento-funcional-09112026).
+- [x] Ligar Correlação › Evidências ao registro de origem por fonte e GUID, usando o histórico já carregado. Tratar origem indisponível na própria página.
+- [x] Implementar auditorias básica e completa no WPF, com confirmação, monitoramento autorizado, cancelamento e progresso por etapa.
+- [x] Gravar relatórios, vínculos para os históricos existentes e checkpoints. Exibir interrupções no Histórico e na Central de Recuperação. Preservar o SQLite no esquema 12.
+- [ ] Adiado para a fase de validação: exercitar coleta, cancelamento, interrupção, gravação, reabertura e navegação. Revisar os hashes dos arquivos alterados antes de voltar a usar o manifesto sintético.
+- [x] Integrar a Central e Personalização ao mesmo serviço T1, com catálogo T2B, prévia, backup, recibo e verificação.
+- [x] Vincular a recuperação HKCU ao contexto e à prévia de uso único. Preservar conflitos, histórico anterior e evidências de estado indeterminado.
+- [x] Ler o journal de Tweaks como fonte optativa da Correlação e abrir a transação pelo GUID na Central.
+- [ ] Homologação futura da Etapa 3. Exercitar aplicação, recuperação, concorrência, falhas, reabertura e navegação.
+
+Testes, benchmarks e homologação ficam suspensos. V1-A00 e V1-A01 permanecem aprovadas. As demais fichas mantêm seus estados.
+
 ## V2 — isolamento da inicialização (07/11/2026)
 
 - [x] `--data-root` fail-closed (`DataRootArgument`), `ApplicationLog` sem recuo à raiz padrão, preflight de Reparos fora de `OnLoaded`.

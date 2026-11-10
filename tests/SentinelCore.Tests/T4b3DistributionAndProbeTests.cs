@@ -17,7 +17,8 @@ public sealed class T4b3DistributionAndProbeTests
     [
         "SentinelCore.App", "SentinelCore.Application", "SentinelCore.Domain", "SentinelCore.Persistence",
         "SentinelCore.Infrastructure.Windows", "SentinelCore.Infrastructure.Modifications",
-        "SentinelCore.Infrastructure.Repairs", "SentinelCore.Infrastructure.Debloat"
+        "SentinelCore.Infrastructure.Repairs", "SentinelCore.Infrastructure.Debloat",
+        "SentinelCore.Infrastructure.Debloat.Native"
     ];
 
     private static IEnumerable<string> ProductionSources() =>
@@ -87,7 +88,7 @@ public sealed class T4b3DistributionAndProbeTests
     }
 
     [Fact]
-    public void DistributedProjectGraphExcludesTestHarnessWorkerAndNativeDebloatAssemblies()
+    public void DistributedProjectGraphIncludesReadOnlyInventoryAndExcludesWorkerAndNativeRemoval()
     {
         var reachable = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var pending = new Stack<string>();
@@ -102,7 +103,7 @@ public sealed class T4b3DistributionAndProbeTests
         }
         Assert.Equal(ProductionProjects.OrderBy(n => n, StringComparer.OrdinalIgnoreCase), reachable.OrderBy(n => n, StringComparer.OrdinalIgnoreCase));
         Assert.DoesNotContain(reachable, name => name.Contains("Tests", StringComparison.OrdinalIgnoreCase) ||
-            name.Contains("Worker", StringComparison.OrdinalIgnoreCase) || name.Contains(".Native", StringComparison.OrdinalIgnoreCase));
+            name.Contains("Worker", StringComparison.OrdinalIgnoreCase) || name.Contains(".Removal.Native", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]

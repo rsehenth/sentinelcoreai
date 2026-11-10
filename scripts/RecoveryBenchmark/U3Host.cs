@@ -353,9 +353,11 @@ internal sealed class U3Host
         Check("j5-real-execution-disabled-message", Txt(C<TextBlock>(shell, "TweaksModeText")).Length > 0, Txt(C<TextBlock>(shell, "TweaksModeText")));
         Check("j5-tweak-authorize-blocked", !C<Button>(shell, "TweakAuthorizeButton").IsEnabled && Count(shell, "TweakHistoryList") == 0);
         var debloatView = C<DebloatView>(shell, "DebloatSection");
-        Check("j5-native-inventory-not-enabled", Txt(C<TextBlock>(debloatView, "NativeInventoryStatus")) is var native && native.Contains("não composto", StringComparison.OrdinalIgnoreCase) &&
-            native.Contains("Nenhuma consulta a pacotes reais", StringComparison.Ordinal),
+        Check("j5-native-inventory-not-composed-in-fixture", !C<Button>(debloatView, "NativeRefreshButton").IsEnabled &&
+            Txt(C<TextBlock>(debloatView, "NativeInventoryStatus")).Contains("indisponível nesta composição", StringComparison.Ordinal),
             Txt(C<TextBlock>(debloatView, "NativeInventoryStatus")));
+        C<Expander>(debloatView, "SyntheticSection").IsExpanded = true;
+        await Idle();
         var debloatText = AllText(debloatView);
         Check("j5-debloat-unverified-not-absent", debloatText.Contains("Não verificado", StringComparison.Ordinal) &&
             !debloatText.Contains("não instalado", StringComparison.OrdinalIgnoreCase));

@@ -129,6 +129,34 @@ public sealed class DebloatNativeInventoryTests
     }
 
     [Fact]
+    public async Task NativePreviewUsesScopeCoverageAndDoesNotTreatMissingDependenciesAsEmpty()
+    {
+        var target = Metadata() with { Signature = DebloatNativeSignature.Store, DependencyFullNames = [] };
+        var dependent = Metadata(technicalName: "Contoso.Dependent") with { DependencyFullNames = [target.PackageFullName] };
+        var unresolved = Metadata(technicalName: "Contoso.Unresolved");
+        var other = target with { Scope = DebloatScope.OtherUser, UserSecurityId = "" };
+        var query = Query(DebloatInventoryQueryState.Completed, DebloatObservationCompleteness.Complete, target, dependent, unresolved) with
+        {
+            AdditionalScopes =
+            [
+                new(DebloatScope.OtherUser, DebloatInventoryQueryState.Completed,
+                    DebloatObservationCompleteness.Complete, [other], []),
+                new(DebloatScope.Provisioned, DebloatInventoryQueryState.AccessDenied,
+                    DebloatObservationCompleteness.Unavailable, [], [new("DENIED", "Negado.", true)])
+            ]
+        };
+        var observation = await ObserveAsync(query);
+        var current = observation.Assessments.Single(item => item.Package is { Scope: DebloatScope.CurrentUser } p &&
+            p.PackageFullName == target.PackageFullName);
+        var preview = DebloatRemovalPreflightEngine.PreviewNative(observation, current);
+        Assert.Null(preview.Package.Provisioned);
+        Assert.False(preview.DependenciesComplete);
+        Assert.Equal(dependent.PackageFullName, Assert.Single(preview.Dependents));
+        Assert.False(preview.Preflight.CanExecuteReal);
+        Assert.Equal(RiskLevel.NotValidated, preview.Preflight.RealRisk);
+    }
+
+    [Fact]
     public async Task DuplicateObservationsAreAmbiguousAndBlocked()
     {
         var observation = await ObserveAsync(Query(DebloatInventoryQueryState.Completed,

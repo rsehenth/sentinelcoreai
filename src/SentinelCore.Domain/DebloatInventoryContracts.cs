@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Text.Json.Serialization;
 
 namespace SentinelCore.Domain;
 
@@ -25,14 +26,16 @@ public enum DebloatObservationCompleteness { NotObserved, Complete, Partial, Una
 
 /// <summary>Installation state derived from the package status reported by Windows.</summary>
 public enum DebloatNativeInstallState { Unknown, Available, NotAvailable, Degraded }
+public enum DebloatNativeSignature { Unsigned, Developer, Enterprise, Store, System }
+public enum DebloatNativeCategory { Unknown, Essential, SystemComponent, Dependency, Protected, Optional, ThirdParty }
 
 /// <summary>Result of matching one observed package against the documentary catalog.</summary>
 public enum DebloatCatalogMatchKind { NotInCatalog, Exact, Ambiguous, CatalogOnly, IdentityDivergent }
 
 public static class DebloatNativeSources
 {
-    public const string PackageManager = "Windows.Management.Deployment.PackageManager.FindPackagesForUser";
-    public const string ProviderVersion = "t3b-native-appx-1";
+    public const string PackageManager = "Windows.Management.Deployment.PackageManager.FindPackagesForUserWithPackageTypes";
+    public const string ProviderVersion = "stage4-native-appx-1";
 }
 
 public static class DebloatNativeLimits
@@ -46,7 +49,7 @@ public static class DebloatNativeMessages
     public const string ReadOnly =
         "Inventário nativo estritamente somente leitura; não existem remoção, provisionamento, instalação ou elevação neste caminho.";
     public const string NotHomologated =
-        "Inventário nativo não homologado; execução real indisponível e operação bloqueada no backend.";
+        "Inventário nativo somente leitura. A remoção real está bloqueada no backend.";
     public const string CatalogLacksIdentity =
         "O catálogo documental não contém Package Family Name, publisher, versão ou arquitetura por entrada; a correspondência é limitada ao nome técnico exato.";
     public const string OutOfCatalog = "Aplicativo identificado — fora do catálogo de remoção.";
@@ -79,9 +82,26 @@ public sealed record DebloatNativePackageMetadata(
     bool IsOptional,
     bool IsBundle,
     string Source,
-    IReadOnlyList<string> Limitations);
+    IReadOnlyList<string> Limitations)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DisplayName { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DebloatNativeSignature? Signature { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? DependencyFullNames { get; init; }
+}
 
 public sealed record DebloatInventoryError(string Code, string Message, bool Fatal);
+
+public sealed record DebloatInventoryScopeResult(DebloatScope Scope, DebloatInventoryQueryState State,
+    DebloatObservationCompleteness Completeness, IReadOnlyList<DebloatNativePackageMetadata> Packages,
+    IReadOnlyList<DebloatInventoryError> Errors)
+{
+    public bool Complete => Completeness == DebloatObservationCompleteness.Complete &&
+        Errors.Count == 0 && (State == DebloatInventoryQueryState.Completed && Packages.Count > 0 ||
+            State == DebloatInventoryQueryState.CompletedNoResults && Packages.Count == 0);
+}
 
 /// <summary>
 /// Complete query result. Packages are only those actually observed; absence is never fabricated.
@@ -96,16 +116,21 @@ public sealed record DebloatInventoryQueryResult(
     string ProviderVersion,
     IReadOnlyList<DebloatNativePackageMetadata> Packages,
     IReadOnlyList<DebloatInventoryError> Errors,
-    IReadOnlyList<string> Limitations);
+    IReadOnlyList<string> Limitations)
+{
+    public IReadOnlyList<DebloatInventoryScopeResult> AdditionalScopes { get; init; } = [];
+}
 
 /// <summary>
-/// Read-only, current-user-only contract. It deliberately has no remove, deploy or provisioning member.
+/// Read-only contract. It deliberately has no remove, deploy or provisioning mutation member.
 /// </summary>
 public interface IDebloatNativeInventoryReader
 {
     bool ReadOnly { get; }
     string ProviderVersion { get; }
     Task<DebloatInventoryQueryResult> ReadCurrentUserAsync(CancellationToken cancellationToken = default);
+    Task<DebloatInventoryQueryResult> ReadInventoryAsync(CancellationToken cancellationToken = default) =>
+        ReadCurrentUserAsync(cancellationToken);
 }
 
 public static partial class DebloatNativeIdentity
@@ -115,9 +140,13 @@ public static partial class DebloatNativeIdentity
     /// A package that fails this check is blocked, never reported as a lesser risk.
     /// </summary>
     public static bool IsValid(DebloatNativePackageMetadata package) =>
+        HasConsistentMetadata(package) && Safe(package.UserSecurityId) && UserSidPattern().IsMatch(package.UserSecurityId) &&
+        package.Scope == DebloatScope.CurrentUser;
+
+    public static bool HasConsistentMetadata(DebloatNativePackageMetadata package) =>
         Safe(package.TechnicalName) && Safe(package.PackageFamilyName) && Safe(package.PackageFullName) &&
         Safe(package.Publisher) && Safe(package.PublisherId) && Safe(package.Version) &&
-        Safe(package.Architecture) && Safe(package.UserSecurityId) && Safe(package.Source) &&
+        Safe(package.Architecture) && Safe(package.Source) &&
         package.Limitations is not null && package.Limitations.All(Safe) &&
         TechnicalNamePattern().IsMatch(package.TechnicalName) &&
         PublisherIdPattern().IsMatch(package.PublisherId) &&
@@ -125,9 +154,7 @@ public static partial class DebloatNativeIdentity
         System.Version.TryParse(package.Version, out var version) && version.Revision >= 0 &&
         package.PackageFamilyName == package.TechnicalName + "_" + package.PublisherId &&
         package.PackageFullName.StartsWith(package.TechnicalName + "_", StringComparison.Ordinal) &&
-        UserSidPattern().IsMatch(package.UserSecurityId) &&
-        Enum.IsDefined(package.Kind) && Enum.IsDefined(package.Scope) && Enum.IsDefined(package.InstallState) &&
-        package.Scope == DebloatScope.CurrentUser;
+        Enum.IsDefined(package.Kind) && Enum.IsDefined(package.Scope) && Enum.IsDefined(package.InstallState);
 
     public static bool Safe(string? value) =>
         !string.IsNullOrWhiteSpace(value) && value.Length <= DebloatNativeLimits.MaximumText &&

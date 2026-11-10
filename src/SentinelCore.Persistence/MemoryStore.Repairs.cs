@@ -314,6 +314,7 @@ public sealed partial class MemoryStore
             string.IsNullOrWhiteSpace(intent.CatalogContentHash) ||
             string.IsNullOrWhiteSpace(intent.DisplayName) || !Enum.IsDefined(intent.Kind) ||
             !Enum.IsDefined(intent.Risk) || !Enum.IsDefined(intent.ExecutionMode) ||
+            intent.IsSynthetic != (intent.ExecutionMode == RepairExecutionMode.Simulation) ||
             intent.CreatedAtUtc.Offset != TimeSpan.Zero || intent.Plan is null ||
             intent.Limitations is null || string.IsNullOrWhiteSpace(intent.InvocationDisplay) ||
             string.IsNullOrWhiteSpace(intent.ConfirmationId) ||
@@ -365,6 +366,8 @@ public sealed partial class MemoryStore
             throw new InvalidDataException("Volume do registro de reparo inválido.");
         if (record.IsSynthetic != (record.ExecutionMode == RepairExecutionMode.Simulation))
             throw new InvalidDataException("Origem sintética diverge do modo de execução.");
+        if (record.Native is { } native)
+            ValidateNativeRepair(record, native);
         if (record.State == RepairState.Completed && record.ExitCode is null)
             throw new InvalidDataException("Registro concluído sem código de saída verificável.");
         if (record.State == RepairState.Cancelled && record.Result != RepairResultClassification.Cancelled)
@@ -393,6 +396,24 @@ public sealed partial class MemoryStore
             throw new InvalidDataException("Passos do reparo inválidos: " + reason);
         if (record.Steps[^1].State != record.State)
             throw new InvalidDataException("Estado final diverge do último passo do reparo.");
+    }
+
+    private static void ValidateNativeRepair(RepairRecord record, RepairNativeExecution native)
+    {
+        var started = native.ProcessStartedUtc;
+        var exited = native.ProcessExitedUtc;
+        if (record.IsSynthetic || !Enum.IsDefined(native.Status) ||
+            started is { Offset: var startOffset } && startOffset != TimeSpan.Zero ||
+            exited is { Offset: var exitOffset } && exitOffset != TimeSpan.Zero ||
+            exited is not null && (started is null || exited < started || record.ExitCode is null) ||
+            record.ExitCode is not null && exited is null ||
+            native.Status == RepairBrokerStatus.ProcessExited && exited is null ||
+            native.Status is not (RepairBrokerStatus.ProcessExited or RepairBrokerStatus.Indeterminate) && started is not null ||
+            native.Status == RepairBrokerStatus.Indeterminate && record.State != RepairState.Indeterminate ||
+            native.Status == RepairBrokerStatus.ElevationDeclined &&
+                (!native.ElevationRequested || record.Result != RepairResultClassification.ElevationDeclined) ||
+            record.Output.Any(line => line is null || line.Channel is null || !Enum.IsDefined(line.Channel.Value)))
+            throw new InvalidDataException("Evidência de execução nativa inconsistente.");
     }
 
     private static bool MatchesIntent(RepairRecord record, RepairIntent intent) =>

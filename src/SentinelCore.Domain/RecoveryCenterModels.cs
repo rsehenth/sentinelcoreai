@@ -3,7 +3,7 @@ namespace SentinelCore.Domain;
 public enum RecoveryModule { Tweaks, Debloat, ControlledRemoval, WindowsRepair }
 public enum RecoveryEvidenceStatus { Complete, Partial, Unavailable }
 public enum RecoveryOperationOutcome { Completed, Failed, Indeterminate, Blocked, Cancelled, NotStarted }
-public enum RecoveryCapability { PotentiallyAvailable, Blocked, Unsupported, InterventionRequired, Indeterminate }
+public enum RecoveryCapability { PotentiallyAvailable, Blocked, Unsupported, InterventionRequired, Indeterminate, RequiresAnalysis }
 public enum RecoveryOrigin { Synthetic, Real, Unknown }
 
 /// <summary>Ephemeral read model. Original Markdown and existing journals remain authoritative.</summary>
@@ -31,11 +31,23 @@ public sealed record RecoveryOperation(
     IReadOnlyList<string> Limitations, IReadOnlyList<string> Guidance,
     IReadOnlyList<RecoveryTimelineEvent> Events, IReadOnlyList<RecoveryResult> Recoveries,
     string ReportPath, TransactionRecord? Transaction = null, RepairRecord? Repair = null,
-    RecoveryPreview? Preview = null);
+    RecoveryPreview? Preview = null)
+{
+    public bool Interrupted => State is nameof(TransactionState.Interrupted) or nameof(TransactionState.ExecutionStarted)
+        or nameof(TransactionState.RecoveryRequested) or nameof(TransactionState.RecoveryStarted) ||
+        Repair?.State is RepairState.Interrupted or RepairState.Indeterminate ||
+        Module == RecoveryModule.WindowsRepair && Repair is null;
+
+    public bool PartiallyApplied => Module == RecoveryModule.Tweaks && Transaction?.Events.Any(entry =>
+        entry.State is (TransactionState.ExecutionFailed or TransactionState.ExecutionIndeterminate) &&
+        entry.Results?.Any(step => step.Applied && step.Changed) == true) == true;
+}
 
 public sealed record RecoveryCenterSnapshot(IReadOnlyList<RecoveryOperation> Operations,
     IReadOnlyList<RecoveryHistorySource> Sources, IReadOnlyList<string> Warnings)
 {
+    public StoreSnapshot? InterruptedAudits { get; init; }
+
     public bool IsComplete => Sources.Count == 4 && Sources.All(s => s.Status == RecoveryEvidenceStatus.Complete)
         && Warnings.Count == 0;
 }

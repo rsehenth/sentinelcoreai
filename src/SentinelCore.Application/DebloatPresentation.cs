@@ -7,11 +7,30 @@ public static class DebloatPresentation
 {
     public const string CatalogOrigin = "Catálogo de aplicativos";
     public const string InventoryOrigin = "Inventário de aplicativos";
-    public const string NativeInventoryOrigin = "Inventário nativo Appx/MSIX (não habilitado)";
+    public const string NativeInventoryOrigin = "Inventário nativo Appx/MSIX";
     public const string NativeInventoryStatus =
-        "Adaptador nativo implementado e compilável, mas não composto nesta versão. Nenhuma consulta a pacotes reais, desinstalação ou elevação é executada.";
+        "Consulta ainda não executada. O inventário nativo é somente leitura.";
     public const string NativeInventoryStates =
         "Estados distintos: consulta não executada; concluída sem resultados; parcial; negada; interrompida; falha de enumeração; indisponível. A ausência só é afirmada após consulta completa.";
+
+    public static string Scope(DebloatScope scope) => scope switch
+    {
+        DebloatScope.CurrentUser => "Usuário atual",
+        DebloatScope.OtherUser => "Outros usuários",
+        DebloatScope.Provisioned => "Provisionado para novas contas",
+        _ => "Escopo indisponível"
+    };
+
+    public static string Category(DebloatNativeCategory category) => category switch
+    {
+        DebloatNativeCategory.Essential => "Essencial do Windows",
+        DebloatNativeCategory.SystemComponent => "Componente de sistema",
+        DebloatNativeCategory.Dependency => "Framework ou dependência",
+        DebloatNativeCategory.Protected => "Protegido",
+        DebloatNativeCategory.Optional => "Opcional",
+        DebloatNativeCategory.ThirdParty => "Terceiros",
+        _ => "Não classificado"
+    };
 
     public static string Presence(DebloatPresence value) => value switch
     {

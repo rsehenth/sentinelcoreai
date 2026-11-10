@@ -118,7 +118,9 @@ public static class CorrelationSamples
         CorrelationSources sources = CorrelationSources.All,
         CorrelationSourceStatus status = CorrelationSourceStatus.Completed)
     {
-        var reads = Enum.GetValues<CorrelationSource>().Select(source =>
+        var reads = Enum.GetValues<CorrelationSource>()
+            .Where(source => source != CorrelationSource.Tweaks || sources.HasFlag(CorrelationSources.Tweaks))
+            .Select(source =>
         {
             if (!sources.HasFlag(FlagFor(source)))
                 return new CorrelationSourceRead(source, CorrelationSourceStatus.Skipped, 0, false, []);
@@ -173,6 +175,7 @@ public static class CorrelationSamples
         CorrelationSource.Performance => CorrelationSources.Performance,
         CorrelationSource.Network => CorrelationSources.Network,
         CorrelationSource.Graphics => CorrelationSources.Graphics,
+        CorrelationSource.Tweaks => CorrelationSources.Tweaks,
         _ => CorrelationSources.None
     };
 

@@ -42,7 +42,7 @@ public sealed record RepairCategoryGroup(string Category, IReadOnlyList<RepairOp
 
 /// <summary>
 /// Fachada de apresentação do Repair Center. Não executa nada: preparar, autorizar e executar passam pelo
-/// orquestrador, e a execução disponível é somente o adaptador sintético.
+/// orquestrador. O modo vem da composição que forneceu o centro.
 /// </summary>
 public sealed class RepairManager
 {
@@ -57,11 +57,13 @@ public sealed class RepairManager
         this.catalog = catalog;
         this.center = center;
         this.volumes = volumes;
+        if (center.Mode != mode)
+            throw new ArgumentException("Modo de apresentação diverge do orquestrador.", nameof(mode));
         this.mode = mode;
     }
 
     public RepairExecutionMode Mode => mode;
-    public bool RealExecutionEnabled => false;
+    public bool RealExecutionEnabled => mode == RepairExecutionMode.Real && RepairCenter.BrokerExecutionEnabled;
     public bool RealExecutionCompiled => RealRepairBuildGate.RealExecutionCompiled;
     public bool RealExecutionImplemented => RealRepairBuildGate.RealExecutionImplemented;
     public IReadOnlyList<RepairOperationDescriptor> DocumentedOperations => catalog.DocumentedOnly;
@@ -92,13 +94,13 @@ public sealed class RepairManager
             }
         }
 
-        var modeText = mode == RepairExecutionMode.Simulation
-            ? RepairGuidance.RealExecutionUnavailable
-            : "Modo de execução real não implementado nesta fase.";
-        var modeDetail = "Catálogo fechado com executáveis oficiais e argumentos fixos. " +
+        var modeText = RealExecutionEnabled ? "Execução pelo broker local" : RepairGuidance.RealExecutionUnavailable;
+        var modeDetail = RealExecutionEnabled
+            ? "A operação usa uma autorização de uso único. O Windows solicita consentimento quando necessário."
+            : "Catálogo fechado com executáveis oficiais e argumentos fixos. " +
             "A execução real não é composta nesta distribuição; os cartões demonstram o fluxo com fixtures " +
             "sintéticas explicitamente marcadas. Nenhuma elevação é solicitada.";
-        return new RepairCenterView(views, available, catalog.DocumentedOnly, mode, false, modeText,
+        return new RepairCenterView(views, available, catalog.DocumentedOnly, mode, RealExecutionEnabled, modeText,
             modeDetail);
     }
 
@@ -124,7 +126,7 @@ public sealed class RepairManager
         center.Authorize(plan, confirmation);
 
     public Task<RepairExecutionResult> ExecuteAsync(RepairPlan plan, RepairAuthorizationToken token,
-        RepairFixtureScenario scenario, IProgress<RepairProgress>? progress = null,
+        RepairFixtureScenario? scenario, IProgress<RepairProgress>? progress = null,
         CancellationToken cancellationToken = default) =>
         center.ExecuteAsync(plan, token, scenario, progress, cancellationToken);
 
@@ -144,8 +146,10 @@ public sealed class RepairManager
         new(operation.Id, operation.DisplayName, operation.Category, operation.Description, operation.Kind,
             operation.KindName, operation.Risk, operation.RiskName, operation.DisplayCommand,
             operation.RequiresElevation, operation.RequiresRestart, operation.MayChangeSystem,
-            operation.CanCancelSafely, AvailabilityName(operation.Availability), preflight.SimulationAllowed,
-            false, preflight.SimulationBlockers, operation.Consequences, operation.PossibleChanges,
+            operation.CanCancelSafely,
+            preflight.RealExecutionAllowed ? "Elegível para o broker local" : AvailabilityName(operation.Availability),
+            preflight.SimulationAllowed, preflight.RealExecutionAllowed, preflight.SimulationBlockers,
+            operation.Consequences, operation.PossibleChanges,
             operation.Limitations.Concat(preflight.Limitations).Distinct().ToList(),
             operation.ExpectedResult, operation.DocumentationReference, operation.DocumentedOnlyReason);
 
@@ -242,7 +246,24 @@ public static class RepairPresentation
         RepairResultClassification.Cancelled => "Cancelado",
         RepairResultClassification.UnknownExitCode => "Código de saída não catalogado",
         RepairResultClassification.InformationRetrieved => "Informação recuperada",
+        RepairResultClassification.ElevationDeclined => "Consentimento UAC recusado",
+        RepairResultClassification.StartFailed => "Falha ao iniciar a ferramenta",
+        RepairResultClassification.BrokerRefused => "Solicitação recusada pelo broker",
+        RepairResultClassification.ExecutionConflict => "Reparo ativo ou pendente",
         _ => result.ToString()
+    };
+
+    public static string BrokerStatusName(RepairBrokerStatus status) => status switch
+    {
+        RepairBrokerStatus.Refused => "Solicitação recusada",
+        RepairBrokerStatus.Conflict => "Execução conflitante ou pendente",
+        RepairBrokerStatus.ElevationDeclined => "Consentimento UAC recusado",
+        RepairBrokerStatus.CancelledBeforeStart => "Cancelada antes do início",
+        RepairBrokerStatus.StartDenied => "Acesso negado ao iniciar",
+        RepairBrokerStatus.StartFailed => "Falha ao iniciar",
+        RepairBrokerStatus.ProcessExited => "Encerramento confirmado",
+        RepairBrokerStatus.Indeterminate => "Resultado indeterminado",
+        _ => status.ToString()
     };
 
     public static string ConfidenceName(RepairConfidence confidence) => confidence switch

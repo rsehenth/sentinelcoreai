@@ -154,17 +154,35 @@ public sealed class DebloatManager
         finally { executing.Release(); }
     }
 
-    public async Task<DebloatHistorySnapshot> LoadHistoryAsync(CancellationToken cancellationToken = default)
+    public async Task<DebloatHistorySnapshot> LoadHistoryAsync(CancellationToken cancellationToken = default,
+        bool includeControlledRemoval = false)
     {
         var snapshot = await journal.LoadTransactionsAsync(cancellationToken);
         var result = new List<DebloatHistoryItem>();
         var warnings = snapshot.Warnings.ToList();
         foreach (var record in snapshot.Transactions)
         {
-            // T3C has its own typed snapshot/presentation; it shares this journal, not the legacy payload shape.
-            if (record.OperationId.StartsWith("DBLT-RMV-", StringComparison.Ordinal)) continue;
             try
             {
+                if (record.OperationId.StartsWith("DBLT-RMV-", StringComparison.Ordinal))
+                {
+                    if (includeControlledRemoval)
+                    {
+                        var removal = DebloatHistoryValidation.ReadRemoval(record, Catalog);
+                        var package = removal.Observation.SelectedPackage;
+                        var receipt = record.Events.LastOrDefault(e => e.RemovalReceipt is not null)?.RemovalReceipt;
+                        result.Add(new DebloatHistoryItem(record.TransactionId, removal.CatalogEntry.FriendlyName,
+                            package.PackageFullName, package.Publisher, package.Version, package.UserSecurityId,
+                            "SINTÉTICO — " + record.State, record.Succeeded, record.IsIndeterminate, record.UpdatedAtUtc,
+                            "Reinstalação real indisponível. Orientação documental: " + removal.Observation.ReinstallInformation,
+                            string.Join(" ", record.Limitations.Append(DebloatLimits.RecoveryWarning)),
+                            journal.GetTransactionReportPath(record.TransactionId))
+                        {
+                            Evidence = DebloatRemovalPresentation.HistoricalEvidence(removal, receipt, record)
+                        });
+                    }
+                    continue;
+                }
                 var state = DebloatHistoryValidation.ReadDebloat(record);
                 result.Add(new DebloatHistoryItem(record.TransactionId, state.Package.FriendlyName,
                     state.Package.PackageFullName, state.Package.Publisher, state.Package.Version,

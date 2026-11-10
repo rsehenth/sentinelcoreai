@@ -4,6 +4,27 @@ using SentinelCore.Domain;
 
 namespace SentinelCore.Infrastructure.Modifications;
 
+public static class HkcuContext
+{
+    public static string? ReadHash()
+    {
+        if (!OperatingSystem.IsWindows() || Environment.IsPrivilegedProcess) return null;
+        try
+        {
+            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            return identity.User is { } sid
+                ? Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes($"{Environment.MachineName}\n{sid.Value}")))
+                : null;
+        }
+        catch (Exception error) when (error is SecurityException or UnauthorizedAccessException
+            or System.ComponentModel.Win32Exception)
+        {
+            return null;
+        }
+    }
+}
+
 public sealed record HkcuPolicyEvaluation(
     IReadOnlyList<string> BlockedOperationIds,
     IReadOnlyList<string> BlockedCategories,

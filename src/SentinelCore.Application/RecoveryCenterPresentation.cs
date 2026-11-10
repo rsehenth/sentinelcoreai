@@ -27,7 +27,8 @@ public static class RecoveryCenterPresentation
     {
         RecoveryCapability.PotentiallyAvailable => "Recuperação potencialmente disponível",
         RecoveryCapability.Blocked => "Recuperação bloqueada", RecoveryCapability.Unsupported => "Recuperação não suportada",
-        RecoveryCapability.InterventionRequired => "Intervenção necessária", _ => "Estado indeterminado"
+        RecoveryCapability.InterventionRequired => "Intervenção necessária",
+        RecoveryCapability.RequiresAnalysis => "Prévia necessária", _ => "Estado indeterminado"
     };
     public static string Label(RiskLevel risk) => risk switch
     { RiskLevel.Low => "Baixo", RiskLevel.Medium => "Médio", RiskLevel.High => "Alto", _ => "Não validado" };
@@ -37,6 +38,7 @@ public static class RecoveryCenterPresentation
         var s = RecoveryCenter.Summarize(snapshot);
         var text = new StringBuilder(s.IsComplete ? "Históricos carregados. " : "HISTÓRICO INCOMPLETO — quantidades apenas dos registros legíveis; totais indisponíveis. ");
         text.Append($"{s.Registered} registradas; {s.Completed} concluídas; {s.Failed} com falha; {s.Indeterminate} indeterminadas; {s.Conflicts} com conflitos; {s.Intervention} requerem intervenção. ");
+        text.Append($"{snapshot.Operations.Count(o => o.Interrupted)} interrompidas; {snapshot.Operations.Count(o => o.PartiallyApplied)} com aplicação parcial registrada. ");
         text.Append($"Recuperações: {s.RecoveriesCompleted} integrais; {s.RecoveriesPartial} parciais; {s.RecoveriesBlocked} bloqueadas; {s.RecoveriesFailed} falhas/interrompidas.");
         return text.ToString();
     }
@@ -51,6 +53,8 @@ public static class RecoveryCenterPresentation
         b.AppendLine($"Origem: {Label(o.Origin)}; risco: {(o.Risk is { } risk ? Label(risk) : "não registrado")}");
         b.AppendLine().AppendLine("ESTADO E EVIDÊNCIAS");
         b.AppendLine($"{o.State} | {Label(o.Outcome)}");
+        if (o.Interrupted) b.AppendLine("Interrupção registrada ou sem fechamento no journal.");
+        if (o.PartiallyApplied) b.AppendLine("A aplicação confirmou efeito em parte do plano. Consulte o recibo e a recuperação.");
         b.AppendLine($"{o.Verification}; efeito possivelmente iniciado: {YesNo(o.EffectMayHaveOccurred)}");
         b.AppendLine($"Conflito registrado: {YesNo(o.HasConflict)}; intervenção: {YesNo(o.RequiresIntervention)}; bloqueio persistente T3C: {YesNo(o.TargetPersistentlyBlocked)}");
         b.AppendLine().AppendLine("CONSEQUÊNCIAS");
@@ -66,15 +70,25 @@ public static class RecoveryCenterPresentation
                 b.AppendLine($"{change.TargetIdentity}: anterior (alvo existe={change.BeforeTargetExists}): {VerificationEngine.Describe(change.Before)}");
                 b.AppendLine($"Pretendido (alvo existe={change.AfterTargetExists}): {VerificationEngine.Describe(change.After)}");
             }
-            foreach (var step in o.Transaction.Steps)
-                b.AppendLine($"Pós-estado registrado {step.TargetIdentity}: aplicado={step.Applied}; verificado={step.Verified}; {step.Error ?? string.Join("; ", step.Effects)}");
-            b.AppendLine("O contrato StepResult registra aplicação e verificação, sem persistir o conteúdo relido. Estado atual não é presumido a partir do pretendido ou da verificação histórica.");
+            var receipt = o.Transaction.Events.LastOrDefault(entry => entry.State is
+                TransactionState.ExecutionCompleted or TransactionState.ExecutionFailed or TransactionState.ExecutionIndeterminate);
+            if (receipt?.Results is { } results)
+            {
+                b.AppendLine($"Recibo da aplicação no journal #{receipt.Sequence:D4}, às {receipt.AtUtc.ToLocalTime():g}.");
+                foreach (var step in results)
+                    b.AppendLine($"{step.TargetIdentity}: aplicação confirmada={YesNo(step.Applied)}; alteração={YesNo(step.Changed)}; {step.Error ?? string.Join("; ", step.Effects)}");
+            }
+            else b.AppendLine("Recibo da aplicação indisponível.");
+            foreach (var step in o.Transaction.Verification?.Steps ?? [])
+                b.AppendLine($"Pós-verificação de {step.TargetIdentity}: {step.Error ?? string.Join("; ", step.Effects)}");
         }
         b.AppendLine().AppendLine("RECUPERAÇÃO");
         b.AppendLine(Label(o.Capability));
         if (o.Preview is { } preview)
         {
-            b.AppendLine($"Prévia exclusivamente sintética: {preview.Outcome}; {preview.Reason}");
+            b.AppendLine($"Prévia de recuperação: {preview.Outcome}. {preview.Reason}");
+            foreach (var step in preview.CurrentStates)
+                b.AppendLine($"{step.TargetIdentity}: {step.Error ?? string.Join(" ", step.Effects)}");
             foreach (var c in preview.Conflicts)
                 b.AppendLine($"Conflito {c.TargetIdentity}: {c.Kind}; {c.Description}; atual={Describe(c.Current)}, anterior={Describe(c.Observed)}, pós-estado esperado={Describe(c.ExpectedPost)}");
         }

@@ -1,5 +1,34 @@
 # SentinelCore AI
 
+**Etapa 5 — Reparos do Windows (09/11/2026).** A solução inclui o projeto isolado
+`SentinelCore.RepairBroker`, com executor de SFC, DISM, CHKDSK e REAGENTC para as oito operações do R1.
+O fluxo reaproveita plano, confirmação, intenção e histórico. O broker revalida a solicitação por IPC local
+e serializa as execuções. A distribuição continua em modo sintético, com os cinco gates fechados.
+A entrega é de código e compilação. UAC, IPC e ferramentas aguardam homologação.
+[Arquitetura da Etapa 5](docs/ARCHITECTURE.md#etapa-5--execução-nativa-de-reparos).
+
+**Etapa 4 — gerenciador Appx/MSIX (09/11/2026).** Em **Personalização & Debloat**, use
+**Consultar inventário** para ler os pacotes do usuário atual. Quando o token já possui os
+privilégios exigidos pelo Windows, a mesma consulta informa instalações em outras contas e
+pacotes provisionados para novas contas. A página oferece busca, filtros, metadados do pacote
+e prévia individual com dependências, impacto e motivos de bloqueio.
+
+O histórico reúne simulações T3 e T3C do journal Debloat. A Central de Recuperação mostra os
+recibos e as pendências, com orientação documental sobre reinstalação. A T0 mantém 153 entradas
+não validadas e nove de alto risco. A distribuição permite consulta e prévia, com remoção e
+desprovisionamento bloqueados. A homologação da Etapa 4 fica para uma fase própria.
+[Arquitetura da Etapa 4](docs/ARCHITECTURE.md#etapa-4--gerenciador-appxmsix-09112026).
+
+**Etapa 3 — Central de Recuperação e Personalização (09/11/2026).** A Central e a página
+Personalização compartilham o serviço de recuperação T1. O histórico exibe o recibo do journal, a
+verificação, as interrupções e as recuperações por transação. Em **Correlação**, marque **Personalização**
+para consultar os eventos do journal e abrir a transação de origem na Central.
+
+O catálogo T2B mantém nove opções em sete valores HKCU. O fluxo de aplicação e rollback real está
+implementado atrás do gate existente. A distribuição oferece leitura, prévia do plano de aplicação
+e histórico. A homologação operacional permanece pendente.
+[Arquitetura da Etapa 3](docs/ARCHITECTURE.md#etapa-3--recuperação-e-tweaks-09112026).
+
 **U3 — consolidação funcional (06/11/2026).** Seis jornadas integradas exercitadas com dados artificiais: 10 Facts novos,
 **336 Synthetic em Debug e Release**, host WPF U3 com 81 verificações (3 rodadas), hosts U1/U2 sem regressão (39/136). Nenhum defeito
 de produto comprovado; `src/` inalterado. Cinco gates fechados; nada real executado. Prontidão sintética para uma futura validação
@@ -259,8 +288,11 @@ que evita depender dessa extração em computadores com restrições. Não usar 
 ## Uso
 
 1. Abra o aplicativo. Na primeira execução não haverá histórico.
-2. Clique em **Executar auditoria básica**. A coleta assíncrona mostra progresso por categoria.
-3. Se necessário, use **Cancelar coleta**. O registro cancelado também é salvo, sem renovar validade.
+2. Em **Visão geral**, selecione **Auditoria básica** ou **Auditoria completa** e clique em **Iniciar auditoria**.
+   A confirmação da completa inclui uma sessão local de 5 minutos de monitoramento.
+3. Em **Resultados**, acompanhe a coleta, cancele se necessário e abra os registros vinculados de cada módulo.
+   O **Histórico** permite reabrir os resultados. O registro cancelado é salvo sem renovar a validade.
+   Consulte o [escopo de cada tipo](docs/ARCHITECTURE.md#fluxo-das-auditorias-básica-e-completa).
 4. Na aba **Hardware**, clique em **Coletar hardware**. A coleta é assíncrona, cancelável e não modifica o Windows.
 5. Filtre por categoria, busque por nome/modelo/ID/propriedade e selecione um item para ver propriedades e limitações.
 6. Use **Comparar anterior** para observar mudanças entre snapshots, **Recarregar** para reler a memória local e

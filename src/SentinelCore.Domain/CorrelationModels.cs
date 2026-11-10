@@ -4,7 +4,7 @@ namespace SentinelCore.Domain;
 /// Fontes históricas que podem participar de uma investigação de correlação. Cada valor corresponde a um
 /// armazenamento já existente; nenhum coletor novo é executado para correlacionar.
 /// </summary>
-public enum CorrelationSource { Audits, Hardware, Events, Performance, Network, Graphics, Monitoring }
+public enum CorrelationSource { Audits, Hardware, Events, Performance, Network, Graphics, Monitoring, Tweaks }
 
 public enum CorrelationSourceStatus { Completed, Partial, Unavailable, Cancelled, Skipped }
 
@@ -21,7 +21,7 @@ public enum CorrelationStatus { Running, Completed, Partial, Failed, Cancelled }
 public enum CorrelationEvidenceKind
 {
     EventLog, WerReport, PerformanceObservation, NetworkObservation,
-    GraphicsObservation, HardwareChange, GraphicsChange, DeviceInventory
+    GraphicsObservation, HardwareChange, GraphicsChange, DeviceInventory, TweakJournalEvent
 }
 
 /// <summary>
@@ -58,7 +58,10 @@ public enum CorrelationSources
     Graphics = 32,
     /// <summary>Observações de sessões de monitoramento da Fase 5, limitadas e autorizadas.</summary>
     Monitoring = 64,
-    All = Audits | Hardware | Events | Performance | Network | Graphics | Monitoring
+    // Preserve the default diagnostic set. Maintenance history is explicitly selected.
+    All = Audits | Hardware | Events | Performance | Network | Graphics | Monitoring,
+    Tweaks = 128,
+    Supported = All | Tweaks
 }
 
 /// <summary>
@@ -334,6 +337,7 @@ public static class CorrelationGuidance
         CorrelationSource.Network => "Rede",
         CorrelationSource.Graphics => "Gráficos",
         CorrelationSource.Monitoring => "Monitoramento",
+        CorrelationSource.Tweaks => "Personalização",
         _ => source.ToString()
     };
 

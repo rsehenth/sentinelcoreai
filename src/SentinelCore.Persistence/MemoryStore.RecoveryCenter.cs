@@ -71,9 +71,11 @@ public sealed partial class MemoryStore : IRecoveryHistoryReader
                     change.Before is null || change.After is null) ||
                 plan.Changes.Select(change => change.TargetIdentity).Distinct(StringComparer.Ordinal).Count() != plan.Changes.Count)
                 throw new InvalidDataException("Plano com enum, identidade ou alvo inválido no histórico.");
-            var hash = SafetyHashing.PlanHash(plan.PlanId, plan.TransactionId, plan.OperationId,
-                plan.OperationVersion, plan.CatalogVersion, plan.Risk, plan.Scope, plan.Protection,
-                plan.ObservedStateHash, plan.Changes);
+            if (plan.HkcuContextHash is { } context && (context.Length != 64 ||
+                !context.All(char.IsAsciiHexDigit) || plan.Changes.Any(change =>
+                    change.Target.Root != OperationTargetRoots.CurrentUser)))
+                throw new InvalidDataException("Vínculo de contexto HKCU inválido.");
+            var hash = SafetyHashing.PlanHash(plan);
             if (!string.Equals(hash, plan.PlanHash, StringComparison.Ordinal) ||
                 !string.Equals(hash, entry.PlanHash, StringComparison.Ordinal))
                 throw new InvalidDataException("Hash do plano divergente no histórico.");
@@ -96,6 +98,25 @@ public sealed partial class MemoryStore : IRecoveryHistoryReader
         var recoveries = new Dictionary<Guid, string>();
         foreach (var entry in events)
         {
+            if (plan.HkcuContextHash is not null &&
+                (entry.State is (TransactionState.VerificationPassed or TransactionState.VerificationFailed) &&
+                    entry.Verification is null ||
+                 entry.State is (TransactionState.RecoveryCompleted or TransactionState.RecoveryFailed) &&
+                    entry.Recovery is null))
+                throw new InvalidDataException("Conclusão HKCU sem evidência no journal.");
+            if (plan.HkcuContextHash is not null && entry.State is (TransactionState.ExecutionCompleted or
+                TransactionState.ExecutionFailed or TransactionState.ExecutionIndeterminate))
+            {
+                var receipt = entry.Results;
+                var ordered = plan.Changes.OrderBy(change => change.TargetIdentity, StringComparer.Ordinal).ToArray();
+                var appliedAll = entry.State == TransactionState.ExecutionCompleted;
+                if (receipt is null || receipt.Count == 0 || receipt.Count > ordered.Length ||
+                    appliedAll && receipt.Count != ordered.Length ||
+                    receipt.Where((step, index) => step.TargetIdentity != ordered[index].TargetIdentity ||
+                        step.Verified || step.Applied != (appliedAll || index < receipt.Count - 1) ||
+                        step.Changed != (step.Applied && ordered[index].Before != ordered[index].After)).Any())
+                    throw new InvalidDataException("Recibo HKCU não corresponde aos alvos ou ao resultado da aplicação.");
+            }
             if (entry.Verification is { } verification)
             {
                 if (verification.Steps is null || verification.Limitations is null ||

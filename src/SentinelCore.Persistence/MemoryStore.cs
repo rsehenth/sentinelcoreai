@@ -6,9 +6,8 @@ using SentinelCore.Domain;
 
 namespace SentinelCore.Persistence;
 
-public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, IEventInvestigationStore,
-    IPerformanceSessionStore, INetworkSessionStore, IGraphicsInvestigationStore, ICorrelationInvestigationStore,
-    IMonitoringSessionStore, ITransactionJournalStore, IRepairRecordStore
+public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, ICorrelationInvestigationStore,
+    ITransactionJournalStore, IRepairRecordStore
 {
     private readonly string root;
     private string Database => Path.Combine(root, "data", "sentinelcore.db");
@@ -49,14 +48,20 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
         query.CommandText = "SELECT Id FROM Audits ORDER BY CompletedUtc DESC, Id";
         using var reader = query.ExecuteReader();
         while (reader.Read()) ordered.Add(byId[Guid.Parse(reader.GetString(0))]);
-        return new StoreSnapshot(ordered, warnings);
+        ordered.AddRange(ReadAuditInterruptions(warnings, cancellationToken).Where(audit => !byId.ContainsKey(audit.Id)));
+        return new StoreSnapshot(ordered.OrderByDescending(audit => audit.CompletedUtc).ThenBy(audit => audit.Id).ToArray(), warnings);
     }, cancellationToken);
 
-    public Task SaveAsync(AuditRecord audit, CancellationToken cancellationToken = default) => Task.Run(() =>
+    public Task SaveAsync(AuditRecord audit, CancellationToken cancellationToken = default) =>
+        SaveAuditAsync(audit, cancellationToken, ownsLease: false);
+
+    private Task SaveAuditAsync(AuditRecord audit, CancellationToken cancellationToken, bool ownsLease) => Task.Run(() =>
     {
         Validate(audit);
         EnsureDirectories();
         using var storeLock = Lock();
+        var checkpointPath = AuditCheckpointPath(audit.Id);
+        if (!ownsLease && IsAuditActive(audit.Id)) throw new InvalidOperationException("A coleta desta auditoria ainda está em andamento.");
         EnsureNoMonitoringRecord(audit.Id);
         var otherKind = audit.Kind == AuditKind.Basic ? AuditKind.Full : AuditKind.Basic;
         if (File.Exists(RecordPath(audit with { Kind = otherKind })) ||
@@ -67,6 +72,7 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
             throw new InvalidDataException("ID já existe em outro histórico; histórico preservado.");
         var json = CanonicalJson(audit);
         var path = RecordPath(audit);
+        AuditRecord? checkpoint = null;
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         if (File.Exists(path))
         {
@@ -76,6 +82,10 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
         }
         else
         {
+            CheckRecoveryPath(checkpointPath);
+            checkpoint = RecoveryAttributes(checkpointPath) is null ? null : ReadRecord(checkpointPath, checkpoint: true);
+            if (checkpoint is not null && !ExtendsCheckpoint(audit, checkpoint))
+                throw new InvalidDataException("Registro final diverge do checkpoint de auditoria; histórico preservado.");
             cancellationToken.ThrowIfCancellationRequested();
             var document = RecordEnvelope.Wrap(MarkdownReport.Render(audit), json);
             if (Encoding.UTF8.GetByteCount(document) > RecordEnvelope.MaximumRecordBytes)
@@ -89,6 +99,14 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
         if (!records.Any(record => record.Id == audit.Id) || !File.Exists(GetReportPath(audit.Id)))
             throw new IOException("A gravação não foi concluída. O registro durável, se existente, será recuperado na próxima tentativa.");
         WriteProjections(records);
+        if (checkpoint is not null && audit.Status != DiagnosticStatus.Interrupted)
+        {
+            try { File.Delete(checkpointPath); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            {
+                // O registro final tem precedência mesmo quando o checkpoint auxiliar permanece.
+            }
+        }
     }, cancellationToken);
 
     private void EnsureDirectories()
@@ -2767,7 +2785,7 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
             !Enum.IsDefined(investigation.Window) || !Enum.IsDefined(investigation.Status) ||
             investigation.Status == CorrelationStatus.Running ||
             investigation.RequestedSources == CorrelationSources.None ||
-            (investigation.RequestedSources & ~CorrelationSources.All) != 0 ||
+            (investigation.RequestedSources & ~CorrelationSources.Supported) != 0 ||
             investigation.PeriodFromUtc.Offset != TimeSpan.Zero ||
             investigation.PeriodToUtc.Offset != TimeSpan.Zero ||
             investigation.StartedUtc.Offset != TimeSpan.Zero ||
@@ -2899,6 +2917,7 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
         CorrelationSource.Network => CorrelationSources.Network,
         CorrelationSource.Graphics => CorrelationSources.Graphics,
         CorrelationSource.Monitoring => CorrelationSources.Monitoring,
+        CorrelationSource.Tweaks => CorrelationSources.Tweaks,
         _ => CorrelationSources.None
     };
 
@@ -3609,29 +3628,46 @@ public sealed partial class MemoryStore : IAuditStore, IHardwareSnapshotStore, I
     private static string CanonicalJson(MonitoringSegment segment) =>
         JsonSerializer.Serialize(segment, AuditJson.Options).Replace("\r\n", "\n");
 
-    private static AuditRecord ReadRecord(string path)
+    private static AuditRecord ReadRecord(string path, bool checkpoint = false)
     {
         if (new FileInfo(path).Length > RecordEnvelope.MaximumRecordBytes) throw new InvalidDataException("Registro excede 4 MiB.");
         var text = File.ReadAllText(path, Encoding.UTF8).Replace("\r\n", "\n");
         var json = RecordEnvelope.Unwrap(text);
         var audit = JsonSerializer.Deserialize<AuditRecord>(json, AuditJson.Options) ?? throw new InvalidDataException("Payload nulo.");
-        Validate(audit); return audit;
+        Validate(audit, checkpoint); return audit;
     }
 
-    private static void Validate(AuditRecord audit)
+    private static void Validate(AuditRecord audit, bool checkpoint = false)
     {
-        if (audit.FormatVersion != 1 || audit.Id == Guid.Empty || string.IsNullOrWhiteSpace(audit.SoftwareVersion) ||
+        var legacy = audit.FormatVersion == 1;
+        if (audit.FormatVersion is not (1 or 2) || audit.Id == Guid.Empty || string.IsNullOrWhiteSpace(audit.SoftwareVersion) ||
             !Enum.IsDefined(audit.Kind) || !Enum.IsDefined(audit.Status) ||
-            audit.Status is DiagnosticStatus.Pending or DiagnosticStatus.Running || audit.Results is null ||
-            audit.StartedUtc > audit.CompletedUtc || audit.Duration < TimeSpan.Zero || audit.Results.Count == 0 ||
+            audit.Status == DiagnosticStatus.Pending || (audit.Status == DiagnosticStatus.Running) != checkpoint ||
+            audit.Results is null || audit.StartedUtc > audit.CompletedUtc || audit.Duration < TimeSpan.Zero ||
+            (legacy && (checkpoint || audit.Results.Count == 0 || audit.PlannedSteps is not null ||
+                audit.Status == DiagnosticStatus.Interrupted)) ||
+            (!legacy && (audit.PlannedSteps is not (>= 1 and <= 128) || audit.Results.Count > audit.PlannedSteps ||
+                (!checkpoint && audit.Status != DiagnosticStatus.Interrupted && audit.Results.Count != audit.PlannedSteps))) ||
+            (audit.Status == DiagnosticStatus.Interrupted ? string.IsNullOrWhiteSpace(audit.InterruptionReason) : audit.InterruptionReason is not null) ||
             audit.Results.Select(r => r?.CollectorId).Distinct().Count() != audit.Results.Count ||
             audit.Results.Any(r => r is null || r.AuditId != audit.Id || string.IsNullOrWhiteSpace(r.CollectorId) ||
                 string.IsNullOrWhiteSpace(r.CollectorVersion) || string.IsNullOrWhiteSpace(r.Source) ||
-                r.Limitations is null || !Enum.IsDefined(r.Status) || r.Status is DiagnosticStatus.Pending or DiagnosticStatus.Running ||
+                r.Limitations is null || !Enum.IsDefined(r.Status) ||
+                r.Status is DiagnosticStatus.Pending or DiagnosticStatus.Running or DiagnosticStatus.Interrupted ||
                 r.StartedUtc > r.CompletedUtc || r.Duration < TimeSpan.Zero ||
-                (r.Status == DiagnosticStatus.Completed && (r.Data is null || r.Limitations.Count > 0))) ||
+                (r.Evidence is null && r.Status == DiagnosticStatus.Completed && (r.Data is null || r.Limitations.Count > 0)) ||
+                (r.Evidence is { } evidence && (legacy || audit.Kind != AuditKind.Full || r.Data is not null ||
+                    !Enum.IsDefined(evidence.Source) || evidence.Source == CorrelationSource.Audits ||
+                    evidence.RecordId == Guid.Empty || evidence.RecordId == audit.Id ||
+                    r.CollectorId != AuditEvidenceReference.CollectorIdFor(evidence.Source) ||
+                    string.IsNullOrWhiteSpace(evidence.Summary) || evidence.Summary.Length > 512))) ||
             (audit.Status == DiagnosticStatus.Completed && audit.Results.Any(r => r.Status != DiagnosticStatus.Completed)))
             throw new InvalidDataException("Registro de auditoria inválido ou versão incompatível.");
+
+        var references = audit.Results.Where(r => r.Evidence is not null).Select(r => r.Evidence!).ToArray();
+        if (references.Select(r => r.RecordId).Distinct().Count() != references.Length ||
+            (!legacy && audit.Kind == AuditKind.Full && audit.Status == DiagnosticStatus.Completed && references.Length != 6))
+            throw new InvalidDataException("Referências de evidência ausentes ou duplicadas.");
     }
 
     private static string CanonicalJson(AuditRecord audit) => JsonSerializer.Serialize(audit, AuditJson.Options).Replace("\r\n", "\n");

@@ -6,10 +6,14 @@ using SentinelCore.Domain;
 
 namespace SentinelCore.App;
 
-/// <summary>Presentation of the synthetic-only T3 flow. No Windows package or process access.</summary>
+/// <summary>Native inventory and preview, isolated from the executable synthetic flow.</summary>
 public partial class DebloatView : UserControl
 {
     private DebloatManager? manager;
+    private DebloatInventoryObserver? nativeObserver;
+    private DebloatInventoryObservation? nativeObservation;
+    private IReadOnlyList<NativeRow> nativeRows = [];
+    private bool nativeBusy;
     private IReadOnlyList<InventoryRow> inventory = [];
     private DebloatPreparedPlan? preparedPlan;
     private CancellationTokenSource? cancellation;
@@ -32,22 +36,32 @@ public partial class DebloatView : UserControl
         ScenarioCombo.ItemsSource = Enum.GetValues<DebloatScenario>()
             .Select(value => new ScenarioRow(value, ScenarioLabel(value))).ToArray();
         ScenarioCombo.SelectedIndex = 0;
+        NativeCategory.ItemsSource = new[] { "Todas" }.Concat(Enum.GetValues<DebloatNativeCategory>().Select(DebloatPresentation.Category));
+        NativeRisk.ItemsSource = new[] { "Todos" }.Concat(Enum.GetValues<RiskLevel>().Select(RiskLabel).Distinct());
+        NativeScope.ItemsSource = new[] { "Todos" }.Concat(new[] { DebloatScope.CurrentUser, DebloatScope.OtherUser, DebloatScope.Provisioned }
+            .Select(DebloatPresentation.Scope));
+        NativeCategory.SelectedIndex = NativeRisk.SelectedIndex = NativeScope.SelectedIndex = 0;
         updating = false;
         initialized = true;
         UpdateButtons();
     }
 
-    public void Initialize(DebloatManager debloatManager)
+    public void Initialize(DebloatManager debloatManager, DebloatInventoryObserver? observer = null)
     {
         ArgumentNullException.ThrowIfNull(debloatManager);
         if (manager is not null) throw new InvalidOperationException("Debloat já foi composto.");
         manager = debloatManager;
+        nativeObserver = observer;
+        if (observer is null) NativeInventoryStatus.Text = "Leitor nativo indisponível nesta composição.";
         UpdateButtons();
         if (IsLoaded) _ = RefreshAsync();
     }
 
     public bool IsBusy => busy;
     public event EventHandler? BecameIdle;
+    public event Action? OpenRecoveryRequested;
+
+    private void OnOpenRecovery(object sender, RoutedEventArgs e) => OpenRecoveryRequested?.Invoke();
 
     public void Cancel() => cancellation?.Cancel();
 
@@ -59,6 +73,140 @@ public partial class DebloatView : UserControl
     private void OnUnloaded(object sender, RoutedEventArgs e) => Cancel();
 
     private async void OnRefresh(object sender, RoutedEventArgs e) => await RefreshAsync();
+
+    private async void OnNativeRefresh(object sender, RoutedEventArgs e)
+    {
+        if (nativeObserver is null || busy) return;
+        nativeBusy = true;
+        BeginWork("Consultando metadados do Windows…");
+        nativeObservation = null;
+        nativeRows = [];
+        ApplyNativeFilter();
+        NativeSummary.Text = "Leitura em andamento…";
+        NativeWarnings.Visibility = Visibility.Collapsed;
+        var token = cancellation!.Token;
+        try
+        {
+            var observation = await nativeObserver.ObserveAsync(token);
+            token.ThrowIfCancellationRequested();
+            nativeObservation = observation;
+            nativeRows = observation.Assessments.Where(item => item.Package is not null)
+                .Select(item => new NativeRow(item, item.Package!))
+                .OrderBy(row => row.Name, StringComparer.CurrentCultureIgnoreCase).ToArray();
+            var scopes = observation.Query.AdditionalScopes.Select(scope =>
+                ScopeStatus(scope.Scope, scope.State, scope.Packages.Count));
+            NativeInventoryStatus.Text = string.Join(Environment.NewLine,
+                scopes.Prepend(ScopeStatus(DebloatScope.CurrentUser, observation.Query.State, observation.ObservedCount)));
+            NativeWarnings.Text = string.Join(Environment.NewLine, observation.Warnings.Take(20));
+            NativeWarnings.Visibility = Visibility.Visible;
+            ApplyNativeFilter();
+        }
+        catch (OperationCanceledException)
+        {
+            NativeInventoryStatus.Text = "Consulta interrompida. Nenhuma ausência foi confirmada.";
+            ApplyNativeFilter();
+        }
+        catch (Exception error) when (error is not OutOfMemoryException)
+        {
+            NativeInventoryStatus.Text = $"Consulta indisponível (0x{error.HResult:X8}). Nenhuma ausência foi confirmada.";
+            ApplyNativeFilter();
+        }
+        finally
+        {
+            nativeBusy = false;
+            EndWork();
+        }
+    }
+
+    private static string ScopeStatus(DebloatScope scope, DebloatInventoryQueryState state, int count) =>
+        $"{DebloatPresentation.Scope(scope)} · {DebloatPresentation.QueryState(state)}" +
+        (count > 0 ? $" {count} pacote(s) observado(s)." : "");
+
+    private void OnNativeCancel(object sender, RoutedEventArgs e)
+    {
+        Cancel();
+        NativeCancelButton.IsEnabled = false;
+        NativeInventoryStatus.Text = "Aguardando o encerramento da consulta…";
+    }
+
+    private void OnNativeFilter(object sender, RoutedEventArgs e)
+    {
+        if (initialized && !busy) ApplyNativeFilter();
+    }
+
+    private void ApplyNativeFilter()
+    {
+        var selected = NativeGrid.SelectedItem;
+        var term = NativeSearch.Text.Trim();
+        var rows = nativeRows.Where(row =>
+            (NativeCategory.SelectedIndex == 0 || Equals(NativeCategory.SelectedItem, row.Category)) &&
+            (NativeRisk.SelectedIndex == 0 || Equals(NativeRisk.SelectedItem, row.Risk)) &&
+            (NativeScope.SelectedIndex == 0 || Equals(NativeScope.SelectedItem, row.Scope)) &&
+            (term.Length == 0 || row.Search.Contains(term, StringComparison.CurrentCultureIgnoreCase))).ToArray();
+        NativeGrid.ItemsSource = rows;
+        if (selected is NativeRow row && rows.Contains(row)) NativeGrid.SelectedItem = selected;
+        NativeSummary.Text = nativeObservation is null ? "Consulte o inventário para carregar a lista."
+            : rows.Length == 0 ? "Nenhum pacote observado corresponde aos filtros. Confira a cobertura acima."
+            : $"{rows.Length} de {nativeRows.Count} pacote(s) observado(s).";
+        ShowNativeSelection();
+    }
+
+    private void OnNativeSelection(object sender, SelectionChangedEventArgs e)
+    {
+        if (initialized) ShowNativeSelection();
+    }
+
+    private void ShowNativeSelection()
+    {
+        NativePreview.Visibility = Visibility.Collapsed;
+        if (NativeGrid.SelectedItem is not NativeRow row)
+        {
+            NativeDetails.Text = "Selecione um pacote para consultar identidade, dependências e bloqueios.";
+        }
+        else
+        {
+            var p = row.Package;
+            NativeDetails.Text = $"{row.Name}\nNome técnico: {Available(p.TechnicalName)}\nPFN: {Available(p.PackageFamilyName)}\n" +
+                $"Package Full Name: {Available(p.PackageFullName)}\nEditor: {Available(p.Publisher)}\n" +
+                $"Versão: {Available(p.Version)} · Arquitetura: {Available(p.Architecture)}\n" +
+                $"Tipo: {row.Kind} · Assinatura: {row.Signature} · Categoria: {row.Category}\n" +
+                $"Escopo: {row.Scope} · Estado: {row.InstallState} · Provisionado: {NullableLabel(p.Provisioned)}\n" +
+                $"Dependências informadas pelo Windows: {NativeDependencyLabel(p.DependencyFullNames, p.DependencyFullNames is not null)}\n" +
+                $"Risco T0: {row.Risk} · Remoção real bloqueada\n" + string.Join("\n", row.Assessment.Blockers);
+        }
+        UpdateButtons();
+    }
+
+    private void OnNativePreview(object sender, RoutedEventArgs e)
+    {
+        if (busy || nativeObservation is null || NativeGrid.SelectedItem is not NativeRow row) return;
+        var plan = DebloatRemovalPreflightEngine.PreviewNative(nativeObservation, row.Assessment);
+        NativePreview.Text = $"Prévia individual · {row.Scope} · {plan.ObservedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}\n" +
+            $"{Available(plan.Package.PackageFullName)}\nRisco T0: {RiskLabel(plan.Preflight.RealRisk)}\n" +
+            $"Dependências informadas: {NativeDependencyLabel(plan.Dependencies, plan.Dependencies is not null)}\n" +
+            $"Dependentes observados: {NativeDependencyLabel(plan.Dependents, plan.DependenciesComplete)}\n" +
+            $"Dependências compartilhadas observadas: {NativeDependencyLabel(plan.SharedDependencies, plan.DependenciesComplete)}\n" +
+            $"Impacto observado: {plan.PotentiallyAffected.Count} identidade(s), incluindo o alvo. " +
+            (plan.DependenciesComplete ? "O Windows pode produzir efeitos indiretos.\n" : "O impacto total permanece indeterminado.\n") +
+            NativeDependencyLabel(plan.PotentiallyAffected, false) + "\n\n" +
+            string.Join("\n", plan.Consequences) + "\n\nBloqueios\n" +
+            string.Join("\n", plan.Preflight.RealBlockers) + "\n\n" + plan.Reinstallation;
+        NativePreview.Visibility = Visibility.Visible;
+        NativePreview.BringIntoView();
+    }
+
+    private static string NativeDependencyLabel(IReadOnlyList<string>? names, bool complete) => names switch
+    {
+        { Count: > 0 } => string.Join(", ", names.Select(Available)),
+        _ when complete => "Nenhuma na consulta estática.",
+        _ => "Indisponível ou incompleto."
+    };
+
+    private static string Available(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "Indisponível";
+        return new string(value.Where(c => !char.IsControl(c)).Take(DebloatNativeLimits.MaximumText).ToArray());
+    }
 
     private async Task RefreshAsync()
     {
@@ -95,7 +243,7 @@ public partial class DebloatView : UserControl
     private async Task LoadHistoryAsync(CancellationToken token, Guid? selectedId = null)
     {
         selectedId ??= (HistoryList.SelectedItem as HistoryRow)?.Item.Id;
-        var snapshot = await manager!.LoadHistoryAsync(token);
+        var snapshot = await manager!.LoadHistoryAsync(token, includeControlledRemoval: true);
         var records = snapshot.Items;
         var warnings = snapshot.Warnings;
         token.ThrowIfCancellationRequested();
@@ -345,6 +493,7 @@ public partial class DebloatView : UserControl
             $"Editor: {item.Publisher}\nVersão anterior: {item.PreviousVersion}\nSID sintético: {item.UserId}\n" +
             $"Horário local: {item.AtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss zzz}\nEstado: {StateLabel(item.State, item.Succeeded, item.Indeterminate)}\n" +
             $"Estado técnico: {item.State}\nLimitações: {item.Limitations}\nRelatório local: {item.ReportPath}\n" + DebloatLimits.RecoveryWarning;
+        if (item.Evidence is { } evidence) HistoryDetails.Text += "\n\n" + evidence;
         ReinstallText.Text = item.ReinstallInformation;
     }
 
@@ -352,7 +501,8 @@ public partial class DebloatView : UserControl
     {
         busy = true;
         cancellation = new CancellationTokenSource();
-        StatusText.Text = status;
+        if (nativeBusy) NativeInventoryStatus.Text = status;
+        else StatusText.Text = status;
         UpdateButtons();
     }
 
@@ -371,6 +521,12 @@ public partial class DebloatView : UserControl
         var row = InventoryGrid.SelectedItem as InventoryRow;
         var mediumReady = row?.Assessment.EffectiveRisk != RiskLevel.Medium || MediumReviewCheck.IsChecked == true;
         RefreshButton.IsEnabled = manager is not null && !busy;
+        NativeRefreshButton.IsEnabled = nativeObserver is not null && !busy;
+        NativeCancelButton.IsEnabled = nativeBusy && cancellation?.IsCancellationRequested == false;
+        NativePreviewButton.IsEnabled = !busy && NativeGrid.SelectedItem is NativeRow;
+        NativeGrid.IsEnabled = NativeSearch.IsEnabled = NativeCategory.IsEnabled =
+            NativeRisk.IsEnabled = NativeScope.IsEnabled = !busy;
+        OpenRecoveryButton.IsEnabled = !busy && OpenRecoveryRequested is not null;
         SearchText.IsEnabled = !busy;
         FilterCombo.IsEnabled = !busy;
         InventoryGrid.IsEnabled = !busy;
@@ -450,6 +606,41 @@ public partial class DebloatView : UserControl
     private sealed record HistoryRow(DebloatHistoryItem Item)
     {
         public string Label => $"{Item.AtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss} — {Item.Name} — {StateLabel(Item.State, Item.Succeeded, Item.Indeterminate)}";
+    }
+    private sealed record NativeRow(DebloatNativeAssessment Assessment, DebloatNativePackageMetadata Package)
+    {
+        public string Name => Available(string.IsNullOrWhiteSpace(Package.DisplayName) ? Package.TechnicalName : Package.DisplayName);
+        public string Category => DebloatPresentation.Category(Assessment.Category);
+        public string Scope => DebloatPresentation.Scope(Package.Scope);
+        public string Risk => RiskLabel(Assessment.EffectiveRisk);
+        public string Eligibility => "Bloqueada";
+        public string InstallState => Package.InstallState switch
+        {
+            DebloatNativeInstallState.Available => "Disponível",
+            DebloatNativeInstallState.NotAvailable => "Indisponível no Windows",
+            DebloatNativeInstallState.Degraded => "Com restrição informada pelo Windows",
+            _ => "Estado de instalação indisponível"
+        };
+        public string Kind => Package.Kind switch
+        {
+            DebloatPackageKind.Framework => "Framework",
+            DebloatPackageKind.Resource => "Recurso",
+            _ when Package.IsBundle => "Bundle",
+            _ when Package.IsOptional => "Pacote opcional",
+            DebloatPackageKind.Appx => "Appx/MSIX principal",
+            _ => "Tipo indisponível"
+        };
+        public string Signature => Package.Signature switch
+        {
+            DebloatNativeSignature.Store => "Microsoft Store",
+            DebloatNativeSignature.System => "Sistema Windows",
+            DebloatNativeSignature.Developer => "Desenvolvedor",
+            DebloatNativeSignature.Enterprise => "Empresa",
+            DebloatNativeSignature.Unsigned => "Sem assinatura",
+            _ => "Indisponível"
+        };
+        public string Search => string.Join(" ", Name, Package.TechnicalName, Package.PackageFamilyName,
+            Package.PackageFullName, Package.Publisher, Package.Version, Signature);
     }
     private sealed record InventoryRow(DebloatAssessment Assessment)
     {

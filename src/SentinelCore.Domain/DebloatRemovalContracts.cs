@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace SentinelCore.Domain;
@@ -52,7 +53,11 @@ public sealed record DebloatRemovalProgress(Guid OperationId, DebloatRemovalPhas
 
 public sealed record DebloatRemovalRequest(Guid OperationId, DebloatRemovalIdentity Package,
     string PlanHash, string InventoryRevision, bool Synthetic,
-    DebloatRemovalScenario Scenario = DebloatRemovalScenario.Success);
+    DebloatRemovalScenario Scenario = DebloatRemovalScenario.Success)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DebloatScope? Scope { get; init; }
+}
 
 /// <summary>API completion alone does not verify removal or payload/data deletion.</summary>
 public sealed record DebloatRemovalReceipt(Guid OperationId, DebloatRemovalIdentity Package,
@@ -60,7 +65,11 @@ public sealed record DebloatRemovalReceipt(Guid OperationId, DebloatRemovalIdent
     bool PartialFailure, int? HResult, int? ExtendedHResult, string? ErrorText,
     Guid? ActivityId, IReadOnlyList<DebloatRemovalProgress> Progress,
     IReadOnlyList<string> Limitations, DebloatRemovalPostObservation? PostVerification = null,
-    bool CancelledBeforeStart = false);
+    bool CancelledBeforeStart = false)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public DebloatScope? Scope { get; init; }
+}
 
 public sealed record DebloatRemovalPostObservation(bool Complete, bool MainPackageAbsent,
     bool EffectsMatchPlan, string Information);
@@ -103,14 +112,17 @@ public static partial class DebloatRemovalIdentityPolicy
     public static DebloatRemovalIdentity From(DebloatNativePackageMetadata p) => new(p.TechnicalName,
         p.PackageFullName, p.PackageFamilyName, p.Publisher, p.PublisherId, p.Version, p.Architecture, p.UserSecurityId);
 
-    public static bool IsValid(DebloatRemovalIdentity? p)
+    public static bool IsValid(DebloatRemovalIdentity? p) =>
+        p is not null && HasExactIdentity(p) && DebloatNativeIdentity.Safe(p.UserSecurityId) &&
+        DebloatNativeIdentity.UserSidPattern().IsMatch(p.UserSecurityId);
+
+    public static bool HasExactIdentity(DebloatRemovalIdentity p)
     {
-        if (p is null || !new[] { p.TechnicalName, p.PackageFullName, p.PackageFamilyName, p.Publisher,
-                p.PublisherId, p.Version, p.Architecture, p.UserSecurityId }.All(DebloatNativeIdentity.Safe)) return false;
+        if (!new[] { p.TechnicalName, p.PackageFullName, p.PackageFamilyName, p.Publisher,
+                p.PublisherId, p.Version, p.Architecture }.All(DebloatNativeIdentity.Safe)) return false;
         var parts = p.PackageFullName.Split('_');
         return parts.Length == 5 && DebloatNativeIdentity.TechnicalNamePattern().IsMatch(p.TechnicalName) &&
             DebloatNativeIdentity.PublisherIdPattern().IsMatch(p.PublisherId) &&
-            DebloatNativeIdentity.UserSidPattern().IsMatch(p.UserSecurityId) &&
             p.Architecture is "x64" or "x86" or "arm64" or "arm" or "neutral" &&
             VersionPattern().IsMatch(p.Version) && p.Version.Split('.').All(s => ushort.TryParse(s, out _)) &&
             parts[0] == p.TechnicalName && parts[1] == p.Version && parts[2] == p.Architecture &&
@@ -130,6 +142,13 @@ public static class DebloatRemovalHashing
     public static T Copy<T>(T value) => JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value))!;
     public static string PlanHash(DebloatRemovalPlan p) => Hash(new
         { p.Id, p.OperationId, p.Snapshot, p.Preflight, p.Simulation });
+    public static string InventoryRevision(IEnumerable<DebloatNativePackageMetadata> packages) => Hash(packages
+        .OrderBy(p => p.PackageFullName, StringComparer.Ordinal).Select(p => new
+        {
+            Identity = DebloatRemovalIdentityPolicy.From(p), p.Scope, p.Kind, p.InstallState, p.Signature,
+            p.IsFramework, p.IsResourcePackage, p.IsMainPackage, p.IsOptional, p.IsBundle,
+            Dependencies = p.DependencyFullNames?.OrderBy(name => name, StringComparer.Ordinal)
+        }));
 }
 
 public static class DebloatRemovalMessages

@@ -49,6 +49,7 @@ public partial class MainWindow
         if (CorrelationNetworkCheck.IsChecked == true) sources |= CorrelationSources.Network;
         if (CorrelationGraphicsCheck.IsChecked == true) sources |= CorrelationSources.Graphics;
         if (CorrelationMonitoringCheck.IsChecked == true) sources |= CorrelationSources.Monitoring;
+        if (CorrelationTweaksCheck.IsChecked == true) sources |= CorrelationSources.Tweaks;
         return sources;
     }
 
@@ -153,8 +154,7 @@ public partial class MainWindow
         if (relationRows.Length > 0) OnCorrelationRelationSelected(CorrelationRelationList, null!);
         else CorrelationRelationDetail.Text = BuildCorrelationSummaryText(investigation);
 
-        if (evidenceRows.Length > 0) OnCorrelationEvidenceSelected(CorrelationEvidenceList, null!);
-        else CorrelationEvidenceDetail.Text = BuildCorrelationSummaryText(investigation);
+        OnCorrelationEvidenceSelected(CorrelationEvidenceList, null);
 
         CorrelationCoverageDetail.Text = BuildCorrelationCoverageText(investigation);
 
@@ -189,6 +189,7 @@ public partial class MainWindow
             "Nenhuma relação selecionada. Uma associação temporal ou de identidade não demonstra causa.";
         CorrelationEvidenceDetail.Text =
             "Nenhuma evidência selecionada. Cada evidência mantém a referência ao registro de origem.";
+        SetCorrelationOrigins([]);
         CorrelationCoverageDetail.Text =
             "Nenhuma cobertura consultada. Fontes indisponíveis e limites são declarados, nunca convertidos em " +
             "ausência de acontecimento.";
@@ -459,6 +460,7 @@ public partial class MainWindow
         if (updatingCorrelation) return;
         if (CorrelationEvidenceList.SelectedItem is not CorrelationEvidenceRow row)
         {
+            SetCorrelationOrigins([]);
             CorrelationEvidenceDetail.Text = selectedCorrelation is { } current
                 ? BuildCorrelationSummaryText(current)
                 : string.Empty;
@@ -466,6 +468,7 @@ public partial class MainWindow
         }
 
         var evidence = row.Evidence;
+        SetCorrelationOrigins(evidence.Origins);
         var text = new StringBuilder();
         text.AppendLine(evidence.Title);
         text.AppendLine($"Identidade lógica: {evidence.Id}");
@@ -493,6 +496,92 @@ public partial class MainWindow
             foreach (var limitation in evidence.Limitations) text.AppendLine($"• {limitation}");
         }
         CorrelationEvidenceDetail.Text = text.ToString();
+    }
+
+    private void SetCorrelationOrigins(IReadOnlyList<CorrelationEvidenceOrigin> origins)
+    {
+        var rows = origins
+            .DistinctBy(origin => (origin.Source, origin.SourceRecordId))
+            .Select(origin => new CorrelationOriginRow(origin))
+            .ToArray();
+        CorrelationOriginCombo.ItemsSource = rows;
+        CorrelationOriginCombo.SelectedIndex = rows.Length > 0 ? 0 : -1;
+        CorrelationOriginPanel.Visibility = rows.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+        CorrelationOriginStatus.Text = string.Empty;
+    }
+
+    private void OnCorrelationOriginChanged(object sender, SelectionChangedEventArgs e)
+    {
+        CorrelationOriginButton.IsEnabled = CorrelationOriginCombo.SelectedItem is CorrelationOriginRow;
+        CorrelationOriginStatus.Text = string.Empty;
+    }
+
+    private async void OnOpenCorrelationOrigin(object sender, RoutedEventArgs e)
+    {
+        if (CorrelationOriginCombo.SelectedItem is not CorrelationOriginRow { Origin: var origin }) return;
+        if (!Guid.TryParseExact(origin.SourceRecordId, "D", out var id) || id == Guid.Empty)
+        {
+            CorrelationOriginStatus.Text = "Identificador do registro de origem inválido.";
+            return;
+        }
+        if (origin.Source == CorrelationSource.Tweaks)
+        {
+            if (recoveryCenter is null || RecoverySection.IsBusy || tweaksBusy)
+            {
+                CorrelationOriginStatus.Text = "Histórico de personalização indisponível neste momento.";
+                return;
+            }
+            if (!recoveryComposed)
+            {
+                recoveryComposed = true;
+                RecoverySection.Initialize(recoveryCenter, loadIfVisible: false);
+            }
+            var found = await RecoverySection.OpenTweakAsync(id);
+            if (!ReferenceEquals(Pages.SelectedItem, CorrelationTab) ||
+                CorrelationOriginCombo.SelectedItem is not CorrelationOriginRow selected || selected.Origin != origin)
+                return;
+            if (found)
+                NavList.SelectedIndex = Pages.Items.IndexOf(RecoveryTab);
+            else
+                CorrelationOriginStatus.Text = "Transação indisponível no histórico carregado.";
+            return;
+        }
+        CorrelationOriginStatus.Text = OpenDiagnosticRecord(origin.Source, id) ?? string.Empty;
+    }
+
+    private string? OpenDiagnosticRecord(CorrelationSource source, Guid id)
+    {
+        (TabItem Page, ListBox History, object? Row)? target = source switch
+        {
+            CorrelationSource.Audits => (HistoryTab, HistoryList,
+                HistoryList.Items.OfType<HistoryRow>().FirstOrDefault(row => row.Audit.Id == id)),
+            CorrelationSource.Hardware => (HardwareTab, HardwareSnapshotList,
+                HardwareSnapshotList.Items.OfType<HardwareSnapshotRow>().FirstOrDefault(row => row.Snapshot.Id == id)),
+            CorrelationSource.Events => (EventsTab, EventHistoryList,
+                EventHistoryList.Items.OfType<EventHistoryRow>().FirstOrDefault(row => row.Investigation.Id == id)),
+            CorrelationSource.Performance => (PerformanceTab, PerformanceHistoryList,
+                PerformanceHistoryList.Items.OfType<PerformanceHistoryRow>().FirstOrDefault(row => row.Session.Id == id)),
+            CorrelationSource.Network => (NetworkTab, NetworkHistoryList,
+                NetworkHistoryList.Items.OfType<NetworkHistoryRow>().FirstOrDefault(row => row.Session.Id == id)),
+            CorrelationSource.Graphics => (GraphicsTab, GraphicsHistoryList,
+                GraphicsHistoryList.Items.OfType<GraphicsHistoryRow>().FirstOrDefault(row => row.Investigation.Id == id)),
+            CorrelationSource.Monitoring => (MonitoringTab, MonitoringHistoryList,
+                MonitoringHistoryList.Items.OfType<MonitoringHistoryRow>().FirstOrDefault(row => row.Session.Id == id)),
+            _ => null
+        };
+
+        if (target is not { } destination) return "A fonte deste registro não está disponível para navegação.";
+        if (!destination.History.IsEnabled)
+            return "Aguarde a operação em andamento na página de origem e tente novamente.";
+        if (destination.Row is not { } record)
+            return "Registro de origem indisponível no histórico carregado.";
+
+        // Reaplica a seleção caso uma falha ao salvar tenha deixado outro resultado na tela.
+        if (ReferenceEquals(destination.History.SelectedItem, record)) destination.History.SelectedItem = null;
+        destination.History.SelectedItem = record;
+        NavList.SelectedIndex = Pages.Items.IndexOf(destination.Page);
+        destination.History.ScrollIntoView(record);
+        return null;
     }
 
     private void OnCorrelationSourceSelected(object sender, SelectionChangedEventArgs e)
@@ -538,6 +627,7 @@ public partial class MainWindow
         CorrelationNetworkCheck.IsEnabled = !correlationBusy && !correlationSaving;
         CorrelationGraphicsCheck.IsEnabled = !correlationBusy && !correlationSaving;
         CorrelationMonitoringCheck.IsEnabled = !correlationBusy && !correlationSaving;
+        CorrelationTweaksCheck.IsEnabled = !correlationBusy && !correlationSaving;
         CorrelationHistoryList.IsEnabled = !correlationBusy && !monitoringBusy;
         CorrelationReportButton.IsEnabled = !correlationBusy && selectedCorrelation is not null &&
             File.Exists(correlationStore.GetCorrelationReportPath(selectedCorrelation.Id));
@@ -599,11 +689,18 @@ public partial class MainWindow
         CorrelationEvidenceKind.GraphicsObservation => "observação gráfica",
         CorrelationEvidenceKind.HardwareChange => "alteração de hardware",
         CorrelationEvidenceKind.GraphicsChange => "alteração gráfica",
+        CorrelationEvidenceKind.TweakJournalEvent => "evento de personalização",
         _ => "inventário de dispositivo"
     };
 
     private sealed record CorrelationPresetRow(EventWindow Window, string Label)
     {
+        public override string ToString() => Label;
+    }
+
+    private sealed record CorrelationOriginRow(CorrelationEvidenceOrigin Origin)
+    {
+        public string Label => $"{CorrelationGuidance.SourceName(Origin.Source)} · {Origin.SourceRecordId}";
         public override string ToString() => Label;
     }
 

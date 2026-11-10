@@ -240,6 +240,7 @@ public static class CorrelationReport
         CorrelationSource.Network => CorrelationSources.Network,
         CorrelationSource.Graphics => CorrelationSources.Graphics,
         CorrelationSource.Monitoring => CorrelationSources.Monitoring,
+        CorrelationSource.Tweaks => CorrelationSources.Tweaks,
         _ => CorrelationSources.None
     };
 
@@ -296,6 +297,7 @@ public static class CorrelationReport
         CorrelationEvidenceKind.GraphicsObservation => "Observação gráfica",
         CorrelationEvidenceKind.HardwareChange => "Alteração de hardware",
         CorrelationEvidenceKind.GraphicsChange => "Alteração gráfica",
+        CorrelationEvidenceKind.TweakJournalEvent => "Evento de personalização",
         _ => "Inventário de dispositivo"
     };
 

@@ -30,8 +30,11 @@ public static class RepairResultInterpreter
     {
         ArgumentNullException.ThrowIfNull(operation);
         ArgumentNullException.ThrowIfNull(outcome);
-        var text = string.Join("\n", outcome.Output.Select(line => line.Text)).ToLowerInvariant();
+        var text = string.Join("\n", outcome.Output.Where(line => line.Channel != RepairOutputChannel.Stderr)
+            .Select(line => line.Text)).ToLowerInvariant();
         var limitations = new List<string>(outcome.Limitations) { RepairGuidance.OutputLocalization };
+        if (!outcome.IsSynthetic)
+            return InterpretNative(operation, outcome, text, limitations);
 
         if (outcome.Cancelled)
         {
@@ -72,6 +75,97 @@ public static class RepairResultInterpreter
 
         var interpretation = InterpretExitCode(operation, outcome.ExitCode, text, limitations);
         return ApplyMarkers(operation, interpretation, text, limitations);
+    }
+
+    private static RepairInterpretation InterpretNative(RepairOperationDescriptor operation,
+        RepairExecutionOutcome outcome, string text, List<string> limitations)
+    {
+        limitations.Add("Verificação independente posterior não realizada; a saída é evidência da ferramenta.");
+        var status = outcome.Native?.Status;
+        if (status != RepairBrokerStatus.ProcessExited || outcome.ExitCode is not { } code)
+        {
+            var (classification, summary) = status switch
+            {
+                RepairBrokerStatus.ElevationDeclined => (RepairResultClassification.ElevationDeclined, "Consentimento UAC recusado."),
+                RepairBrokerStatus.Conflict => (RepairResultClassification.ExecutionConflict, "Outro reparo está ativo ou deixou um bloqueio pendente."),
+                RepairBrokerStatus.Refused => (RepairResultClassification.BrokerRefused, "O broker recusou a solicitação antes de iniciar a ferramenta."),
+                RepairBrokerStatus.CancelledBeforeStart => (RepairResultClassification.Cancelled, "Operação cancelada antes de iniciar a ferramenta."),
+                RepairBrokerStatus.StartDenied => (RepairResultClassification.AccessDenied, "O Windows negou o início da ferramenta."),
+                RepairBrokerStatus.StartFailed => (RepairResultClassification.StartFailed, "Não foi possível iniciar a ferramenta."),
+                _ => (RepairResultClassification.Interrupted, "Sem confirmação da conclusão; o efeito permanece indeterminado.")
+            };
+            return new(classification, status == RepairBrokerStatus.Indeterminate ? RepairConfidence.Low : RepairConfidence.High,
+                RepairEvidence.Empty with { AccessDenied = status == RepairBrokerStatus.StartDenied },
+                summary, false, true, limitations);
+        }
+
+        if (code is 5 or RepairExitCodes.DismAccessDenied or RepairExitCodes.DismNotSupported ||
+            operation.Tool == RepairTool.Dism && code is RepairExitCodes.DismSourceNotFound or
+                RepairExitCodes.DismSourceFilesNotFound or RepairExitCodes.DismGenericFailure)
+            return InterpretExitCode(operation, code, string.Empty, limitations);
+        if (operation.Tool == RepairTool.Dism && code == 3010)
+            return new(RepairResultClassification.RestartRequired, RepairConfidence.High,
+                RepairEvidence.Empty with { RestartRequired = true },
+                "A ferramenta solicitou reinicialização para completar a operação.", true, true, limitations);
+        if (outcome.OutputTruncated)
+            return new(RepairResultClassification.OutputIncomplete, RepairConfidence.Low, RepairEvidence.Empty,
+                "O processo terminou, mas a saída capturada é incompleta.", false, true, limitations);
+
+        if (operation.Tool == RepairTool.Chkdsk)
+        {
+            if (code == 2)
+                return new(RepairResultClassification.NotEvaluated, RepairConfidence.Low, RepairEvidence.Empty,
+                    "CHKDSK relatou limpeza ou limpeza omitida. O código não determina necessidade de reinicialização.",
+                    false, true, limitations);
+            if (code != 0 && Has(text, "not ntfs", "não é ntfs", "nao e ntfs"))
+                return new(RepairResultClassification.IncompatibleFileSystem, RepairConfidence.Medium,
+                    RepairEvidence.Empty, "A verificação relatou sistema de arquivos incompatível.", false, true, limitations);
+            if (code != 0 && Has(text, "cannot open volume", "não é possível abrir o volume", "nao e possivel abrir o volume"))
+                return new(RepairResultClassification.VolumeUnavailable, RepairConfidence.Medium,
+                    RepairEvidence.Empty, "A ferramenta relatou que não conseguiu abrir o volume.", false, true, limitations);
+            return Chkdsk(operation, code, limitations);
+        }
+
+        if (code != 0)
+            return Unknown($"Código de saída sem interpretação conclusiva: {RepairExitCodes.Display(code)}.", limitations);
+        if (operation.Tool == RepairTool.Sfc)
+        {
+            if (operation.Kind == RepairOperationKind.Repair &&
+                Has(text, "unable to fix some", "não conseguiu corrigir alguns", "não pôde corrigir alguns"))
+                return Partial("A ferramenta relatou arquivos que não puderam ser reparados.", limitations);
+            if (operation.Kind == RepairOperationKind.Repair &&
+                Has(text, "successfully repaired", "reparou com êxito"))
+                return Completed("A ferramenta relatou reparação concluída.", limitations);
+            if (Has(text, "did not find any integrity violations", "não encontrou violações de integridade"))
+                return Sfc(operation, code, text, limitations);
+            if (Has(text, "found integrity violations", "encontrou violações de integridade"))
+                return new(RepairResultClassification.CorruptionDetected, RepairConfidence.Medium,
+                    RepairEvidence.Empty with { CorruptionDetected = true },
+                    "A ferramenta relatou violações de integridade.", false, true, limitations);
+        }
+        if (operation.Tool == RepairTool.Dism)
+        {
+            var result = Dism(operation, code, text, limitations);
+            if (result.Confidence == RepairConfidence.High) return result;
+        }
+        if (operation.Tool == RepairTool.Reagentc && Has(text, "windows re status:", "status do windows re:"))
+        {
+            var statusLine = text.Split('\n').First(line =>
+                Has(line, "windows re status:", "status do windows re:"));
+            var value = statusLine[(statusLine.IndexOf(':') + 1)..].Trim();
+            bool? enabled = value switch
+            {
+                "enabled" or "habilitado" or "habilitada" => true,
+                "disabled" or "desabilitado" or "desabilitada" => false,
+                _ => null
+            };
+            if (enabled is not null)
+                return new(RepairResultClassification.InformationRetrieved, RepairConfidence.Medium,
+                    RepairEvidence.Empty with { WinReEnabled = enabled },
+                    "Estado do WinRE relatado pela ferramenta.", false, false, limitations);
+        }
+        return new(RepairResultClassification.NotEvaluated, RepairConfidence.Low, RepairEvidence.Empty,
+            "Processo concluído com código zero e sem evidência conclusiva reconhecida.", false, true, limitations);
     }
 
     private static RepairInterpretation InterpretExitCode(RepairOperationDescriptor operation,
@@ -406,7 +500,10 @@ public static class RepairOutputLimiter
     private static readonly Regex UserProfilePattern = new(
         @"[A-Za-z]:\\Users\\[^\\\s]+", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    public static RepairLimitedOutput Limit(IEnumerable<string> lines, string profilePath)
+    public static RepairLimitedOutput Limit(IEnumerable<string> lines, string profilePath) =>
+        LimitLines(lines.Select((line, index) => new RepairOutputLine(index + 1, line)), profilePath);
+
+    public static RepairLimitedOutput LimitLines(IEnumerable<RepairOutputLine> lines, string profilePath)
     {
         ArgumentNullException.ThrowIfNull(lines);
         ArgumentNullException.ThrowIfNull(profilePath);
@@ -419,7 +516,7 @@ public static class RepairOutputLimiter
         foreach (var raw in source)
         {
             sequence++;
-            var text = Sanitize(raw, profilePath, out var lineTruncated);
+            var text = Sanitize(raw.Text, profilePath, out var lineTruncated);
             if (lineTruncated) truncated = true;
             if (limited.Count >= RepairLimits.MaxOutputLines)
             {
@@ -432,7 +529,7 @@ public static class RepairOutputLimiter
                 truncated = true;
                 break;
             }
-            limited.Add(new RepairOutputLine(sequence, text));
+            limited.Add(new RepairOutputLine(sequence, text) { Channel = raw.Channel });
             bytes += lineBytes;
         }
         if (sequence < source.Count) truncated = true;

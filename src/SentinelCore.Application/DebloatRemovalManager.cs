@@ -239,6 +239,7 @@ public sealed class DebloatRemovalManager
 
     public static bool ValidReceipt(DebloatRemovalReceipt r, DebloatRemovalRequest request) =>
         r.OperationId == request.OperationId && r.Package == request.Package && r.Synthetic == request.Synthetic &&
+        r.Scope == request.Scope &&
         Enum.IsDefined(r.Phase) && r.Progress is { Count: <= 256 } && r.Limitations is not null &&
         r.Progress.All(p => p.OperationId == r.OperationId && Enum.IsDefined(p.Phase) &&
             p.ReportedPercentage is null or <= 100) &&

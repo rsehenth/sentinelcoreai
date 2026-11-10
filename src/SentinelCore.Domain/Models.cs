@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace SentinelCore.Domain;
 
-public enum DiagnosticStatus { Pending, Running, Completed, Partial, Failed, Cancelled }
+public enum DiagnosticStatus { Pending, Running, Completed, Partial, Failed, Cancelled, Interrupted }
 public enum AuditKind { Basic, Full }
 public enum FreshnessState { None, Current, Expiring, Outdated, Unsuccessful, InvalidDate }
 
@@ -29,13 +29,34 @@ public sealed record InventoryData(
 
 public sealed record CollectorResult(Guid AuditId, string CollectorId, string CollectorVersion,
     DateTimeOffset StartedUtc, DateTimeOffset CompletedUtc, TimeSpan Duration,
-    DiagnosticStatus Status, string Source, InventoryData? Data, IReadOnlyList<string> Limitations);
+    DiagnosticStatus Status, string Source, InventoryData? Data, IReadOnlyList<string> Limitations)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public AuditEvidenceReference? Evidence { get; init; }
+}
+
+public sealed record AuditEvidenceReference(CorrelationSource Source, Guid RecordId, string Summary)
+{
+    public static string CollectorIdFor(CorrelationSource source) => $"audit-{source.ToString().ToLowerInvariant()}";
+}
 
 public sealed record AuditRecord(int FormatVersion, Guid Id, AuditKind Kind, string SoftwareVersion,
     DateTimeOffset StartedUtc, DateTimeOffset CompletedUtc, TimeSpan Duration,
-    DiagnosticStatus Status, IReadOnlyList<CollectorResult> Results);
+    DiagnosticStatus Status, IReadOnlyList<CollectorResult> Results)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? PlannedSteps { get; init; }
 
-public sealed record AuditProgress(string CollectorId, DiagnosticStatus Status, int Finished, int Total);
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? InterruptionReason { get; init; }
+}
+
+public sealed record AuditProgress(string CollectorId, DiagnosticStatus Status, int Finished, int Total)
+{
+    public CollectorResult? Result { get; init; }
+    public string? Activity { get; init; }
+    public bool IsSaving { get; init; }
+}
 public sealed record FreshnessResult(FreshnessState State, DateTimeOffset? LastSuccessUtc,
     DateTimeOffset? ExpiresUtc, DiagnosticStatus? LatestAttemptStatus);
 public sealed record StoreSnapshot(IReadOnlyList<AuditRecord> Audits, IReadOnlyList<string> Warnings);
@@ -54,6 +75,21 @@ public interface IAuditStore
     Task SaveAsync(AuditRecord audit, CancellationToken cancellationToken = default);
     string GetReportPath(Guid auditId);
 }
+
+public interface IAuditCheckpointStore
+{
+    Task<IAuditRunLease> AcquireAuditLeaseAsync(Guid auditId);
+    Task<StoreSnapshot> ReadInterruptedAuditsAsync(CancellationToken cancellationToken = default);
+}
+
+public interface IAuditRunLease : IDisposable
+{
+    Task SaveCheckpointAsync(AuditRecord checkpoint);
+    Task CompleteAsync(AuditRecord audit);
+}
+
+public interface IAuditDiagnosticStore : IHardwareSnapshotStore, IEventInvestigationStore,
+    IPerformanceSessionStore, INetworkSessionStore, IGraphicsInvestigationStore, IMonitoringSessionStore;
 
 public static class AuditJson
 {

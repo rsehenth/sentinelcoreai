@@ -18,13 +18,14 @@ public sealed class SafetyEngine
     private readonly VerificationEngine verification;
     private readonly IAuthorizationConfirmationPolicy? confirmationPolicy;
     private readonly bool completeStartedExecution;
+    private readonly Func<string?>? hkcuContext;
 
     public SafetyEngine(IOperationCatalog catalog, ISystemProfileReader profileReader,
         ITargetStateReader reader, IProtectionProvider protection, ITransactionJournalStore journal,
         IOperationExecutor executor, IExclusiveLockFactory locks, TimeProvider? time = null,
         TimeSpan? authorizationLifetime = null,
         IAuthorizationConfirmationPolicy? confirmationPolicy = null,
-        bool completeStartedExecution = false)
+        bool completeStartedExecution = false, Func<string?>? hkcuContext = null)
     {
         this.catalog = catalog;
         this.profileReader = profileReader;
@@ -36,6 +37,7 @@ public sealed class SafetyEngine
         this.time = time ?? TimeProvider.System;
         this.confirmationPolicy = confirmationPolicy;
         this.completeStartedExecution = completeStartedExecution;
+        this.hkcuContext = hkcuContext;
         preflight = new PreflightEngine(catalog, profileReader, reader, protection);
         authorization = new AuthorizationService(this.time, authorizationLifetime);
         backups = new BackupService(journal, this.time);
@@ -64,9 +66,7 @@ public sealed class SafetyEngine
         var plan = simulation.Plan;
         if (!SafetyPlanValidation.MatchesCatalog(catalog, simulation.Operation, plan, out var mismatch))
             throw new InvalidOperationException("Plano não corresponde ao catálogo fechado: " + mismatch);
-        if (!string.Equals(plan.PlanHash, SafetyHashing.PlanHash(plan.PlanId, plan.TransactionId,
-                plan.OperationId, plan.OperationVersion, plan.CatalogVersion, plan.Risk, plan.Scope,
-                plan.Protection, plan.ObservedStateHash, plan.Changes), StringComparison.Ordinal))
+        if (plan.PlanHash != SafetyHashing.PlanHash(plan) || !MatchesHkcuContext(plan))
             throw new InvalidOperationException("Plano inconsistente; nova simulação é necessária.");
         if (confirmationPolicy is not null &&
             !confirmationPolicy.IsValid(plan, userConfirmationId))
@@ -107,9 +107,7 @@ public sealed class SafetyEngine
             return Blocked(riskGate, "Operação bloqueada no backend no momento da execução.");
         if (!SafetyPlanValidation.MatchesCatalog(catalog, operation, plan, out var catalogMismatch))
             return Blocked(BlockerCode.PlanMismatch, catalogMismatch);
-        if (!string.Equals(plan.PlanHash, SafetyHashing.PlanHash(plan.PlanId, plan.TransactionId,
-                plan.OperationId, plan.OperationVersion, plan.CatalogVersion, plan.Risk, plan.Scope,
-                plan.Protection, plan.ObservedStateHash, plan.Changes), StringComparison.Ordinal))
+        if (plan.PlanHash != SafetyHashing.PlanHash(plan) || !MatchesHkcuContext(plan))
             return Blocked(BlockerCode.PlanMismatch,
                 "Hash do plano não corresponde ao conteúdo apresentado.");
 
@@ -175,10 +173,7 @@ public sealed class SafetyEngine
                     error: validation.Reason);
                 return Failure(session, validation.Blocker, validation.Reason ?? "Autorização inválida.");
             }
-            if (!PlanMatches(plan, expectedChanges) ||
-                !string.Equals(plan.PlanHash, SafetyHashing.PlanHash(plan.PlanId, plan.TransactionId,
-                    plan.OperationId, plan.OperationVersion, plan.CatalogVersion, plan.Risk, plan.Scope,
-                    plan.Protection, plan.ObservedStateHash, plan.Changes), StringComparison.Ordinal))
+            if (!PlanMatches(plan, expectedChanges) || !MatchesHkcuContext(plan))
             {
                 await session.AppendAsync(TransactionState.Blocked, cancellationToken,
                     error: "Plano não corresponde às alterações declaradas no catálogo e ao estado observado.");
@@ -234,7 +229,7 @@ public sealed class SafetyEngine
 
             var recheck = await ReadStatesAsync(plan.Changes.Select(item => item.Target), cancellationToken);
             var recheckHash = SafetyHashing.ObservedStateHash(recheck);
-            if (!string.Equals(recheckHash, plan.ObservedStateHash, StringComparison.Ordinal))
+            if (recheckHash != plan.ObservedStateHash || !MatchesHkcuContext(plan))
             {
                 await session.AppendAsync(TransactionState.Blocked, cancellationToken,
                     error: "Estado do alvo divergiu entre o preflight e a execução.");
@@ -249,8 +244,8 @@ public sealed class SafetyEngine
                 detail: realEffect
                     ? "Efeito controlado em HKCU autorizado e iniciado."
                     : "Efeito sintético autorizado e iniciado.");
-            // Package removal cannot be cancelled after initiation. Existing tweak semantics remain unchanged.
-            var executionToken = completeStartedExecution ? CancellationToken.None : cancellationToken;
+            var executionToken = completeStartedExecution || hkcuContext is not null
+                ? CancellationToken.None : cancellationToken;
             var results = new List<StepResult>();
             DebloatRemovalReceipt? removalReceipt = null;
             foreach (var change in plan.Changes.OrderBy(item => item.TargetIdentity, StringComparer.Ordinal))
@@ -260,8 +255,8 @@ public sealed class SafetyEngine
                 ExecutionOutcome outcome;
                 try
                 {
-                    // The adapter keeps cancellation until its actual initiation boundary, then ignores it.
-                    outcome = await executor.ApplyAsync(request, cancellationToken);
+                    // Package removal observes cancellation until its own initiation boundary.
+                    outcome = await executor.ApplyAsync(request, hkcuContext is null ? cancellationToken : executionToken);
                 }
                 catch (OperationCanceledException) { throw; }
                 catch (Exception error)
@@ -352,6 +347,9 @@ public sealed class SafetyEngine
     {
         var preflightResult = await preflight.EvaluateAsync(operation, cancellationToken);
         var blockers = new List<BlockerCode>(preflightResult.Blockers);
+        var contextHash = hkcuContext?.Invoke();
+        if (hkcuContext is not null && contextHash is null)
+            blockers.Add(BlockerCode.AccessDenied);
         if (SafetyGates.RiskGate(operation) is { } riskGate) blockers.Add(riskGate);
 
         var observedByIdentity = preflightResult.ObservedStates
@@ -381,9 +379,12 @@ public sealed class SafetyEngine
             preflightResult.ObservedStateHash,
             SafetyHashing.PlanHash(planId, transactionId, operation.Id, operation.Version, catalog.Version,
                 operation.Risk, operation.Scope, operation.Protection, preflightResult.ObservedStateHash,
-                changes),
+                changes, contextHash),
             time.GetUtcNow(),
-            preflightResult.Limitations.Concat(operation.Limitations).Distinct().ToList());
+            preflightResult.Limitations.Concat(operation.Limitations).Distinct().ToList())
+        {
+            HkcuContextHash = contextHash
+        };
 
         var protections = new List<string>
         {
@@ -474,6 +475,23 @@ public sealed class SafetyEngine
     {
         var record = TransactionProjection.Build(session.Events, [message]);
         return new TransactionExecutionResult(record, false, [blocker], message);
+    }
+
+    private bool MatchesHkcuContext(OperationPlan plan) => hkcuContext is null
+        ? plan.HkcuContextHash is null
+        : plan.HkcuContextHash is not null && plan.HkcuContextHash == hkcuContext();
+
+    internal async Task<string?> CheckHkcuRecoveryAsync(OperationPlan plan, CancellationToken token)
+    {
+        if (hkcuContext is null || !MatchesHkcuContext(plan) || plan.PlanHash != SafetyHashing.PlanHash(plan))
+            return "Contexto HKCU indisponível ou divergente. Registros sem vínculo permanecem somente para consulta.";
+        if (!catalog.TryGet(plan.OperationId, out var operation) || operation is null || !plan.Protection.RequiresBackup ||
+            !SafetyPlanValidation.MatchesCatalog(catalog, operation, plan, out _))
+            return "Operação sem recuperação no catálogo atual.";
+        var check = await preflight.EvaluateAsync(operation, token);
+        // Recovery classifies unreadable, missing and differently typed values per target.
+        return check.Blockers.All(blocker => blocker is BlockerCode.AccessDenied or BlockerCode.Unrecoverable)
+            ? null : string.Join(" ", check.Details);
     }
 
     private sealed class JournalSession

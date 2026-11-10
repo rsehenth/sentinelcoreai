@@ -21,6 +21,7 @@ public static class RepairReport
         text.AppendLine();
         text.AppendLine($"- Reparo: `{intent.Id:D}`");
         text.AppendLine($"- Plano: `{intent.PlanId:D}`");
+        if (!intent.IsSynthetic) text.AppendLine($"- Hash do plano: `{Safe(intent.Plan.PlanHash)}`");
         text.AppendLine($"- Operação: `{Safe(intent.OperationId)}` v{intent.OperationVersion}");
         text.AppendLine($"- Nome: {Safe(intent.DisplayName)}");
         text.AppendLine($"- Tipo: {intent.Kind}");
@@ -47,8 +48,10 @@ public static class RepairReport
         text.AppendLine("# SentinelCore AI — Relatório de reparo do Windows");
         text.AppendLine();
         if (record.IsSynthetic)
+        {
             text.AppendLine("> **" + RepairGuidance.SyntheticDisclaimer + "**");
-        text.AppendLine("> " + RepairGuidance.RealExecutionUnavailable);
+            text.AppendLine("> " + RepairGuidance.RealExecutionUnavailable);
+        }
         text.AppendLine();
         text.AppendLine($"- Reparo: `{record.Id:D}`");
         text.AppendLine($"- Plano: `{record.PlanId:D}`");
@@ -73,6 +76,14 @@ public static class RepairReport
         text.AppendLine($"- Duração: {record.Duration.TotalSeconds:F2} s");
         text.AppendLine($"- Autorização: `{record.AuthorizationId:D}`");
         text.AppendLine($"- Confirmação registrada: {Safe(record.ConfirmationId)}");
+        if (record.Native is { } native)
+        {
+            text.AppendLine($"- Estado do broker: {native.Status}");
+            text.AppendLine($"- Consentimento UAC solicitado: {Yes(native.ElevationRequested)}");
+            text.AppendLine($"- Início da ferramenta UTC: {native.ProcessStartedUtc?.ToString("O") ?? "indisponível"}");
+            text.AppendLine($"- Término da ferramenta UTC: {native.ProcessExitedUtc?.ToString("O") ?? "indisponível"}");
+            text.AppendLine("- Verificação independente posterior: não realizada.");
+        }
         text.AppendLine();
         text.AppendLine("## Resultado");
         text.AppendLine(Safe(record.ResultSummary));
@@ -98,7 +109,7 @@ public static class RepairReport
                 (record.OutputTruncated ? " · limitada localmente" : string.Empty));
             text.AppendLine();
             foreach (var line in record.Output.OrderBy(item => item.Sequence))
-                text.AppendLine("    " + SafeOutput(line.Text));
+                text.AppendLine("    " + (line.Channel is { } channel ? $"[{channel}] " : string.Empty) + SafeOutput(line.Text));
         }
         text.AppendLine();
         text.AppendLine("## Preflight");

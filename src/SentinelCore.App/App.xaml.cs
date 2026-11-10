@@ -6,6 +6,7 @@ using SentinelCore.Application;
 using SentinelCore.Domain;
 using SentinelCore.Infrastructure.Modifications;
 using SentinelCore.Infrastructure.Debloat;
+using SentinelCore.Infrastructure.Debloat.Native;
 using SentinelCore.Infrastructure.Repairs;
 using SentinelCore.Infrastructure.Windows;
 using SentinelCore.Infrastructure.Windows.Monitoring;
@@ -59,13 +60,15 @@ public partial class App : System.Windows.Application
             var networkRunner = new NetworkSessionRunner(
                 WindowsNetworkCollectors.CreateSampleCollectors(),
                 WindowsNetworkCollectors.CreateFactsCollectors());
-            var graphicsRunner = new GraphicsInvestigationRunner(
-                WindowsHardwareCollectors.Create(),
-                WindowsEventEvidenceCollectors.Create());
+            var hardwareCollectors = WindowsHardwareCollectors.Create();
+            var eventCollectors = WindowsEventEvidenceCollectors.Create();
+            var hardwareRunner = new HardwareRunner(hardwareCollectors);
+            var eventRunner = new EventInvestigationRunner(eventCollectors);
+            var graphicsRunner = new GraphicsInvestigationRunner(hardwareCollectors, eventCollectors);
             var store = new MemoryStore(dataRoot);
             var correlationRunner = new EvidenceCorrelationRunner(new CorrelationEvidenceReader(
                 audits: store, hardware: store, events: store, performance: store, network: store,
-                graphics: store, monitoring: store));
+                graphics: store, monitoring: store, recoveryHistory: store));
             var monitoringLimits = SentinelCore.Domain.MonitoringLimits.Default;
             var monitoringRunner = new MonitoringSessionRunner(
                 [
@@ -87,17 +90,19 @@ public partial class App : System.Windows.Application
             var transactionLocks = new FileExclusiveLockFactory(dataRoot);
             var tweakEngine = new SafetyEngine(tweakCatalog, tweakProfile, tweakReader,
                 new HkcuProtectionProvider(), store, tweakExecutor, transactionLocks,
-                confirmationPolicy: new TweakAuthorizationConfirmationPolicy());
+                confirmationPolicy: new TweakAuthorizationConfirmationPolicy(),
+                hkcuContext: realTweaksEnabled ? HkcuContext.ReadHash : null);
             var tweakRecovery = new RecoveryService(store, tweakReader, tweakExecutor, transactionLocks,
-                catalog: tweakCatalog, confirmationPolicy: new TweakRecoveryConfirmationPolicy());
+                catalog: tweakCatalog, confirmationPolicy: new TweakRecoveryConfirmationPolicy(), hkcuEngine: tweakEngine);
             var tweakManager = new TweakManager(tweakCatalog, tweakEngine, tweakRecovery, store,
                 realTweaksEnabled ? TweakExecutionMode.RealControlled : TweakExecutionMode.RealDisabled);
 
-            // T3: metadata fixtures only. No native package inventory or removal executor is composed.
+            // The native observer is read-only and queried from Debloat on request. Simulations keep their fixture inputs.
             var debloatCatalog = DebloatCatalog.CreateDefault();
             var debloatInventory = SyntheticDebloatInventory.Create(debloatCatalog.All);
             var debloatManager = new DebloatManager(debloatCatalog, debloatInventory,
                 new SyntheticDebloatRuntimeFactory(debloatInventory), store.CreateDebloatJournal(), transactionLocks);
+            var debloatObserver = new DebloatInventoryObserver(debloatCatalog, new NativeAppxInventoryReader());
 
             // R1 — Windows Repair Center. Nenhum executor real é composto: o gate é independente do Tweaks
             // e a execução disponível é exclusivamente sintética, com fixtures marcadas.
@@ -110,12 +115,14 @@ public partial class App : System.Windows.Application
                 () => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
             var repairManager = new RepairManager(repairCatalog, repairCenter, repairVolumes);
 
-            MainWindow = new MainWindow(new AuditRunner(WindowsCollectors.CreateBasic()),
-                new HardwareRunner(WindowsHardwareCollectors.Create()),
-                new EventInvestigationRunner(WindowsEventEvidenceCollectors.Create()),
+            var fullAudit = new FullAuditDiagnostics(hardwareRunner, eventRunner, performanceRunner,
+                networkRunner, graphicsRunner, monitoringRunner, store);
+            MainWindow = new MainWindow(new AuditRunner(WindowsCollectors.CreateBasic(), full: fullAudit, checkpoints: store),
+                hardwareRunner, eventRunner,
                 performanceRunner, networkRunner, graphicsRunner, correlationRunner, monitoringRunner,
                 tweakManager, repairManager, store, store, store, store, store, store, store, store,
-                debloat: debloatManager, recovery: new RecoveryCenter(store));
+                debloat: debloatManager, recovery: new RecoveryCenter(store, tweaks: tweakManager),
+                debloatObserver: debloatObserver);
             MainWindow.Show();
         }
         catch (Exception error)

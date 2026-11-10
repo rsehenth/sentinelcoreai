@@ -1,7 +1,7 @@
 {
   "version": 1,
   "dependencies": {
-    "net10.0-windows7.0": {
+    "net10.0-windows10.0.22621": {
       "Microsoft.Data.Sqlite": {
         "type": "Transitive",
         "resolved": "10.0.14",
@@ -67,6 +67,12 @@
           "SentinelCore.Domain": "[0.3.0-preview.8, )"
         }
       },
+      "sentinelcore.infrastructure.debloat.native": {
+        "type": "Project",
+        "dependencies": {
+          "SentinelCore.Domain": "[0.3.0-preview.8, )"
+        }
+      },
       "sentinelcore.infrastructure.modifications": {
         "type": "Project",
         "dependencies": {
@@ -98,6 +104,7 @@
         "dependencies": {
           "SentinelCore.Application": "[0.3.0-preview.8, )",
           "SentinelCore.Infrastructure.Debloat": "[0.3.0-preview.8, )",
+          "SentinelCore.Infrastructure.Debloat.Native": "[0.3.0-preview.8, )",
           "SentinelCore.Infrastructure.Modifications": "[0.3.0-preview.8, )",
           "SentinelCore.Infrastructure.Repairs": "[0.3.0-preview.8, )",
           "SentinelCore.Infrastructure.Windows": "[0.3.0-preview.8, )",
@@ -105,7 +112,7 @@
         }
       }
     },
-    "net10.0-windows7.0/win-x64": {
+    "net10.0-windows10.0.22621/win-x64": {
       "SQLitePCLRaw.lib.e_sqlite3": {
         "type": "Transitive",
         "resolved": "2.1.13",

@@ -52,11 +52,28 @@ public sealed class GraphicsInvestigationRunner
     {
         ArgumentNullException.ThrowIfNull(request);
         var window = EventWindows.Resolve(request.Window, clock.GetUtcNow(), request.FromUtc, request.ToUtc);
+        return await RunCoreAsync(window, previous, progress, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal Task<GraphicsInvestigation> RunFromAuditAsync(HardwareSnapshot hardware, EventInvestigation? events,
+        CancellationToken cancellationToken)
+    {
+        var window = events is null
+            ? EventWindows.Resolve(EventWindow.Last24Hours, clock.GetUtcNow())
+            : new EventQueryWindow(events.Window, events.PeriodFromUtc, events.PeriodToUtc);
+        return RunCoreAsync(window, null, null, cancellationToken, hardware, events);
+    }
+
+    private async Task<GraphicsInvestigation> RunCoreAsync(EventQueryWindow window, GraphicsInvestigation? previous,
+        IProgress<GraphicsProgress>? progress, CancellationToken cancellationToken,
+        HardwareSnapshot? auditHardware = null, EventInvestigation? auditEvents = null)
+    {
         if (Interlocked.CompareExchange(ref running, 1, 0) != 0)
             throw new InvalidOperationException("Já existe uma investigação gráfica em andamento.");
         try
         {
-            return await ExecuteAsync(window, previous, progress, cancellationToken).ConfigureAwait(false);
+            return await ExecuteAsync(window, previous, progress, cancellationToken, auditHardware, auditEvents)
+                .ConfigureAwait(false);
         }
         finally
         {
@@ -65,42 +82,47 @@ public sealed class GraphicsInvestigationRunner
     }
 
     private async Task<GraphicsInvestigation> ExecuteAsync(EventQueryWindow window,
-        GraphicsInvestigation? previous, IProgress<GraphicsProgress>? progress, CancellationToken cancellationToken)
+        GraphicsInvestigation? previous, IProgress<GraphicsProgress>? progress, CancellationToken cancellationToken,
+        HardwareSnapshot? auditHardware, EventInvestigation? auditEvents)
     {
         var id = Guid.NewGuid();
-        var hardwareReadingId = Guid.NewGuid();
+        var hardwareReadingId = auditHardware?.Id ?? Guid.NewGuid();
         var started = clock.GetUtcNow();
         var duration = Stopwatch.StartNew();
         var limitations = new List<string>();
         var sources = new List<GraphicsSourceSummary>();
-        var cancelled = false;
+        var cancelled = cancellationToken.IsCancellationRequested;
         var session = new HardwareCollectionSession();
         var hardwareResults = new List<HardwareCollectorResult>(hardwareCollectors.Count);
         var totalSteps = hardwareCollectors.Count + eventCollectors.Count;
 
-        for (var index = 0; index < hardwareCollectors.Count; index++)
+        if (auditHardware is not null)
         {
-            var collector = hardwareCollectors[index];
-            if (cancellationToken.IsCancellationRequested)
-            {
-                cancelled = true;
-                break;
-            }
-
-            var timer = Stopwatch.StartNew();
-            progress?.Report(new(collector.Id, GraphicsSourceStatus.Running, index, totalSteps, "hardware"));
-            var result = await ReadHardwareAsync(collector, hardwareReadingId, session, cancellationToken)
-                .ConfigureAwait(false);
-            timer.Stop();
-            if (result.Status == HardwareCollectionStatus.Cancelled) cancelled = true;
-            hardwareResults.Add(result);
-            sources.Add(ToSource(result));
-            progress?.Report(new(collector.Id, Map(result.Status), index + 1, totalSteps, "hardware"));
-            if (cancelled) break;
+            hardwareResults.AddRange(auditHardware.Results.Where(result =>
+                hardwareCollectors.Any(collector => collector.Category == result.Category && collector.Id == result.CollectorId)));
         }
+        else
+        {
+            for (var index = 0; index < hardwareCollectors.Count && !cancelled; index++)
+            {
+                var collector = hardwareCollectors[index];
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    cancelled = true;
+                    break;
+                }
+                progress?.Report(new(collector.Id, GraphicsSourceStatus.Running, index, totalSteps, "hardware"));
+                var result = await ReadHardwareAsync(collector, hardwareReadingId, session, cancellationToken)
+                    .ConfigureAwait(false);
+                if (result.Status == HardwareCollectionStatus.Cancelled) cancelled = true;
+                hardwareResults.Add(result);
+                progress?.Report(new(collector.Id, Map(result.Status), index + 1, totalSteps, "hardware"));
+            }
+        }
+        sources.AddRange(hardwareResults.Select(ToSource));
 
-        EventInvestigation? investigation = null;
-        if (!cancelled)
+        var investigation = auditEvents;
+        if (!cancelled && auditHardware is null)
         {
             try
             {
@@ -117,10 +139,6 @@ public sealed class GraphicsInvestigationRunner
             {
                 cancelled = true;
             }
-        }
-        else
-        {
-            investigation = null;
         }
 
         var eventId = investigation?.Id;
@@ -140,6 +158,20 @@ public sealed class GraphicsInvestigationRunner
         ApplyHardwareTruncation(sources, adaptersTruncated, monitorsTruncated, driversTruncated);
         AppendEventSources(investigation, graphicsEvents.Count, werReports.Count, sources, eventsTruncated,
             werTruncated);
+
+        if (auditHardware is not null)
+        {
+            foreach (var collector in hardwareCollectors.Where(collector => !sources.Any(source => source.CollectorId == collector.Id)))
+                sources.Add(Unavailable(collector.Id, collector.Version, collector.Source, Map(collector.Category)));
+            foreach (var collector in eventCollectors.Where(collector => !sources.Any(source => source.CollectorId == collector.Id)))
+                sources.Add(Unavailable(collector.Id, collector.Version, collector.Source,
+                    string.Equals(collector.Id, GraphicsEvidenceClassification.WerMetadataCollectorId, StringComparison.OrdinalIgnoreCase)
+                        ? GraphicsSourceCategory.Wer : GraphicsSourceCategory.Events));
+        }
+
+        GraphicsSourceSummary Unavailable(string id, string version, string origin, GraphicsSourceCategory category) =>
+            new(id, version, category, origin, GraphicsSourceStatus.Failed, started, started, TimeSpan.Zero,
+                0, 0, false, ["A fonte não foi confirmada nas etapas anteriores da auditoria."]);
 
         var expectedSources = hardwareCollectors.Count + eventCollectors.Count;
         var unavailable = sources.Where(source => source.Status is GraphicsSourceStatus.Failed

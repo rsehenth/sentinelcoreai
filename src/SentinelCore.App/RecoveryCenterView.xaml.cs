@@ -17,6 +17,10 @@ public partial class RecoveryCenterView : UserControl
     private bool busy;
     private bool loaded;
     private DateTime loadedAt;
+    internal bool IsBusy => busy;
+    internal event Action<Guid>? AuditRequested;
+    internal void InvalidateAuditHistory() => loaded = false;
+    internal event Action? TweakRecoveryAttempted;
     // Typing in the search box re-filters after a short pause instead of rebinding the grid on every key.
     private readonly System.Windows.Threading.DispatcherTimer searchDebounce = new() { Interval = TimeSpan.FromMilliseconds(250) };
 
@@ -42,24 +46,27 @@ public partial class RecoveryCenterView : UserControl
         UpdateButtons();
     }
 
-    public void Initialize(RecoveryCenter recoveryCenter)
+    public void Initialize(RecoveryCenter recoveryCenter, bool loadIfVisible = true)
     {
         ArgumentNullException.ThrowIfNull(recoveryCenter);
         if (center is not null) throw new InvalidOperationException("Central de Recuperação já composta.");
         center = recoveryCenter;
         ModeText.Text = center.SyntheticRecoveryAvailable
             ? "HOST SINTÉTICO — recuperação apenas de alvos Synthetic"
-            : "Consulta local — execução real bloqueada";
+            : center.RealRecoveryAvailable ? "Recuperação controlada — HKCU do usuário atual"
+                : "Consulta local — execução real bloqueada";
         RecoveryPolicyText.Text = center.SyntheticRecoveryAvailable
             ? "Fluxo sintético: o RecoveryService valida backup e estado atual antes de recuperar. Conflitos não serão sobrescritos."
-            : "Execução bloqueada nesta composição. A central não consulta o estado atual do Registro nem executa rollback real.";
+            : center.RealRecoveryAvailable
+                ? "Analise os alvos antes de confirmar. O serviço revalida o backup e preserva valores em conflito."
+                : "Rollback desabilitado na distribuição. Os detalhes mostram a evidência registrada.";
         UpdateButtons();
-        if (IsLoaded) _ = RefreshAsync();
+        if (loadIfVisible && IsLoaded) _ = RefreshAsync();
     }
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (center is not null && !loaded && !busy) await RefreshAsync();
+        if (center is not null && !loaded && !busy && IsEnabled) await RefreshAsync();
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -70,7 +77,20 @@ public partial class RecoveryCenterView : UserControl
     }
     private async void OnRefresh(object sender, RoutedEventArgs e) => await RefreshAsync();
 
-    public async Task RefreshAsync()
+    public Task RefreshAsync() => RefreshAsync(null);
+
+    internal async Task<bool> OpenTweakAsync(Guid id)
+    {
+        if (busy) return false;
+        OnClearFilters(this, new RoutedEventArgs());
+        await RefreshAsync(id);
+        if (HistoryGrid.SelectedItem is not HistoryRow { Operation.Id: var selected } || selected != id)
+            return false;
+        HistoryGrid.ScrollIntoView(HistoryGrid.SelectedItem);
+        return true;
+    }
+
+    private async Task RefreshAsync(Guid? tweakId)
     {
         if (center is null || busy) return;
         var selected = (HistoryGrid.SelectedItem as HistoryRow)?.Operation;
@@ -91,7 +111,9 @@ public partial class RecoveryCenterView : UserControl
             BindText(StateCombo, snapshot.Operations.Select(o => o.State), UiText.Recorded);
             updating = false;
             UpdateSummary();
-            ApplyFilter(selected);
+            ApplyFilter(tweakId is { } id
+                ? snapshot.Operations.SingleOrDefault(operation => operation.Id == id && operation.Module == RecoveryModule.Tweaks)
+                : selected);
             StatusText.Text = snapshot.IsComplete
                 ? $"Histórico carregado às {DateTime.Now:HH:mm:ss} (horário local). Nenhuma operação de manutenção foi iniciada."
                 : $"Leitura incompleta às {DateTime.Now:HH:mm:ss} (horário local): examine os avisos. As contagens cobrem somente os registros válidos carregados.";
@@ -122,6 +144,8 @@ public partial class RecoveryCenterView : UserControl
         snapshot = null;
         loaded = false;
         HistoryGrid.ItemsSource = null;
+        AuditInterruptionsList.ItemsSource = null;
+        AuditInterruptionsPanel.Visibility = Visibility.Collapsed;
         SummaryCards.ItemsSource = null;
         SummaryText.Text = "Históricos indisponíveis. Contagens não determinadas.";
         HistorySummary.Text = "Leitura não concluída; não representa ausência de operações.";
@@ -143,6 +167,8 @@ public partial class RecoveryCenterView : UserControl
             new SummaryItem("Concluídas", Count(summary.Completed), detail),
             new SummaryItem("Falhas", Count(summary.Failed), detail),
             new SummaryItem("Indeterminadas", Count(summary.Indeterminate), detail),
+            new SummaryItem("Interrompidas", Count(snapshot.Operations.Count(operation => operation.Interrupted)), detail),
+            new SummaryItem("Aplicação parcial", Count(snapshot.Operations.Count(operation => operation.PartiallyApplied)), detail),
             new SummaryItem("Conflitos", Count(summary.Conflicts), detail),
             new SummaryItem("Intervenção necessária", Count(summary.Intervention), detail),
             new SummaryItem("Recuperações realizadas",
@@ -152,6 +178,15 @@ public partial class RecoveryCenterView : UserControl
                     : "Distribuição não determinada; fontes incompletas.")
         };
         SummaryText.Text = RecoveryCenterPresentation.Summary(snapshot);
+        if (snapshot.InterruptedAudits is { } audits)
+        {
+            AuditInterruptionsPanel.Visibility = Visibility.Visible;
+            AuditInterruptionsList.ItemsSource = audits.Audits.Select(audit => new InterruptedAuditRow(audit)).ToArray();
+            AuditInterruptionsSummary.Text = audits.Warnings.Count > 0
+                ? string.Join(Environment.NewLine, audits.Warnings)
+                : audits.Audits.Count == 0 ? "Nenhuma interrupção encontrada nos checkpoints carregados."
+                : $"{audits.Audits.Count} auditoria(s) interrompida(s). Abra o histórico para consultar as evidências confirmadas.";
+        }
         var warnings = snapshot.Sources.SelectMany(source => source.Warnings.Select(w => $"{RecoveryCenterPresentation.Label(source.Module)}: {w}"))
             .Concat(snapshot.Warnings)
             .Concat(snapshot.Sources.Where(s => s.Status != RecoveryEvidenceStatus.Complete)
@@ -159,6 +194,16 @@ public partial class RecoveryCenterView : UserControl
             .Distinct().ToArray();
         WarningsText.Text = string.Join(Environment.NewLine, warnings);
         WarningsPanel.Visibility = !snapshot.IsComplete || warnings.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void OnOpenInterruptedAudit(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { DataContext: InterruptedAuditRow row }) AuditRequested?.Invoke(row.Audit.Id);
+    }
+
+    private sealed record InterruptedAuditRow(AuditRecord Audit)
+    {
+        public string Label => $"Abrir auditoria · {Audit.CompletedUtc.ToLocalTime():dd/MM/yyyy HH:mm} · {Audit.Id:D}";
     }
 
     private void OnFilterChanged(object sender, RoutedEventArgs e)
@@ -234,8 +279,10 @@ public partial class RecoveryCenterView : UserControl
         DetailsText.Text = operation is null ? "Selecione uma operação do histórico." : RecoveryCenterPresentation.Details(operation);
         TimelineText.Text = operation is null ? "Nenhum evento selecionado." : RecoveryCenterPresentation.Timeline(operation);
         ReportPathText.Text = operation?.ReportPath ?? string.Empty;
-        ConfirmationHint.Text = operation is null ? "Selecione um alvo sintético suportado para analisar a recuperação."
-            : $"Confirmação específica, somente no host sintético: {TweakManager.BuildRecoveryConfirmationText(operation.Id)}";
+        ConfirmationHint.Text = operation is { Preview.CanRecover: true, Capability: RecoveryCapability.PotentiallyAvailable } &&
+            center?.CanAnalyze(operation) == true
+            ? $"Digite exatamente: {TweakManager.BuildRecoveryConfirmationText(operation.Id)}"
+            : "Selecione uma operação elegível e analise a recuperação.";
         UpdateButtons();
     }
 
@@ -244,13 +291,10 @@ public partial class RecoveryCenterView : UserControl
         if (initialized) UpdateButtons();
     }
 
-    private bool IsSyntheticTweak(RecoveryOperation? operation) => center?.SyntheticRecoveryAvailable == true &&
-        operation is { Module: RecoveryModule.Tweaks, Origin: RecoveryOrigin.Synthetic };
-
     private void UpdateButtons()
     {
         var operation = (HistoryGrid.SelectedItem as HistoryRow)?.Operation;
-        var supported = IsSyntheticTweak(operation);
+        var supported = center?.CanAnalyze(operation) == true;
         var canRecover = supported && operation is
             { Capability: RecoveryCapability.PotentiallyAvailable, Preview.CanRecover: true };
         RefreshButton.IsEnabled = center is not null && !busy;
@@ -265,7 +309,7 @@ public partial class RecoveryCenterView : UserControl
     private async void OnAnalyze(object sender, RoutedEventArgs e)
     {
         var operation = (HistoryGrid.SelectedItem as HistoryRow)?.Operation;
-        if (busy || center is null || snapshot is null || !IsSyntheticTweak(operation)) return;
+        if (busy || center is null || snapshot is null || !center.CanAnalyze(operation)) return;
         busy = true;
         var pending = operation! with { Preview = null, Capability = RecoveryCapability.Blocked };
         snapshot = snapshot with { Operations = snapshot.Operations.Select(o =>
@@ -273,7 +317,7 @@ public partial class RecoveryCenterView : UserControl
         ConfirmationText.Clear();
         UpdateSummary();
         ApplyFilter(pending);
-        StatusText.Text = "Analisando backup e estado do alvo sintético…";
+        StatusText.Text = "Analisando backup e estado atual dos alvos…";
         UpdateButtons();
         try
         {
@@ -281,7 +325,7 @@ public partial class RecoveryCenterView : UserControl
             snapshot = snapshot with { Operations = snapshot.Operations.Select(o => o.Id == analyzed.Id && o.Module == analyzed.Module ? analyzed : o).ToArray() };
             UpdateSummary();
             ApplyFilter(analyzed);
-            StatusText.Text = analyzed.Preview?.Reason ?? "Prévia sintética concluída. Consulte conflitos, limitações e condições de recuperação.";
+            StatusText.Text = analyzed.Preview?.Reason ?? "Prévia concluída. Confira os alvos e as condições de recuperação.";
         }
         catch (Exception error)
         {
@@ -299,22 +343,27 @@ public partial class RecoveryCenterView : UserControl
     private async void OnRecover(object sender, RoutedEventArgs e)
     {
         var operation = (HistoryGrid.SelectedItem as HistoryRow)?.Operation;
-        if (busy || center is null || !IsSyntheticTweak(operation) || !RecoverButton.IsEnabled) return;
+        if (busy || center is null || !center.CanAnalyze(operation) || !RecoverButton.IsEnabled) return;
         var confirmation = ConfirmationText.Text;
         busy = true;
-        StatusText.Text = "Recuperação sintética em andamento pelo RecoveryService…";
+        StatusText.Text = "Recuperação em andamento. Aguarde a verificação dos alvos…";
         UpdateButtons();
         string resultText;
         try
         {
             var result = await center.RecoverAsync(operation!, confirmation);
-            resultText = $"Recuperação sintética: {UiText.Outcome(result.Outcome)}. Integral: {(result.FullyRecovered ? "sim" : "não")}. {result.Error}";
+            resultText = $"Recuperação: {UiText.Outcome(result.Outcome)}. Integral: {(result.FullyRecovered ? "sim" : "não")}. {result.Error}";
         }
         catch (Exception error)
         {
             resultText = "Recuperação não confirmada; consulte histórico e limitações: " + error.Message;
         }
-        finally { busy = false; UpdateButtons(); }
+        finally
+        {
+            busy = false;
+            TweakRecoveryAttempted?.Invoke();
+            UpdateButtons();
+        }
         await RefreshAsync();
         StatusText.Text = resultText;
     }

@@ -63,7 +63,7 @@ public partial class MainWindow
         if (ReferenceEquals(Pages.SelectedItem, TweaksTab) && !debloatComposed && debloatManager is not null)
         {
             debloatComposed = true;
-            DebloatSection.Initialize(debloatManager);
+            DebloatSection.Initialize(debloatManager, debloatObserver);
         }
     }
 
@@ -118,9 +118,10 @@ public partial class MainWindow
     private async Task ReloadTweakHistoryAsync(Guid? selectId = null)
     {
         if (tweaks is null) return;
-        var history = await tweaks.LoadHistoryAsync();
+        var history = await tweaks.LoadHistorySnapshotAsync();
+        SetIntegrity("Personalização", history.Warnings);
         var names = tweakViews.ToDictionary(item => item.OperationId, item => item.DisplayName);
-        var rows = history.Select(item => new TweakHistoryRow(item,
+        var rows = history.Transactions.Select(item => new TweakHistoryRow(item,
             names.GetValueOrDefault(item.OperationId, item.OperationId))).ToArray();
         TweakHistoryList.ItemsSource = rows;
         if (selectId is { } id)
@@ -181,6 +182,8 @@ public partial class MainWindow
         if (tweaks is null || searchModes is null || tweaksBusy) return;
         if (TweakSearchModeCombo.SelectedItem is not TaskbarSearchMode mode) return;
         tweaksBusy = true;
+        tweakSimulation = null;
+        TweakConfirmationText.Clear();
         UpdateTweakButtons();
         try
         {
@@ -206,6 +209,8 @@ public partial class MainWindow
         if (tweaks is null || tweaksBusy) return;
         if (sender is not FrameworkElement { DataContext: TweakCardRow { OperationId: var operationId } }) return;
         tweaksBusy = true;
+        tweakSimulation = null;
+        TweakConfirmationText.Clear();
         UpdateTweakButtons();
         try
         {
@@ -279,6 +284,7 @@ public partial class MainWindow
         }
         finally
         {
+            RecoverySection.InvalidateAuditHistory();
             tweaksBusy = false;
             UpdateTweakButtons();
         }
@@ -286,10 +292,11 @@ public partial class MainWindow
 
     private void OnTweakHistorySelected(object sender, SelectionChangedEventArgs e)
     {
-        if (TweakHistoryList.SelectedItem is not TweakHistoryRow row) return;
-        tweakSelectedTransaction = row.Transaction;
+        if (TweakRecoveryText is null) return;
+        tweakSelectedTransaction = (TweakHistoryList.SelectedItem as TweakHistoryRow)?.Transaction;
         tweakPreview = null;
-        TweakRecoveryText.Text = BuildTransactionText(row.Transaction);
+        TweakRecoveryText.Text = tweakSelectedTransaction is { } transaction
+            ? BuildTransactionText(transaction) : "Selecione uma transação do histórico.";
         TweakRecoveryConfirmationText.Text = string.Empty;
         TweakRecoveryHint.Text = "Analise a recuperação antes de confirmar.";
         TweakRecoveryStatusText.Text = "Recuperação ainda não analisada.";
@@ -301,6 +308,8 @@ public partial class MainWindow
         if (tweaks is null || tweaksBusy || tweakSelectedTransaction is null) return;
         var transactionId = tweakSelectedTransaction.TransactionId;
         tweaksBusy = true;
+        tweakPreview = null;
+        TweakRecoveryConfirmationText.Clear();
         UpdateTweakButtons();
         try
         {
@@ -352,7 +361,7 @@ public partial class MainWindow
         TweakRecoveryStatusText.Text = "Recuperação em andamento. O estado atual é reconferido antes de cada escrita…";
         try
         {
-            var result = await tweaks.RollbackAsync(transactionId, new RecoveryOptions(typedConfirmation));
+            var result = await tweaks.RollbackAsync(transactionId, new RecoveryOptions(typedConfirmation) { Preview = tweakPreview });
             var status = $"Recuperação: {UiText.Outcome(result.Outcome)} · integral: {(result.FullyRecovered ? "sim" : "não")}" +
                 (result.Error is null ? string.Empty : " · " + result.Error);
             await ReloadTweaksAsync(transactionId, status, ignoreBusy: true);
@@ -365,6 +374,7 @@ public partial class MainWindow
         }
         finally
         {
+            RecoverySection.InvalidateAuditHistory();
             tweaksBusy = false;
             UpdateTweakButtons();
         }
@@ -380,6 +390,7 @@ public partial class MainWindow
         if (TweakAuthorizeButton is null) return;
         var idle = !tweaksBusy;
         TweaksRefreshButton.IsEnabled = idle && tweaks is not null;
+        TweakHistoryList.IsEnabled = idle;
         var authorizeText = tweakSimulation is null
             ? string.Empty
             : TweakManager.BuildConfirmationText(tweakSimulation.Plan);
@@ -392,6 +403,7 @@ public partial class MainWindow
             : TweakManager.BuildRecoveryConfirmationText(tweakSelectedTransaction.TransactionId);
         TweakRollbackButton.IsEnabled = idle && tweaks is { RealExecutionEnabled: true } &&
             tweakPreview is { CanRecover: true } &&
+            (tweakPreview.Outcome != RecoveryOutcome.AlreadyRestored || tweakSelectedTransaction?.IsIndeterminate == true) &&
             string.Equals(TweakRecoveryConfirmationText.Text.Trim(), recoveryText, StringComparison.Ordinal);
         if (TweakSearchModePrepareButton is not null)
             TweakSearchModePrepareButton.IsEnabled = idle && searchModes is not null &&
@@ -407,6 +419,10 @@ public partial class MainWindow
         text.AppendLine($"Operação: {operation.Id} v{operation.Version} · risco {UiText.Risk(operation.Risk)} · {UiText.Scope(operation.Scope)}");
         text.AppendLine($"Hash do plano: {plan.PlanHash[..Math.Min(16, plan.PlanHash.Length)]}…");
         text.AppendLine($"Estado observado: {plan.CreatedAtUtc:O}");
+        text.AppendLine($"Compatibilidade: Windows 11 a partir do build {operation.Compatibility.MinimumBuild}" +
+            (operation.Compatibility.MaximumBuild is { } maximum ? $" até {maximum}." : "."));
+        if (operation.Dependencies.Count > 0)
+            text.AppendLine("Dependências: " + string.Join(", ", operation.Dependencies));
         text.AppendLine();
         text.AppendLine("Configuração");
         foreach (var change in plan.Changes)

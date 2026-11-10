@@ -5,12 +5,18 @@ namespace SentinelCore.Domain;
 
 public static class SafetyHashing
 {
+    public static string PlanHash(OperationPlan plan) =>
+        PlanHash(plan.PlanId, plan.TransactionId, plan.OperationId, plan.OperationVersion,
+            plan.CatalogVersion, plan.Risk, plan.Scope, plan.Protection, plan.ObservedStateHash,
+            plan.Changes, plan.HkcuContextHash);
+
     public static string PlanHash(Guid planId, Guid transactionId, string operationId, int operationVersion,
         string catalogVersion, RiskLevel risk, OperationScope scope, ProtectionPolicy protection,
-        string observedStateHash, IEnumerable<PlannedChange> changes)
+        string observedStateHash, IEnumerable<PlannedChange> changes, string? hkcuContextHash = null)
     {
         var builder = new StringBuilder();
-        Append(builder, "plan-v2");
+        Append(builder, hkcuContextHash is null ? "plan-v2" : "plan-v3");
+        if (hkcuContextHash is not null) Append(builder, hkcuContextHash);
         Append(builder, planId.ToString("D"));
         Append(builder, transactionId.ToString("D"));
         Append(builder, operationId);

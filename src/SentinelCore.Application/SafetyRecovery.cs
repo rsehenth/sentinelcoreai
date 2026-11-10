@@ -11,12 +11,14 @@ public sealed class RecoveryService
     private readonly TimeProvider time;
     private readonly IOperationCatalog? catalog;
     private readonly IRecoveryConfirmationPolicy? confirmationPolicy;
+    private readonly SafetyEngine? hkcuEngine;
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<RecoveryPreview, object> issuedPreviews = new();
     public bool SyntheticOnly { get; }
 
     public RecoveryService(ITransactionJournalStore store, ITargetStateReader reader,
         IOperationExecutor executor, IExclusiveLockFactory locks, TimeProvider? time = null,
         IOperationCatalog? catalog = null, IRecoveryConfirmationPolicy? confirmationPolicy = null,
-        bool syntheticOnly = false)
+        bool syntheticOnly = false, SafetyEngine? hkcuEngine = null)
     {
         this.store = store;
         this.reader = reader;
@@ -25,6 +27,7 @@ public sealed class RecoveryService
         this.time = time ?? TimeProvider.System;
         this.catalog = catalog;
         this.confirmationPolicy = confirmationPolicy;
+        this.hkcuEngine = hkcuEngine;
         SyntheticOnly = syntheticOnly;
     }
 
@@ -34,7 +37,7 @@ public sealed class RecoveryService
         TransactionRecord? transaction;
         try
         {
-            transaction = await store.FindTransactionAsync(transactionId, cancellationToken);
+            transaction = await ReadTransactionAsync(transactionId, cancellationToken);
         }
         catch (IOException error)
         {
@@ -42,15 +45,26 @@ public sealed class RecoveryService
         }
         if (transaction is null)
             return NotRecoverable(transactionId, "Transação não encontrada.", []);
+        var preview = await PreviewAsync(transaction, cancellationToken);
+        if (hkcuEngine is not null && preview is { CanRecover: true, PlanHash: not null })
+            issuedPreviews.Add(preview, new object());
+        return preview;
+    }
+
+    private async Task<RecoveryPreview> PreviewAsync(TransactionRecord transaction, CancellationToken cancellationToken)
+    {
+        var transactionId = transaction.TransactionId;
         if (transaction.Plan is null)
             return NotRecoverable(transactionId, "Transação sem plano recuperável.", transaction.Limitations);
 
         var plan = transaction.Plan;
         if (!MatchesCatalog(plan, out var catalogReason))
             return NotRecoverable(transactionId, catalogReason, transaction.Limitations);
+        if (hkcuEngine is not null && await hkcuEngine.CheckHkcuRecoveryAsync(plan, cancellationToken) is { } refusal)
+            return NotRecoverable(transactionId, refusal, transaction.Limitations);
         var limitations = transaction.Limitations.ToList();
         if (!HasEffectStarted(transaction))
-            return await PreviewWithoutEffectAsync(transaction, plan, limitations, cancellationToken);
+            return BindPreview(await PreviewWithoutEffectAsync(transaction, plan, limitations, cancellationToken), transaction);
         if (transaction.BackupPath is null)
             return NotRecoverable(transactionId, "Transação sem backup persistido.", transaction.Limitations);
 
@@ -111,7 +125,10 @@ public sealed class RecoveryService
             }
 
             allRestored = false;
-            if (VerificationEngine.Matches(current, change))
+            var acknowledged = hkcuEngine is null || transaction.Events.Any(entry =>
+                entry.State is (TransactionState.ExecutionCompleted or TransactionState.ExecutionFailed or TransactionState.ExecutionIndeterminate) &&
+                entry.Results?.Any(step => step.TargetIdentity == change.TargetIdentity && step.Applied && step.Changed) == true);
+            if (acknowledged && VerificationEngine.Matches(current, change))
             {
                 steps.Add(new StepResult(change.TargetIdentity, false, false, false, null,
                     ["Estado posterior confirmado; recuperável."]));
@@ -132,7 +149,8 @@ public sealed class RecoveryService
 
             conflicts.Add(new RecoveryConflict(change.TargetIdentity, kind, entry.Value, change.After,
                 current.Value,
-                "O estado atual não corresponde ao estado posterior nem ao estado observado."));
+                acknowledged ? "O estado atual não corresponde ao estado posterior nem ao estado observado."
+                    : "O journal não confirma que a aplicação alterou este alvo; é necessário investigar."));
             steps.Add(new StepResult(change.TargetIdentity, false, false, false,
                 "Conflito de recuperação.", ["Recuperação não sobrescreve o estado atual."]));
         }
@@ -141,18 +159,41 @@ public sealed class RecoveryService
         {
             var recoverable = steps.Count(item => !item.Verified && item.Error is null);
             var canRecover = recoverable > 0;
-            return new RecoveryPreview(transactionId, canRecover, RecoveryOutcome.Conflict, conflicts,
+            return BindPreview(new RecoveryPreview(transactionId, canRecover, RecoveryOutcome.Conflict, conflicts,
                 canRecover
                     ? "Conflito parcial: somente os alvos recuperáveis serão restaurados; " +
                       "o conflito não será sobrescrito."
                     : "Estado alterado após a transação; recuperação bloqueada.",
-                steps, limitations);
+                steps, limitations), transaction);
         }
 
         var outcome = allRestored ? RecoveryOutcome.AlreadyRestored
             : transaction.IsIndeterminate ? RecoveryOutcome.Interrupted
             : RecoveryOutcome.NotAttempted;
-        return new RecoveryPreview(transactionId, true, outcome, [], null, steps, limitations);
+        return BindPreview(new RecoveryPreview(transactionId, true, outcome, [], null, steps, limitations), transaction);
+    }
+
+    private static RecoveryPreview BindPreview(RecoveryPreview preview, TransactionRecord transaction) =>
+        preview with { PlanHash = transaction.PlanHash, JournalSequence = transaction.Events[^1].Sequence };
+
+    private async Task<TransactionRecord?> ReadTransactionAsync(Guid id, CancellationToken token)
+    {
+        if (hkcuEngine is null) return await store.FindTransactionAsync(id, token);
+        if (store is not IRecoveryHistoryReader history)
+            throw new IOException("Leitor íntegro do histórico HKCU indisponível.");
+        var sources = await history.ReadRecoveryHistoryAsync(token);
+        var source = sources.Single(item => item.Module == RecoveryModule.Tweaks);
+        if (source.Status != RecoveryEvidenceStatus.Complete)
+            throw new IOException("Histórico de Tweaks incompleto: " + string.Join(" ", source.Warnings));
+        var record = source.Transactions.SingleOrDefault(item => item.TransactionId == id);
+        var effect = record?.Events.FirstOrDefault(item => item.State == TransactionState.ExecutionStarted);
+        if (effect is not null && record?.Plan is { } plan && source.Transactions.Any(other =>
+            other.TransactionId != id && other.Plan is { } otherPlan &&
+            otherPlan.Changes.Any(change => plan.Changes.Any(target => target.TargetIdentity == change.TargetIdentity)) &&
+            (other.IsIndeterminate || other.Events.Any(entry => entry.AtUtc >= effect.AtUtc &&
+                entry.State is (TransactionState.ExecutionStarted or TransactionState.RecoveryStarted)))))
+            throw new IOException("Outra transação no mesmo alvo tem efeito posterior ou estado indeterminado.");
+        return record;
     }
 
     private async Task<RecoveryPreview> PreviewWithoutEffectAsync(TransactionRecord transaction,
@@ -210,10 +251,15 @@ public sealed class RecoveryService
         if (!confirmationValid)
             return Result(transactionId, RecoveryOutcome.Blocked, false, false, [], [],
                 "Recuperação exige confirmação explícita válida e vinculada à transação.", started, []);
+        if (hkcuEngine is not null && (options.Preview is not
+            { CanRecover: true, PlanHash: not null, JournalSequence: > 0 } issued ||
+            issued.TransactionId != transactionId || !issuedPreviews.Remove(issued)))
+            return Result(transactionId, RecoveryOutcome.Blocked, false, false, [], [],
+                "Analise a recuperação antes de confirmar.", started, []);
         TransactionRecord? transaction;
         try
         {
-            transaction = await store.FindTransactionAsync(transactionId, cancellationToken);
+            transaction = await ReadTransactionAsync(transactionId, cancellationToken);
         }
         catch (IOException error)
         {
@@ -231,10 +277,10 @@ public sealed class RecoveryService
         if (!MatchesCatalog(plan, out var catalogReason))
             return await FailWithoutEffectAsync(transaction, RecoveryOutcome.NotRecoverable,
                 catalogReason, started, cancellationToken);
-
         var steps = new List<StepResult>();
         var conflicts = new List<RecoveryConflict>();
         var effectOccurred = false;
+        int? recoverySequence = null;
         var handles = new List<IDisposable>();
         try
         {
@@ -242,7 +288,22 @@ public sealed class RecoveryService
                          .Distinct(StringComparer.Ordinal).OrderBy(item => item, StringComparer.Ordinal))
                 handles.Add(locks.Acquire(key));
 
-            var preview = await PreviewAsync(transactionId, cancellationToken);
+            if (hkcuEngine is not null)
+            {
+                var latest = await ReadTransactionAsync(transactionId, cancellationToken);
+                if (latest is null || latest.PlanHash != plan.PlanHash ||
+                    latest.Events[^1].Sequence != options.Preview!.JournalSequence)
+                    return Result(transactionId, RecoveryOutcome.Blocked, false, false, [], [],
+                        "Journal mudou após a prévia. Analise novamente.", started, []);
+                transaction = latest;
+            }
+            var preview = hkcuEngine is null ? await PreviewAsync(transactionId, cancellationToken)
+                : await PreviewAsync(transaction, cancellationToken);
+            if (hkcuEngine is not null && !SamePreview(options.Preview!, preview))
+                return await FailWithoutEffectAsync(transaction,
+                    preview.Conflicts.Count > 0 ? RecoveryOutcome.Conflict : RecoveryOutcome.Blocked,
+                    "A prévia mudou. Analise novamente. " + preview.Reason, started, cancellationToken,
+                    preview.CurrentStates, preview.Conflicts);
             if (preview.Outcome == RecoveryOutcome.NotRecoverable ||
                 (preview.Outcome == RecoveryOutcome.Conflict && !preview.CanRecover))
                 return await FailWithoutEffectAsync(transaction, preview.Outcome,
@@ -251,6 +312,9 @@ public sealed class RecoveryService
 
             if (preview.Outcome == RecoveryOutcome.AlreadyRestored)
             {
+                if (hkcuEngine is not null && !transaction.IsIndeterminate)
+                    return Result(transactionId, RecoveryOutcome.AlreadyRestored, true, false,
+                        preview.CurrentStates, preview.Conflicts, null, started, transaction.Limitations);
                 var noopSequence = NextSequence(transaction);
                 await AppendAsync(transaction, noopSequence, TransactionState.RecoveryRequested,
                     cancellationToken, detail: $"Confirmação {options.UserConfirmationId}.");
@@ -292,6 +356,8 @@ public sealed class RecoveryService
                 cancellationToken, detail: $"Confirmação {options.UserConfirmationId}.");
             sequence = await AppendAsync(transaction, sequence, TransactionState.RecoveryStarted,
                 cancellationToken, detail: "Recuperação iniciada.");
+            recoverySequence = sequence;
+            if (hkcuEngine is not null) cancellationToken = CancellationToken.None;
 
             string? failure = null;
 
@@ -319,7 +385,8 @@ public sealed class RecoveryService
                     continue;
                 }
 
-                if (!VerificationEngine.Matches(current, change))
+                if (!VerificationEngine.Matches(current, change) || hkcuEngine is not null &&
+                    !preview.CurrentStates.Any(step => step.TargetIdentity == change.TargetIdentity && !step.Verified && step.Error is null))
                 {
                     var conflict = new RecoveryConflict(change.TargetIdentity,
                         RecoveryConflictKind.StateChangedAfterTransaction, entry.Value, change.After,
@@ -335,6 +402,11 @@ public sealed class RecoveryService
                     : entry.Value is { Exists: true } ? ChangeKind.SetValue
                     : ChangeKind.DeleteValue;
                 var after = entry.Value ?? new TargetValueState(false, "String", null);
+                if (hkcuEngine is not null && await hkcuEngine.CheckHkcuRecoveryAsync(plan, cancellationToken) is { } reason)
+                {
+                    failure = reason;
+                    break;
+                }
                 var request = new ExecutionRequest(transaction.TransactionId, plan.PlanId,
                     plan.OperationId, plan.OperationVersion, kind, change.Target,
                     current.Value ?? new TargetValueState(false, "Unknown", null), after);
@@ -378,6 +450,21 @@ public sealed class RecoveryService
                 if (!verified) break;
             }
 
+            if (hkcuEngine is not null && steps.Count == plan.Changes.Count && steps.All(step => step.Verified))
+            {
+                for (var index = 0; index < steps.Count; index++)
+                {
+                    var step = steps[index];
+                    var change = plan.Changes.Single(item => item.TargetIdentity == step.TargetIdentity);
+                    var entry = backup.Entries.Single(item => item.TargetIdentity == step.TargetIdentity);
+                    var current = await reader.ReadAsync(change.Target, cancellationToken);
+                    if (MatchesBefore(current, entry)) continue;
+                    failure = "O estado mudou durante a verificação final da recuperação.";
+                    steps[index] = step with { Verified = false, Error = failure };
+                    conflicts.Add(new RecoveryConflict(change.TargetIdentity, RecoveryConflictKind.StateChangedAfterTransaction,
+                        entry.Value, change.After, current.Value, failure));
+                }
+            }
             var fully = plan.Changes.All(change =>
                 steps.Any(step => step.TargetIdentity == change.TargetIdentity && step.Verified));
             var outcomeKind = fully ? RecoveryOutcome.Completed
@@ -397,12 +484,30 @@ public sealed class RecoveryService
         }
         catch (TargetLockedException error)
         {
+            if (hkcuEngine is not null)
+                return Result(transactionId, RecoveryOutcome.Blocked, false, false, [], [], error.Message, started, []);
             return await FailWithoutEffectAsync(transaction, RecoveryOutcome.Blocked, error.Message,
                 started, cancellationToken, steps, conflicts, effectOccurred);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception error)
         {
+            if (hkcuEngine is not null)
+            {
+                var failed = Result(transactionId,
+                    recoverySequence is null ? RecoveryOutcome.Blocked : RecoveryOutcome.Interrupted,
+                    false, effectOccurred, steps, conflicts, error.Message, started, transaction.Limitations);
+                if (recoverySequence is { } sequence)
+                {
+                    try
+                    {
+                        await AppendAsync(transaction, sequence, TransactionState.RecoveryFailed,
+                            CancellationToken.None, recovery: failed, error: error.Message);
+                    }
+                    catch (Exception) { /* The durable start remains evidence of interruption. */ }
+                }
+                return failed;
+            }
             return await FailWithoutEffectAsync(transaction, RecoveryOutcome.Failed, error.Message,
                 started, cancellationToken, steps, conflicts, effectOccurred);
         }
@@ -411,6 +516,13 @@ public sealed class RecoveryService
             foreach (var handle in handles) handle.Dispose();
         }
     }
+
+    private static bool SamePreview(RecoveryPreview expected, RecoveryPreview actual) =>
+        actual.CanRecover && expected.TransactionId == actual.TransactionId && expected.PlanHash == actual.PlanHash &&
+        expected.JournalSequence == actual.JournalSequence && expected.Outcome == actual.Outcome &&
+        expected.Conflicts.SequenceEqual(actual.Conflicts) &&
+        expected.CurrentStates.Select(step => (step.TargetIdentity, step.Verified, step.Error))
+            .SequenceEqual(actual.CurrentStates.Select(step => (step.TargetIdentity, step.Verified, step.Error)));
 
     private async Task<RecoveryResult> FailWithoutEffectAsync(TransactionRecord transaction,
         RecoveryOutcome outcome, string reason, DateTimeOffset started, CancellationToken cancellationToken,

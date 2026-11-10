@@ -6,7 +6,7 @@ param(
 )
 # Guardas posteriores as medicoes T4B.3. Gera uma carga por vez, sem apagar destinos existentes.
 $ErrorActionPreference = 'Stop'
-$exe = if ($Exe) { $Exe } else { Join-Path $PSScriptRoot 'bin\Release\net10.0-windows\RecoveryBenchmark.exe' }
+$exe = if ($Exe) { $Exe } else { Join-Path $PSScriptRoot 'bin\Release\net10.0-windows10.0.22621.0\RecoveryBenchmark.exe' }
 # O proprio auxiliar valida contencao em TEMP, GUID, ausencia de reparse points e destino inedito.
 & $exe init $Root
 if ($LASTEXITCODE -ne 0) { throw 'Raiz temporaria recusada.' }

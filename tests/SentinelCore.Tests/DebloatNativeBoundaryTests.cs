@@ -18,19 +18,26 @@ public sealed class DebloatNativeBoundaryTests
             "*.cs", SearchOption.TopDirectoryOnly).Select(File.ReadAllText));
 
     [Fact]
-    public void NativeReaderIsStrictlyReadOnlyAndCurrentUserOnly()
+    public void NativeReaderIsStrictlyReadOnlyWithExplicitScopeQueries()
     {
         var source = NativeSource();
         foreach (var forbidden in new[]
                  {
                      "RemovePackage", "AddPackage", "RegisterPackage", "ProvisionPackage", "Deprovision",
-                     "DeployPackage", "SetPackageStatus", "Process.Start", "ProcessStartInfo", "DllImport",
+                     "DeployPackage", "SetPackageStatus", "Process.Start", "ProcessStartInfo",
                      "LibraryImport", "powershell", "pwsh", "Get-AppxPackage", "winget", "cmd.exe", "runas",
-                     "requireAdministrator", "FindPackages()", "FindPackage(", "FindPackagesWithPackageTypes",
+                     "requireAdministrator", "FindPackages()", "FindPackage(",
                      "FindPackagesForUser(sid", "System.Management"
                  })
             Assert.DoesNotContain(forbidden, source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("FindPackagesForUser(string.Empty)", source, StringComparison.Ordinal);
+        Assert.Contains("FindPackagesForUserWithPackageTypes(string.Empty, Types)", source, StringComparison.Ordinal);
+        Assert.Contains("manager.FindPackagesWithPackageTypes(Types)", source, StringComparison.Ordinal);
+        Assert.Contains("manager.FindProvisionedPackages", source, StringComparison.Ordinal);
+        Assert.Contains("WindowsBuiltInRole.Administrator", source, StringComparison.Ordinal);
+        Assert.Contains("OpenPackageInfoByFullName", source, StringComparison.Ordinal);
+        Assert.Contains("GetPackageInfo", source, StringComparison.Ordinal);
+        Assert.Contains("ClosePackageInfo", source, StringComparison.Ordinal);
+        Assert.Equal(3, source.Split("[DllImport(\"kernel32.dll\"", StringSplitOptions.None).Length - 1);
         Assert.Contains("IDebloatNativeInventoryReader", source, StringComparison.Ordinal);
         Assert.Contains("ReadOnly => true", source, StringComparison.Ordinal);
     }
@@ -52,15 +59,15 @@ public sealed class DebloatNativeBoundaryTests
     }
 
     [Fact]
-    public void DistributionAppDoesNotReferenceOrComposeNativeInventory()
+    public void DistributionAppComposesOnlyTheNativeReaderAndDefersQueries()
     {
         var project = File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App", "SentinelCore.App.csproj"));
-        Assert.DoesNotContain("Infrastructure.Debloat.Native", project, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Infrastructure.Debloat.Native", project, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Infrastructure.Debloat.Removal.Native", project, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("SentinelCore.Infrastructure.Debloat", project, StringComparison.Ordinal);
         var app = File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App", "App.xaml.cs"));
-        Assert.DoesNotContain("NativeAppx", app, StringComparison.Ordinal);
-        Assert.DoesNotContain("DebloatInventoryObserver", app, StringComparison.Ordinal);
-        Assert.DoesNotContain("IDebloatNativeInventoryReader", app, StringComparison.Ordinal);
+        Assert.Contains("new DebloatInventoryObserver(debloatCatalog, new NativeAppxInventoryReader())", app, StringComparison.Ordinal);
+        Assert.DoesNotContain("ObserveAsync(", app, StringComparison.Ordinal);
         Assert.Contains("SyntheticDebloatInventory", app, StringComparison.Ordinal);
     }
 
@@ -109,14 +116,14 @@ public sealed class DebloatNativeBoundaryTests
     }
 
     [Fact]
-    public void NativeInventoryStatusIsVisibleButExposesNoAction()
+    public void NativeInventoryExposesReadAndPreviewWithoutMutation()
     {
         var document = XDocument.Parse(File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App",
             "DebloatView.xaml")));
         var status = document.Descendants(Presentation + "TextBlock")
             .Single(item => (string?)item.Attribute("AutomationProperties.AutomationId") == "DebloatNativeInventoryStatus");
-        Assert.Contains("não composto", (string?)status.Attribute("Text") ?? string.Empty, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Nenhuma consulta a pacotes reais", (string?)status.Attribute("Text") ?? string.Empty,
+        Assert.Contains("Consulta ainda não executada", (string?)status.Attribute("Text") ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("somente leitura", (string?)status.Attribute("Text") ?? string.Empty,
             StringComparison.OrdinalIgnoreCase);
         Assert.Contains(document.Descendants(Presentation + "TextBlock"), item =>
             (string?)item.Attribute("AutomationProperties.AutomationId") == "DebloatNativeInventoryStates");
@@ -124,7 +131,9 @@ public sealed class DebloatNativeBoundaryTests
             (string?)item.Attribute("Text") == DebloatLimits.SyntheticWarning);
         var buttons = document.Descendants(Presentation + "Button")
             .Select(item => (string?)item.Attribute("Content") ?? string.Empty).ToArray();
-        Assert.DoesNotContain(buttons, label => label.Contains("nativo", StringComparison.OrdinalIgnoreCase) ||
-            label.Contains("Appx", StringComparison.OrdinalIgnoreCase) || label.Contains("consultar", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains("Consultar inventário", buttons);
+        Assert.Contains("Ver prévia de remoção", buttons);
+        Assert.DoesNotContain(buttons, label => label.Contains("remover", StringComparison.OrdinalIgnoreCase) ||
+            label.Contains("desprovisionar", StringComparison.OrdinalIgnoreCase));
     }
 }

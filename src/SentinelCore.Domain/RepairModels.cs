@@ -48,12 +48,25 @@ public enum RepairResultClassification
     Interrupted,
     Cancelled,
     UnknownExitCode,
-    InformationRetrieved
+    InformationRetrieved,
+    ElevationDeclined,
+    StartFailed,
+    BrokerRefused,
+    ExecutionConflict
 }
 
 public enum RepairConfidence { Low, Medium, High }
 
 public enum RepairExecutionMode { Simulation, Real }
+
+public enum RepairBrokerStatus
+{
+    Refused, Conflict, ElevationDeclined, CancelledBeforeStart, StartDenied, StartFailed,
+    ProcessExited, Indeterminate
+}
+
+public sealed record RepairNativeExecution(RepairBrokerStatus Status, bool ElevationRequested,
+    DateTimeOffset? ProcessStartedUtc, DateTimeOffset? ProcessExitedUtc);
 
 public enum RepairBlocker
 {
@@ -139,6 +152,9 @@ public sealed record RepairVolume(
     IReadOnlyList<string> Limitations)
 {
     public bool IsNtfs => string.Equals(FileSystem, "NTFS", StringComparison.OrdinalIgnoreCase);
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? VolumeIdentity { get; init; }
 }
 
 /// <summary>
@@ -321,9 +337,20 @@ public sealed record RepairAuthorizationValidation(bool Valid, RepairBlocker Blo
 
 public sealed record RepairExecutionOptions(RepairFixtureScenario? SyntheticScenario);
 
-public sealed record RepairOutputLine(long Sequence, string Text);
+public enum RepairOutputChannel { Stdout, Stderr }
 
-public sealed record RepairProgress(string Phase, TimeSpan Elapsed, string? Detail);
+public sealed record RepairOutputLine(long Sequence, string Text)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RepairOutputChannel? Channel { get; init; }
+}
+
+public sealed record RepairProgress(string Phase, TimeSpan Elapsed, string? Detail)
+{
+    public RepairOutputLine? Output { get; init; }
+    public bool ExecutionCommitted { get; init; }
+    public DateTimeOffset? ProcessStartedUtc { get; init; }
+}
 
 public sealed record RepairExecutionRequest(
     Guid ExecutionId,
@@ -345,7 +372,10 @@ public sealed record RepairExecutionOutcome(
     DateTimeOffset CompletedAtUtc,
     TimeSpan Duration,
     bool IsSynthetic,
-    IReadOnlyList<string> Limitations);
+    IReadOnlyList<string> Limitations)
+{
+    public RepairNativeExecution? Native { get; init; }
+}
 
 public sealed record RepairEvidence(
     bool CorruptionDetected,
@@ -375,6 +405,8 @@ public static class RepairStateMachine
         (RepairState.Planned, RepairState.PreflightPassed) => true,
         (RepairState.PreflightPassed, RepairState.Authorized) => true,
         (RepairState.Authorized, RepairState.Running) => true,
+        (RepairState.Authorized, RepairState.Failed) => true,
+        (RepairState.Authorized, RepairState.Indeterminate) => true,
         (RepairState.Running, RepairState.Completed) => true,
         (RepairState.Running, RepairState.Failed) => true,
         (RepairState.Running, RepairState.Cancelled) => true,
@@ -461,8 +493,11 @@ public sealed record RepairRecord(
     IReadOnlyList<string> Limitations,
     IReadOnlyList<RepairStep> Steps)
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RepairNativeExecution? Native { get; init; }
+
     public bool VerifiedSuccess =>
-        State == RepairState.Completed &&
+        IsSynthetic && State == RepairState.Completed &&
         (Result is RepairResultClassification.NoIssuesReported
              or RepairResultClassification.NoCorruptionDetected
              or RepairResultClassification.InformationRetrieved ||
@@ -485,7 +520,11 @@ public sealed record RepairRecord(
             if (Result == RepairResultClassification.RepairSourceUnavailable)
                 actions.Add("Avaliar uma fonte de reparação em etapa futura, com autorização específica.");
             if (Result == RepairResultClassification.AccessDenied)
-                actions.Add("A execução real exigirá elevação temporária por uma fronteira privilegiada futura.");
+                actions.Add(IsSynthetic
+                    ? "A execução real exigirá elevação temporária por uma fronteira privilegiada futura."
+                    : "Verificar o contexto de privilégios antes de uma nova autorização.");
+            if (Native?.Status == RepairBrokerStatus.Indeterminate)
+                actions.Add("Confirme se a ferramenta ainda está ativa e revise o resultado antes de autorizar outra operação.");
             if (Result == RepairResultClassification.OutputIncomplete || OutputTruncated)
                 actions.Add("Revisar a saída incompleta antes de repetir; repetição automática não é permitida.");
             if (Result == RepairResultClassification.RepairPartial)
@@ -554,6 +593,12 @@ public interface IRepairExecutor
     Task<RepairExecutionOutcome> ExecuteAsync(RepairExecutionRequest request,
         RepairExecutionOptions options, IProgress<RepairProgress>? progress,
         CancellationToken cancellationToken = default);
+}
+
+public interface IRepairBrokerExecutor
+{
+    Task<RepairExecutionOutcome> ExecuteAsync(RepairIntent persistedIntent, RepairAuthorizationToken consumedToken,
+        IProgress<RepairProgress>? progress, CancellationToken cancellationToken);
 }
 
 public static class RepairExitCodes
@@ -668,6 +713,7 @@ public static class RepairHashing
             Append(builder, volume.IsReady ? "1" : "0");
             Append(builder, volume.IsLocalFixed ? "1" : "0");
             Append(builder, volume.SupportsChkdskScan ? "1" : "0");
+            if (volume.VolumeIdentity is not null) Append(builder, volume.VolumeIdentity);
         }
         return Sha256(builder.ToString());
     }

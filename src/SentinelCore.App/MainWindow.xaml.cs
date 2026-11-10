@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Text;
 using System.Windows;
@@ -35,6 +36,7 @@ public partial class MainWindow : Window
     private readonly Action<Exception> logFailure;
     private readonly RecoveryCenter? recoveryCenter;
     private readonly DebloatManager? debloatManager;
+    private readonly DebloatInventoryObserver? debloatObserver;
     private bool recoveryComposed;
     private bool debloatComposed;
     private readonly FreshnessEngine freshness = new();
@@ -66,11 +68,13 @@ public partial class MainWindow : Window
         IEventInvestigationStore eventStore, IPerformanceSessionStore performanceStore,
         INetworkSessionStore networkStore, IGraphicsInvestigationStore graphicsStore,
         ICorrelationInvestigationStore correlationStore, IMonitoringSessionStore monitoringStore,
-        DebloatManager? debloat = null, RecoveryCenter? recovery = null, Action<Exception>? failureLogger = null)
+        DebloatManager? debloat = null, RecoveryCenter? recovery = null, Action<Exception>? failureLogger = null,
+        DebloatInventoryObserver? debloatObserver = null)
     {
         logFailure = failureLogger ?? App.LogFailure;
         InitializeComponent();
         this.runner = runner;
+        FullAuditOption.IsEnabled = runner.SupportsFull;
         this.hardwareRunner = hardwareRunner;
         this.eventRunner = eventRunner;
         this.performanceRunner = performanceRunner;
@@ -99,7 +103,11 @@ public partial class MainWindow : Window
         InitializeRepairs();
         recoveryCenter = recovery;
         debloatManager = debloat;
+        this.debloatObserver = debloatObserver;
+        if (recovery is not null) DebloatSection.OpenRecoveryRequested += () => Pages.SelectedItem = RecoveryTab;
         Pages.SelectionChanged += OnRecoveryPageSelectionChanged;
+        RecoverySection.AuditRequested += OpenInterruptedAudit;
+        RecoverySection.TweakRecoveryAttempted += () => tweaksLoaded = false;
         if (tweaks is null && debloat is not null) Pages.SelectionChanged += OnTweaksPageSelectionChanged;
         DebloatSection.BecameIdle += (_, _) =>
         {
@@ -139,7 +147,7 @@ public partial class MainWindow : Window
     private void OnNavigate(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string tag } && int.TryParse(tag, out var index) &&
-            index >= 0 && index < NavList.Items.Count)
+            index >= 0 && index < NavList.Items.Count && NavList.Items[index] is ListBoxItem { IsEnabled: true })
         {
             NavList.SelectedIndex = index;
         }
@@ -238,7 +246,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task ReloadAsync()
+    private async Task ReloadAsync(Guid? selectId = null)
     {
         var snapshot = await store.LoadAsync();
         history = snapshot.Audits;
@@ -247,8 +255,9 @@ public partial class MainWindow : Window
         UpdateSummary();
         if (history.FirstOrDefault() is { } latest)
         {
-            DisplayLatest(latest);
-            HistoryList.SelectedIndex = 0;
+            var target = history.FirstOrDefault(audit => audit.Id == selectId) ?? latest;
+            DisplayLatest(target);
+            SelectAuditHistory(target.Id);
             ExecutionStatus.Text = $"{history.Count} auditoria(s) recuperada(s) da memória local. Última tentativa: {Status(latest.Status)}.";
         }
     }
@@ -257,60 +266,122 @@ public partial class MainWindow : Window
     {
         if (busy || hardwareBusy || eventBusy || performanceBusy || networkBusy || graphicsBusy || correlationBusy || monitoringBusy)
             return;
+        if (tweaksBusy || repairsBusy || DebloatSection.IsBusy || RecoverySection.IsBusy)
+        {
+            ExecutionStatus.Text = "Aguarde a operação em andamento antes de iniciar a auditoria.";
+            return;
+        }
+
+        var kind = ReferenceEquals(AuditKindCombo.SelectedItem, FullAuditOption) ? AuditKind.Full : AuditKind.Basic;
+        if (unsaved is null)
+        {
+            var scope = kind == AuditKind.Full
+                ? "A auditoria completa inclui inventário, eventos e WER das últimas 24 h, 30 s de desempenho, " +
+                  "rede sem endereços, gráficos e uma sessão de 5 min de monitoramento local de eventos, CPU/memória, rede e gráficos. " +
+                  "Ao confirmar, você autoriza essa sessão. O monitoramento termina ao final da sessão ou ao cancelar."
+                : "A auditoria básica lê informações do Windows, CPU, memória, placa-mãe, gráficos, discos e volumes.";
+            if (MessageBox.Show(this, scope + "\n\nIniciar a coleta e salvar os resultados neste computador?",
+                    AuditName(kind), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes)
+                return;
+        }
+
         busy = true;
-        RunButton.IsEnabled = false;
-        CancelButton.IsEnabled = true;
+        SetAuditControls(false);
         ReportButton.IsEnabled = false;
         ClearRunWarnings();
-        cancellation = new CancellationTokenSource();
-        AuditProgressBar.Value = 0;
-        UpdateHardwareButtons();
+        var collectionFinished = false;
+        var saved = false;
         try
         {
-            if (unsaved is not null)
+            if (unsaved is null)
             {
-                CancelButton.IsEnabled = false;
-                ExecutionStatus.Text = "Tentando salvar novamente a auditoria pendente…";
-                await store.SaveAsync(unsaved);
-                unsaved = null;
-                await ReloadAsync();
-                return;
+                var collection = new CancellationTokenSource();
+                cancellation = collection;
+                CancelButton.IsEnabled = CancelAuditResultsButton.IsEnabled = true;
+                AuditProgressBar.Value = 0;
+                AuditProgressBar.IsIndeterminate = true;
+                var rows = new ObservableCollection<CollectorRow>();
+                CollectorList.ItemsSource = rows;
+                CollectorDetails.Text = "Os resultados aparecem à medida que as etapas são processadas.";
+                AuditEvidenceActions.Visibility = Visibility.Collapsed;
+                ResultHeading.Text = $"{AuditName(kind)} · Em andamento";
+                ExecutionStatus.Text = LastCheck.Text = "Preparando a auditoria…";
+                NavList.SelectedIndex = Pages.Items.IndexOf(AuditResultsTab);
+
+                var progress = new Progress<AuditProgress>(update =>
+                {
+                    if (collectionFinished || !ReferenceEquals(cancellation, collection)) return;
+                    AuditProgressBar.IsIndeterminate = false;
+                    AuditProgressBar.Maximum = update.Total;
+                    AuditProgressBar.Value = update.Finished;
+                    if (update.IsSaving)
+                    {
+                        collectionFinished = true;
+                        CancelButton.IsEnabled = CancelAuditResultsButton.IsEnabled = false;
+                        ExecutionStatus.Text = LastCheck.Text = "Salvando a auditoria na memória local…";
+                        return;
+                    }
+                    if (update.Result is { } result)
+                    {
+                        rows.Add(new CollectorRow(result));
+                        if (CollectorList.SelectedIndex < 0) CollectorList.SelectedIndex = 0;
+                    }
+                    var activity = update.Activity is { } label ? $" · {CollectorName(label)}" : string.Empty;
+                    var message = $"{CollectorName(update.CollectorId)}{activity} · {Status(update.Status)} · " +
+                        $"{update.Finished}/{update.Total} etapas processadas";
+                    if (!collection.IsCancellationRequested) ExecutionStatus.Text = LastCheck.Text = message;
+                });
+                var token = collection.Token;
+                unsaved = await Task.Run(() => runner.RunAsync(kind, monitoringAuthorized: kind == AuditKind.Full,
+                    progress: progress, cancellationToken: token));
+                saved = runner.PersistsAudits;
             }
 
-            ExecutionStatus.Text = "Auditoria básica em andamento. Nenhuma configuração do Windows será alterada.";
-            var progress = new Progress<AuditProgress>(p =>
-            {
-                AuditProgressBar.Maximum = p.Total;
-                AuditProgressBar.Value = p.Finished;
-                ExecutionStatus.Text = $"{CollectorName(p.CollectorId)}: {Status(p.Status)} · {p.Finished}/{p.Total} categorias";
-            });
-            var audit = await runner.RunBasicAsync(progress, cancellation.Token);
-            unsaved = audit;
+            collectionFinished = true;
+            var audit = unsaved;
             DisplayLatest(audit);
-            CancelButton.IsEnabled = false;
-            ExecutionStatus.Text = "Salvando resultado e atualizando memória…";
-            await store.SaveAsync(audit);
+            CancelButton.IsEnabled = CancelAuditResultsButton.IsEnabled = false;
+            AuditProgressBar.IsIndeterminate = false;
+            AuditProgressBar.Maximum = audit.PlannedSteps ?? Math.Max(1, audit.Results.Count);
+            AuditProgressBar.Value = audit.Results.Count;
+            ExecutionStatus.Text = saved ? "Atualizando históricos locais…" : "Salvando resultado e atualizando memória…";
+            if (!saved) await store.SaveAsync(audit);
             unsaved = null;
-            await ReloadAsync();
-            ExecutionStatus.Text = $"Auditoria {Status(audit.Status).ToLowerInvariant()}. Histórico e relatório salvos localmente.";
+            saved = true;
+            await ReloadAsync(audit.Id);
+            await ReloadAuditEvidenceAsync(audit);
+            ExecutionStatus.Text = $"{AuditName(audit.Kind)} · {Status(audit.Status)}. Histórico e relatório salvos localmente.";
         }
         catch (Exception error)
         {
+            collectionFinished = true;
+            if (error is AuditPersistenceException failure)
+            {
+                unsaved = failure.Audit;
+                DisplayLatest(failure.Audit);
+            }
+            else if (!saved && unsaved is null)
+            {
+                ResultHeading.Text = $"{AuditName(kind)} · Falhou";
+                LastCheck.Text = "A execução não pôde ser confirmada. Consulte o aviso da auditoria.";
+            }
             ShowFailure(unsaved is not null
                 ? "Falha de gravação. O resultado permanece nesta janela; tente salvar novamente"
-                : "A operação não pôde ser concluída", error);
+                : saved ? "Auditoria salva, mas a apresentação do histórico não foi atualizada"
+                : "Não foi possível iniciar ou concluir a auditoria", error);
         }
         finally
         {
             busy = false;
+            RecoverySection.InvalidateAuditHistory();
             cancellation?.Dispose();
             cancellation = null;
-            RunButton.Content = unsaved is not null ? "Tentar salvar auditoria" : "Executar auditoria básica";
-            RunButton.IsEnabled = true;
-            CancelButton.IsEnabled = false;
+            RunButton.Content = unsaved is not null ? "Tentar salvar auditoria" : "Iniciar auditoria";
+            AuditProgressBar.IsIndeterminate = false;
+            CancelButton.IsEnabled = CancelAuditResultsButton.IsEnabled = false;
             ReportButton.IsEnabled = unsaved is null && reportAudit is not null &&
                 File.Exists(store.GetReportPath(reportAudit.Id));
-            UpdateHardwareButtons();
+            SetAuditControls(true);
             if (closingAfterSave && unsaved is null)
             {
                 closingAfterSave = false;
@@ -326,18 +397,55 @@ public partial class MainWindow : Window
     private void OnCancel(object sender, RoutedEventArgs e)
     {
         cancellation?.Cancel();
-        CancelButton.IsEnabled = false;
-        ExecutionStatus.Text = "Cancelamento solicitado. Aguardando a consulta somente de leitura em andamento…";
+        CancelButton.IsEnabled = CancelAuditResultsButton.IsEnabled = false;
+        ExecutionStatus.Text = LastCheck.Text = "Cancelamento solicitado. Aguardando a consulta em andamento…";
+    }
+
+    private void SetAuditControls(bool available)
+    {
+        TweaksNav.IsEnabled = RepairsNav.IsEnabled = RecoveryNav.IsEnabled = available;
+        AuditKindCombo.IsEnabled = available && unsaved is null;
+        OpenAuditResultsButton.IsEnabled = available && HistoryList.SelectedItem is HistoryRow;
+        UpdateAllBusyButtons();
+    }
+
+    private async Task ReloadAuditEvidenceAsync(AuditRecord audit)
+    {
+        var unavailable = new List<string>();
+        foreach (var result in audit.Results)
+        {
+            if (result.Evidence is not { } evidence) continue;
+            try
+            {
+                switch (evidence.Source)
+                {
+                    case CorrelationSource.Hardware: await ReloadHardwareAsync(evidence.RecordId); break;
+                    case CorrelationSource.Events: await ReloadEventsAsync(evidence.RecordId); break;
+                    case CorrelationSource.Performance: await ReloadPerformanceAsync(evidence.RecordId); break;
+                    case CorrelationSource.Network: await ReloadNetworksAsync(evidence.RecordId); break;
+                    case CorrelationSource.Graphics: await ReloadGraphicsAsync(evidence.RecordId); break;
+                    case CorrelationSource.Monitoring: await ReloadMonitoringAsync(evidence.RecordId); break;
+                }
+            }
+            catch (Exception error)
+            {
+                logFailure(error);
+                unavailable.Add(CorrelationGuidance.SourceName(evidence.Source));
+            }
+        }
+        if (unavailable.Count > 0)
+            ShowWarning($"Históricos de módulos não puderam ser atualizados: {string.Join(", ", unavailable)}.");
     }
 
     private void DisplayLatest(AuditRecord audit)
     {
         reportAudit = audit;
-        ResultHeading.Text = $"Última auditoria · {Status(audit.Status)}";
-        LastCheck.Text = $"Última verificação: {Local(audit.CompletedUtc)} · {audit.Duration.TotalSeconds:F1} s · ID {audit.Id:D}";
+        ResultHeading.Text = $"{AuditName(audit.Kind)} · {Status(audit.Status)}";
+        LastCheck.Text = $"{Local(audit.StartedUtc)} a {Local(audit.CompletedUtc)} · {audit.Duration.TotalSeconds:F1} s · ID {audit.Id:D}\n" +
+            AuditSummary(audit);
         CollectorList.ItemsSource = audit.Results.Select(r => new CollectorRow(r)).ToArray();
         CollectorList.SelectedIndex = audit.Results.Count > 0 ? 0 : -1;
-        ReportButton.IsEnabled = File.Exists(store.GetReportPath(audit.Id));
+        ReportButton.IsEnabled = !busy && File.Exists(store.GetReportPath(audit.Id));
     }
 
     private void UpdateSummary()
@@ -348,11 +456,15 @@ public partial class MainWindow : Window
         FullState.Text = FreshnessText(full.State);
         BasicDate.Text = "Último sucesso: " + (basic.LastSuccessUtc is { } last ? Local(last) : "nunca");
         if (basic.ExpiresUtc is { } expires) BasicDate.Text += "\nValidade: " + Local(expires);
-        if (full.LastSuccessUtc is { } fullLast) FullDate.Text = "Último sucesso: " + Local(fullLast);
+        FullDate.Text = "Último sucesso: " + (full.LastSuccessUtc is { } fullLast ? Local(fullLast) : "nunca");
+        if (full.ExpiresUtc is { } fullExpires) FullDate.Text += "\nValidade: " + Local(fullExpires);
+        if (full.LatestAttemptStatus is { } fullAttempt && fullAttempt != DiagnosticStatus.Completed)
+            FullDate.Text += "\nÚltima tentativa: " + Status(fullAttempt);
         if (basic.LatestAttemptStatus is { } attempt && attempt != DiagnosticStatus.Completed)
             BasicDate.Text += "\nÚltima tentativa: " + Status(attempt);
 
         BasicState.Foreground = (Brush)FindResource(basic.State is FreshnessState.Current ? "Accent" : "Warn");
+        FullState.Foreground = (Brush)FindResource(full.State is FreshnessState.Current ? "Accent" : "Warn");
         var latestWithData = history.FirstOrDefault(a => a.Results.Any(r => r.Data is not null));
         var os = latestWithData?.Results.Select(r => r.Data?.OperatingSystem).FirstOrDefault(x => x is not null);
         var ram = latestWithData?.Results.Select(r => r.Data?.Memory).FirstOrDefault(x => x is not null);
@@ -363,17 +475,54 @@ public partial class MainWindow : Window
 
     private void OnCollectorSelected(object sender, SelectionChangedEventArgs e)
     {
-        if (CollectorList.SelectedItem is CollectorRow row)
-            CollectorDetails.Text = CollectorText(row.Result);
+        var result = (CollectorList.SelectedItem as CollectorRow)?.Result;
+        CollectorDetails.Text = result is null ? "Nenhum resultado selecionado." : CollectorText(result);
+        AuditEvidenceActions.Visibility = result?.Evidence is null ? Visibility.Collapsed : Visibility.Visible;
+        AuditEvidenceStatus.Text = string.Empty;
     }
 
     private void OnHistorySelected(object sender, SelectionChangedEventArgs e)
     {
+        OpenAuditResultsButton.IsEnabled = !busy && HistoryList.SelectedItem is HistoryRow;
         if (HistoryList.SelectedItem is not HistoryRow row) return;
         reportAudit = row.Audit;
-        HistoryDetails.Text = $"ID {row.Audit.Id:D}\n{Local(row.Audit.CompletedUtc)}\n{Status(row.Audit.Status)} · versão {row.Audit.SoftwareVersion}\n\n" +
+        HistoryDetails.Text = $"ID {row.Audit.Id:D}\n{Local(row.Audit.StartedUtc)} a {Local(row.Audit.CompletedUtc)}\n" +
+            $"{AuditName(row.Audit.Kind)} · {Status(row.Audit.Status)} · versão {row.Audit.SoftwareVersion}\n{AuditSummary(row.Audit)}\n\n" +
             string.Join("\n\n", row.Audit.Results.Select(CollectorText));
         ReportButton.IsEnabled = !busy && File.Exists(store.GetReportPath(row.Audit.Id));
+    }
+
+    private void SelectAuditHistory(Guid id)
+    {
+        var row = HistoryList.Items.OfType<HistoryRow>().FirstOrDefault(item => item.Audit.Id == id);
+        HistoryList.SelectedItem = row;
+        if (row is not null) HistoryList.ScrollIntoView(row);
+    }
+
+    private void OpenInterruptedAudit(Guid id)
+    {
+        if (busy) return;
+        if (!history.Any(audit => audit.Id == id))
+        {
+            ShowWarning("Auditoria interrompida indisponível no histórico carregado.");
+            return;
+        }
+        NavList.SelectedIndex = Pages.Items.IndexOf(HistoryTab);
+        SelectAuditHistory(id);
+    }
+
+    private void OnOpenAuditResults(object sender, RoutedEventArgs e)
+    {
+        if (busy || HistoryList.SelectedItem is not HistoryRow row) return;
+        DisplayLatest(row.Audit);
+        NavList.SelectedIndex = Pages.Items.IndexOf(AuditResultsTab);
+    }
+
+    private void OnOpenAuditEvidence(object sender, RoutedEventArgs e)
+    {
+        if (CollectorList.SelectedItem is not CollectorRow { Result.Evidence: { } evidence }) return;
+        AuditEvidenceStatus.Text = busy ? "Aguarde a atualização dos históricos da auditoria."
+            : OpenDiagnosticRecord(evidence.Source, evidence.RecordId) ?? string.Empty;
     }
 
     private async void OnOpenReport(object sender, RoutedEventArgs e)
@@ -415,8 +564,9 @@ public partial class MainWindow : Window
             e.Cancel = true;
             repairClosingAfterSave = true;
             repairCancellation?.Cancel();
-            RepairsStatusText.Text = "Encerrando: aguarde a execução sintética e a gravação do registro de reparo. " +
-                "A interrupção real de uma ferramenta oficial não é garantida.";
+            RepairsStatusText.Text = repairCommitted
+                ? "Encerrando após o resultado do broker e a gravação do registro de reparo."
+                : "Encerrando após a gravação do registro de reparo. A interrupção real de uma ferramenta oficial não é garantida.";
             return;
         }
 
@@ -1131,6 +1281,11 @@ public partial class MainWindow : Window
             foreach (var (name, value) in MarkdownReport.Fields(data))
                 text.AppendLine($"{name}: {value ?? "Indisponível"}");
         }
+        else if (result.Evidence is { } evidence)
+        {
+            text.AppendLine(evidence.Summary);
+            text.AppendLine($"Registro de origem: {evidence.RecordId:D}");
+        }
         else
         {
             text.AppendLine("Dados indisponíveis.");
@@ -1182,6 +1337,12 @@ public partial class MainWindow : Window
         "board-bios" => "Placa-mãe e BIOS",
         "graphics" => "Placa de vídeo",
         "storage" => "Armazenamento",
+        "audit-hardware" => "Inventário de hardware",
+        "audit-events" => "Estabilidade e eventos",
+        "audit-performance" => "Desempenho",
+        "audit-network" => "Rede",
+        "audit-graphics" => "Gráficos e GPU",
+        "audit-monitoring" => "Monitoramento",
         _ => id
     };
 
@@ -1209,6 +1370,7 @@ public partial class MainWindow : Window
         DiagnosticStatus.Partial => "Parcial",
         DiagnosticStatus.Failed => "Falhou",
         DiagnosticStatus.Cancelled => "Cancelada",
+        DiagnosticStatus.Interrupted => "Interrompida",
         _ => status.ToString()
     };
 
@@ -1218,10 +1380,23 @@ public partial class MainWindow : Window
         FreshnessState.Current => "Atualizada",
         FreshnessState.Expiring => "Próxima do vencimento",
         FreshnessState.Outdated => "Desatualizada",
-        FreshnessState.Unsuccessful => "Parcial, falha ou cancelada",
+        FreshnessState.Unsuccessful => "Sem auditoria concluída",
         FreshnessState.InvalidDate => "Data futura inválida",
         _ => state.ToString()
     };
+
+    private static string AuditName(AuditKind kind) => kind == AuditKind.Full ? "Auditoria completa" : "Auditoria básica";
+
+    private static string AuditSummary(AuditRecord audit)
+    {
+        var planned = audit.PlannedSteps ?? audit.Results.Count;
+        var summary = $"{audit.Results.Count}/{planned} etapas registradas · " +
+            $"{audit.Results.Count(r => r.Status == DiagnosticStatus.Completed)} concluídas · " +
+            $"{audit.Results.Count(r => r.Status == DiagnosticStatus.Partial)} parciais · " +
+            $"{audit.Results.Count(r => r.Status == DiagnosticStatus.Failed)} indisponíveis ou com falha · " +
+            $"{audit.Results.Count(r => r.Status == DiagnosticStatus.Cancelled)} canceladas";
+        return audit.InterruptionReason is { } reason ? $"{summary}\n{reason}" : summary;
+    }
 
     private sealed record CollectorRow(CollectorResult Result)
     {
@@ -1232,7 +1407,7 @@ public partial class MainWindow : Window
 
     private sealed record HistoryRow(AuditRecord Audit)
     {
-        public string Label => $"{Audit.CompletedUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}  ·  {Status(Audit.Status)}";
+        public string Label => $"{Audit.CompletedUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss} · {AuditName(Audit.Kind)} · {Status(Audit.Status)}";
         public override string ToString() => Label;
     }
 
