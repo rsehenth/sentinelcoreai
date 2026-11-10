@@ -69,9 +69,10 @@ public partial class MainWindow : Window
         INetworkSessionStore networkStore, IGraphicsInvestigationStore graphicsStore,
         ICorrelationInvestigationStore correlationStore, IMonitoringSessionStore monitoringStore,
         DebloatManager? debloat = null, RecoveryCenter? recovery = null, Action<Exception>? failureLogger = null,
-        DebloatInventoryObserver? debloatObserver = null)
+        DebloatInventoryObserver? debloatObserver = null, ProductOperationCoordinator? operations = null)
     {
         logFailure = failureLogger ?? App.LogFailure;
+        this.operations = operations ?? new ProductOperationCoordinator();
         InitializeComponent();
         this.runner = runner;
         FullAuditOption.IsEnabled = runner.SupportsFull;
@@ -104,10 +105,19 @@ public partial class MainWindow : Window
         recoveryCenter = recovery;
         debloatManager = debloat;
         this.debloatObserver = debloatObserver;
+        DebloatSection.BeginOperation = RecoverySection.BeginOperation = TryBeginProductOperation;
+        DebloatSection.HistoryChanged += InvalidateMaintenanceHistory;
+        RecoverySection.BecameIdle += () =>
+        {
+            if (!recoveryClosingAfterSave) return;
+            recoveryClosingAfterSave = false;
+            Dispatcher.BeginInvoke(new Action(Close));
+        };
+        this.operations.Changed += OnProductOperationChanged;
         if (recovery is not null) DebloatSection.OpenRecoveryRequested += () => Pages.SelectedItem = RecoveryTab;
         Pages.SelectionChanged += OnRecoveryPageSelectionChanged;
         RecoverySection.AuditRequested += OpenInterruptedAudit;
-        RecoverySection.TweakRecoveryAttempted += () => tweaksLoaded = false;
+        RecoverySection.TweakRecoveryAttempted += InvalidateMaintenanceHistory;
         if (tweaks is null && debloat is not null) Pages.SelectionChanged += OnTweaksPageSelectionChanged;
         DebloatSection.BecameIdle += (_, _) =>
         {
@@ -122,7 +132,11 @@ public partial class MainWindow : Window
         SizeChanged += OnShellSizeChanged;
         freshnessTimer.Tick += (_, _) => UpdateSummary();
         freshnessTimer.Start();
-        Closed += (_, _) => freshnessTimer.Stop();
+        Closed += (_, _) =>
+        {
+            freshnessTimer.Stop();
+            this.operations.Changed -= OnProductOperationChanged;
+        };
     }
 
     private void OnNavChanged(object sender, SelectionChangedEventArgs e)
@@ -200,6 +214,8 @@ public partial class MainWindow : Window
 
     private async void OnLoaded(object sender, RoutedEventArgs e)
     {
+        using var operation = TryBeginProductOperation();
+        if (operation is null) return;
         NavList.IsEnabled = false;
         Pages.IsEnabled = false;
         RunButton.IsEnabled = false;
@@ -246,9 +262,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task ReloadAsync(Guid? selectId = null)
+    private async Task ReloadAsync(Guid? selectId = null, bool readOnly = false)
     {
-        var snapshot = await store.LoadAsync();
+        var snapshot = readOnly && store is IAuditHistoryReader reader
+            ? await reader.ReadAuditHistoryAsync() : await store.LoadAsync();
         history = snapshot.Audits;
         HistoryList.ItemsSource = history.Select(audit => new HistoryRow(audit)).ToArray();
         SetIntegrity("Auditorias", snapshot.Warnings);
@@ -264,6 +281,8 @@ public partial class MainWindow : Window
 
     private async void OnRun(object sender, RoutedEventArgs e)
     {
+        using var operation = TryBeginProductOperation();
+        if (operation is null) return;
         if (busy || hardwareBusy || eventBusy || performanceBusy || networkBusy || graphicsBusy || correlationBusy || monitoringBusy)
             return;
         if (tweaksBusy || repairsBusy || DebloatSection.IsBusy || RecoverySection.IsBusy)
@@ -499,12 +518,20 @@ public partial class MainWindow : Window
         if (row is not null) HistoryList.ScrollIntoView(row);
     }
 
-    private void OpenInterruptedAudit(Guid id)
+    private async void OpenInterruptedAudit(Guid id)
     {
         if (busy) return;
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
+        try { await ReloadAsync(id, readOnly: true); }
+        catch (Exception error)
+        {
+            ShowFailure("Não foi possível atualizar a origem da auditoria", error);
+            return;
+        }
         if (!history.Any(audit => audit.Id == id))
         {
-            ShowWarning("Auditoria interrompida indisponível no histórico carregado.");
+            ShowWarning("Auditoria indisponível no histórico carregado.");
             return;
         }
         NavList.SelectedIndex = Pages.Items.IndexOf(HistoryTab);
@@ -518,11 +545,12 @@ public partial class MainWindow : Window
         NavList.SelectedIndex = Pages.Items.IndexOf(AuditResultsTab);
     }
 
-    private void OnOpenAuditEvidence(object sender, RoutedEventArgs e)
+    private async void OnOpenAuditEvidence(object sender, RoutedEventArgs e)
     {
         if (CollectorList.SelectedItem is not CollectorRow { Result.Evidence: { } evidence }) return;
-        AuditEvidenceStatus.Text = busy ? "Aguarde a atualização dos históricos da auditoria."
-            : OpenDiagnosticRecord(evidence.Source, evidence.RecordId) ?? string.Empty;
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
+        AuditEvidenceStatus.Text = await OpenDiagnosticRecordAsync(evidence.Source, evidence.RecordId) ?? string.Empty;
     }
 
     private async void OnOpenReport(object sender, RoutedEventArgs e)
@@ -545,6 +573,13 @@ public partial class MainWindow : Window
 
     private void OnClosing(object? sender, CancelEventArgs e)
     {
+        if (RecoverySection.IsBusy)
+        {
+            e.Cancel = true;
+            recoveryClosingAfterSave = true;
+            RecoverySection.CancelRead();
+            return;
+        }
         if (DebloatSection.IsBusy)
         {
             e.Cancel = true;
@@ -555,6 +590,7 @@ public partial class MainWindow : Window
         if (tweaksBusy)
         {
             e.Cancel = true;
+            operationClosingAfterSave = true;
             TweakStatusText.Text = "Encerrando: aguarde a operação de tweak ou recuperação e o journal durável.";
             return;
         }
@@ -562,6 +598,7 @@ public partial class MainWindow : Window
         if (repairsBusy)
         {
             e.Cancel = true;
+            operationClosingAfterSave = true;
             repairClosingAfterSave = true;
             repairCancellation?.Cancel();
             RepairsStatusText.Text = repairCommitted
@@ -633,9 +670,16 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (operations.IsBusy)
+        {
+            e.Cancel = true;
+            operationClosingAfterSave = true;
+            return;
+        }
+
         if (unsaved is not null || unsavedHardware is not null || unsavedEvent is not null ||
             unsavedPerformance is not null || unsavedNetwork is not null || unsavedGraphics is not null ||
-            unsavedCorrelation is not null || unsavedMonitoring is not null)
+            unsavedCorrelation is not null || unsavedMonitoring is not null || repairPersistenceFailed)
         {
             e.Cancel = true;
             var pending = new List<string>();
@@ -647,6 +691,7 @@ public partial class MainWindow : Window
             if (unsavedGraphics is not null) pending.Add("há uma investigação gráfica sem confirmação de gravação");
             if (unsavedCorrelation is not null) pending.Add("há uma correlação sem confirmação de gravação");
             if (unsavedMonitoring is not null) pending.Add("há uma sessão de monitoramento sem confirmação de gravação");
+            if (repairPersistenceFailed) pending.Add("há um reparo sem confirmação de gravação; use Tentar salvar registro");
             ShowWarning($"{string.Join("; ", pending)}. Use os botões de nova tentativa antes de fechar.");
         }
     }
@@ -938,6 +983,8 @@ public partial class MainWindow : Window
 
     private async void OnHardwareRun(object sender, RoutedEventArgs e)
     {
+        using var operation = TryBeginProductOperation();
+        if (operation is null) return;
         if (hardwareBusy || busy || eventBusy || performanceBusy || networkBusy || graphicsBusy || correlationBusy || monitoringBusy)
             return;
         hardwareBusy = true;
@@ -1026,6 +1073,8 @@ public partial class MainWindow : Window
 
     private async void OnHardwareReload(object sender, RoutedEventArgs e)
     {
+        using var operation = TryBeginProductOperation();
+        if (operation is null) return;
         if (hardwareBusy || busy || eventBusy || performanceBusy || networkBusy || graphicsBusy || correlationBusy || monitoringBusy)
             return;
         hardwareBusy = true;
@@ -1129,7 +1178,7 @@ public partial class MainWindow : Window
     private void UpdateHardwareButtons()
     {
         var previous = selectedHardware is { } current ? PreviousHardwareSnapshot(current) : null;
-        var idle = !hardwareBusy && !busy && !eventBusy && !performanceBusy && !networkBusy && !graphicsBusy &&
+        var idle = !operations.IsBusy && !hardwareBusy && !busy && !eventBusy && !performanceBusy && !networkBusy && !graphicsBusy &&
             !correlationBusy && !monitoringBusy;
         HardwareRunButton.IsEnabled = idle;
         HardwareReloadButton.IsEnabled = idle;
@@ -1362,17 +1411,7 @@ public partial class MainWindow : Window
         _ => id
     };
 
-    private static string Status(DiagnosticStatus status) => status switch
-    {
-        DiagnosticStatus.Pending => "Pendente",
-        DiagnosticStatus.Running => "Em andamento",
-        DiagnosticStatus.Completed => "Concluída",
-        DiagnosticStatus.Partial => "Parcial",
-        DiagnosticStatus.Failed => "Falhou",
-        DiagnosticStatus.Cancelled => "Cancelada",
-        DiagnosticStatus.Interrupted => "Interrompida",
-        _ => status.ToString()
-    };
+    private static string Status(DiagnosticStatus status) => UiText.Diagnostic(status);
 
     private static string FreshnessText(FreshnessState state) => state switch
     {

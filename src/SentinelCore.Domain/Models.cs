@@ -37,6 +37,9 @@ public sealed record CollectorResult(Guid AuditId, string CollectorId, string Co
 
 public sealed record AuditEvidenceReference(CorrelationSource Source, Guid RecordId, string Summary)
 {
+    public static bool IsDiagnosticModule(CorrelationSource source) => source is CorrelationSource.Hardware
+        or CorrelationSource.Events or CorrelationSource.Performance or CorrelationSource.Network
+        or CorrelationSource.Graphics or CorrelationSource.Monitoring;
     public static string CollectorIdFor(CorrelationSource source) => $"audit-{source.ToString().ToLowerInvariant()}";
 }
 
@@ -80,6 +83,12 @@ public interface IAuditCheckpointStore
 {
     Task<IAuditRunLease> AcquireAuditLeaseAsync(Guid auditId);
     Task<StoreSnapshot> ReadInterruptedAuditsAsync(CancellationToken cancellationToken = default);
+}
+
+/// <summary>Reads authoritative audit history without rebuilding indexes or projections.</summary>
+public interface IAuditHistoryReader
+{
+    Task<StoreSnapshot> ReadAuditHistoryAsync(CancellationToken cancellationToken = default);
 }
 
 public interface IAuditRunLease : IDisposable

@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.Security.Principal;
 using System.Text;
 using Microsoft.Win32.SafeHandles;
@@ -14,30 +13,8 @@ internal static class BrokerWindows
     internal const string AppName = "SentinelCoreAI.exe";
     internal const string BrokerName = "SentinelCore.RepairBroker.exe";
     internal const string PipePrefix = "SentinelCore.Repair.";
-    // Future packaging must pin the reviewed standalone AOT image before the launcher can elevate it.
-    private static readonly string? BrokerImageSha256 = null;
-
     internal static string InstallDirectory => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "SentinelCoreAI");
-
-    internal static FileStream OpenPinnedBrokerImage(string imagePath)
-    {
-        if (BrokerImageSha256 is null)
-            throw new UnauthorizedAccessException("Imagem do broker ainda não aprovada para elevação.");
-        var image = new FileStream(imagePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-        try
-        {
-            if (!string.Equals(Convert.ToHexString(SHA256.HashData(image)), BrokerImageSha256,
-                    StringComparison.Ordinal))
-                throw new UnauthorizedAccessException("Imagem do broker diverge da distribuição aprovada.");
-            return image;
-        }
-        catch
-        {
-            image.Dispose();
-            throw;
-        }
-    }
 
     internal static string InstalledImage(string name)
     {

@@ -9,4 +9,8 @@
     <ProjectReference Include="../SentinelCore.Application/SentinelCore.Application.csproj" />
     <ProjectReference Include="../SentinelCore.Infrastructure.Repairs/SentinelCore.Infrastructure.Repairs.csproj" />
   </ItemGroup>
+  <Target Name="RequireClosedBrokerPackaging" BeforeTargets="PrepareForPublish" Condition="'$(PublishAot)' == 'true'">
+    <Error Condition="'$(SentinelCoreRealTweaks)' != 'false' or '$(SentinelCoreRealRepairs)' != 'false' or '$(SentinelCoreRealDebloat)' != 'false'"
+           Text="Empacotamento do broker nesta fase exige todos os gates de build fechados." />
+  </Target>
 </Project>

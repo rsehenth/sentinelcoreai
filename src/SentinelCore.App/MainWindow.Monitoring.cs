@@ -278,6 +278,8 @@ public partial class MainWindow
 
     private async void OnMonitoringStart(object sender, RoutedEventArgs e)
     {
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
         if (monitoringBusy || busy || hardwareBusy || eventBusy || performanceBusy || networkBusy || graphicsBusy ||
             correlationBusy)
             return;
@@ -543,6 +545,8 @@ public partial class MainWindow
     /// </summary>
     private async void OnMonitoringCorrelate(object sender, RoutedEventArgs e)
     {
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
         if (monitoringBusy || correlationBusy || busy || hardwareBusy || eventBusy || performanceBusy ||
             networkBusy || graphicsBusy)
             return;
@@ -600,7 +604,7 @@ public partial class MainWindow
 
     private void UpdateMonitoringButtons()
     {
-        var idle = !monitoringBusy && !busy && !hardwareBusy && !eventBusy && !performanceBusy &&
+        var idle = !operations.IsBusy && !monitoringBusy && !busy && !hardwareBusy && !eventBusy && !performanceBusy &&
             !networkBusy && !graphicsBusy && !correlationBusy;
         var authorized = MonitoringAuthorizationCheck.IsChecked == true &&
             SelectedMonitoringSources() != MonitoringSources.None;

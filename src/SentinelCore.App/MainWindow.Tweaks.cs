@@ -84,6 +84,8 @@ public partial class MainWindow
         bool ignoreBusy = false)
     {
         if (tweaks is null || (tweaksBusy && !ignoreBusy)) return;
+        using var productLease = ignoreBusy ? null : TryBeginProductOperation();
+        if (!ignoreBusy && productLease is null) return;
         tweaksBusy = true;
         tweakSimulation = null;
         TweakConfirmationText.Text = string.Empty;
@@ -179,6 +181,8 @@ public partial class MainWindow
 
     private async void OnTweakSearchModePrepare(object sender, RoutedEventArgs e)
     {
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
         if (tweaks is null || searchModes is null || tweaksBusy) return;
         if (TweakSearchModeCombo.SelectedItem is not TaskbarSearchMode mode) return;
         tweaksBusy = true;
@@ -206,6 +210,8 @@ public partial class MainWindow
 
     private async void OnTweakDetails(object sender, RoutedEventArgs e)
     {
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
         if (tweaks is null || tweaksBusy) return;
         if (sender is not FrameworkElement { DataContext: TweakCardRow { OperationId: var operationId } }) return;
         tweaksBusy = true;
@@ -248,6 +254,8 @@ public partial class MainWindow
 
     private async void OnTweakAuthorize(object sender, RoutedEventArgs e)
     {
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
         if (tweaks is null || tweaksBusy || tweakSimulation is null) return;
         var plan = tweakSimulation.Plan;
         var expected = TweakManager.BuildConfirmationText(plan);
@@ -305,6 +313,8 @@ public partial class MainWindow
 
     private async void OnTweakPreviewRecovery(object sender, RoutedEventArgs e)
     {
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
         if (tweaks is null || tweaksBusy || tweakSelectedTransaction is null) return;
         var transactionId = tweakSelectedTransaction.TransactionId;
         tweaksBusy = true;
@@ -336,6 +346,8 @@ public partial class MainWindow
 
     private async void OnTweakRollback(object sender, RoutedEventArgs e)
     {
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
         if (tweaks is null || tweaksBusy || tweakSelectedTransaction is null || tweakPreview is null) return;
         var transactionId = tweakSelectedTransaction.TransactionId;
         var expected = TweakManager.BuildRecoveryConfirmationText(transactionId);
@@ -388,7 +400,8 @@ public partial class MainWindow
     private void UpdateTweakButtons()
     {
         if (TweakAuthorizeButton is null) return;
-        var idle = !tweaksBusy;
+        var idle = !operations.IsBusy && !tweaksBusy;
+        TweaksCardsHost.IsEnabled = idle;
         TweaksRefreshButton.IsEnabled = idle && tweaks is not null;
         TweakHistoryList.IsEnabled = idle;
         var authorizeText = tweakSimulation is null

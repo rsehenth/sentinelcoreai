@@ -3657,7 +3657,7 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                 r.StartedUtc > r.CompletedUtc || r.Duration < TimeSpan.Zero ||
                 (r.Evidence is null && r.Status == DiagnosticStatus.Completed && (r.Data is null || r.Limitations.Count > 0)) ||
                 (r.Evidence is { } evidence && (legacy || audit.Kind != AuditKind.Full || r.Data is not null ||
-                    !Enum.IsDefined(evidence.Source) || evidence.Source == CorrelationSource.Audits ||
+                    !AuditEvidenceReference.IsDiagnosticModule(evidence.Source) ||
                     evidence.RecordId == Guid.Empty || evidence.RecordId == audit.Id ||
                     r.CollectorId != AuditEvidenceReference.CollectorIdFor(evidence.Source) ||
                     string.IsNullOrWhiteSpace(evidence.Summary) || evidence.Summary.Length > 512))) ||

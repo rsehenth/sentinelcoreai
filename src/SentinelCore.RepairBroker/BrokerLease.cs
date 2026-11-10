@@ -2,9 +2,6 @@ using System.Text.Json;
 
 namespace SentinelCore.RepairBroker;
 
-internal sealed record BrokerClaim(Guid ExecutionId, Guid AuthorizationId, DateTimeOffset ExpiresUtc);
-internal sealed record BrokerLeaseState(int Version, Guid? ActiveExecution, BrokerClaim[] Recent);
-
 /// <summary>Machine-wide exclusion and replay fence. It contains no repair results or user data.</summary>
 internal sealed class BrokerLease : IDisposable
 {

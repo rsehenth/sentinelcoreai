@@ -71,6 +71,14 @@ internal static class UiText
         : Enum.TryParse<RepairState>(state, out var repair) && Enum.IsDefined(repair) ? RepairPresentation.StateName(repair)
         : state;
 
+    public static string Diagnostic(DiagnosticStatus status) => status switch
+    {
+        DiagnosticStatus.Pending => "Pendente", DiagnosticStatus.Running => "Em andamento",
+        DiagnosticStatus.Completed => "Concluída", DiagnosticStatus.Partial => "Parcial",
+        DiagnosticStatus.Failed => "Falhou", DiagnosticStatus.Cancelled => "Cancelada",
+        DiagnosticStatus.Interrupted => "Interrompida", _ => "Estado desconhecido"
+    };
+
     /// <summary>Estado observado já formatado pela camada de segurança; só traduz o tipo "Unknown" de valor inexistente.</summary>
     public static string Observed(string text) => text.Replace("Unknown ausente", "valor ausente", StringComparison.Ordinal);
 }

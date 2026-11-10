@@ -17,6 +17,21 @@ public partial class RecoveryCenterView : UserControl
     private bool busy;
     private bool loaded;
     private DateTime loadedAt;
+    private bool operationBlocked;
+    private bool closeRequested;
+    private readonly ProductOperationCoordinator standaloneOperations = new();
+    internal Func<IDisposable?>? BeginOperation { get; set; }
+    internal event Action? BecameIdle;
+    internal void CancelRead()
+    {
+        closeRequested = true;
+        readCancellation?.Cancel();
+    }
+    internal void SetOperationBlocked(bool blocked)
+    {
+        operationBlocked = blocked;
+        UpdateButtons();
+    }
     internal bool IsBusy => busy;
     internal event Action<Guid>? AuditRequested;
     internal void InvalidateAuditHistory() => loaded = false;
@@ -90,9 +105,12 @@ public partial class RecoveryCenterView : UserControl
         return true;
     }
 
-    private async Task RefreshAsync(Guid? tweakId)
+    private async Task RefreshAsync(Guid? tweakId, bool ownsOperation = false)
     {
-        if (center is null || busy) return;
+        if (center is null || busy || closeRequested) return;
+        using var productLease = ownsOperation ? null
+            : BeginOperation is null ? standaloneOperations.Acquire() : BeginOperation();
+        if (!ownsOperation && productLease is null) return;
         var selected = (HistoryGrid.SelectedItem as HistoryRow)?.Operation;
         busy = true;
         readCancellation = new CancellationTokenSource();
@@ -134,8 +152,11 @@ public partial class RecoveryCenterView : UserControl
             updating = false;
             busy = false;
             UpdateButtons();
+            BecameIdle?.Invoke();
             // Loaded can run before the previous read has observed Unloaded's cancellation.
-            if (interrupted && IsLoaded) _ = RefreshAsync();
+            if (interrupted && IsLoaded && !closeRequested)
+                _ = Dispatcher.BeginInvoke(new Action(() => _ = RefreshAsync()));
+            closeRequested = false;
         }
     }
 
@@ -178,17 +199,19 @@ public partial class RecoveryCenterView : UserControl
                     : "Distribuição não determinada; fontes incompletas.")
         };
         SummaryText.Text = RecoveryCenterPresentation.Summary(snapshot);
-        if (snapshot.InterruptedAudits is { } audits)
+        if ((snapshot.Audits ?? snapshot.InterruptedAudits) is { } audits)
         {
             AuditInterruptionsPanel.Visibility = Visibility.Visible;
             AuditInterruptionsList.ItemsSource = audits.Audits.Select(audit => new InterruptedAuditRow(audit)).ToArray();
             AuditInterruptionsSummary.Text = audits.Warnings.Count > 0
                 ? string.Join(Environment.NewLine, audits.Warnings)
-                : audits.Audits.Count == 0 ? "Nenhuma interrupção encontrada nos checkpoints carregados."
-                : $"{audits.Audits.Count} auditoria(s) interrompida(s). Abra o histórico para consultar as evidências confirmadas.";
+                : audits.Audits.Count == 0 ? "Nenhuma auditoria encontrada nos registros carregados."
+                : $"{audits.Audits.Count} auditoria(s) carregada(s), incluindo " +
+                  $"{audits.Audits.Count(audit => audit.Status == DiagnosticStatus.Interrupted)} interrompida(s). Abra a origem para consultar as evidências.";
         }
         var warnings = snapshot.Sources.SelectMany(source => source.Warnings.Select(w => $"{RecoveryCenterPresentation.Label(source.Module)}: {w}"))
             .Concat(snapshot.Warnings)
+            .Concat((snapshot.Audits ?? snapshot.InterruptedAudits)?.Warnings ?? [])
             .Concat(snapshot.Sources.Where(s => s.Status != RecoveryEvidenceStatus.Complete)
                 .Select(s => $"{RecoveryCenterPresentation.Label(s.Module)}: fonte {s.Status}; contagem total indisponível."))
             .Distinct().ToArray();
@@ -203,7 +226,8 @@ public partial class RecoveryCenterView : UserControl
 
     private sealed record InterruptedAuditRow(AuditRecord Audit)
     {
-        public string Label => $"Abrir auditoria · {Audit.CompletedUtc.ToLocalTime():dd/MM/yyyy HH:mm} · {Audit.Id:D}";
+        public string Label => $"Abrir auditoria · {Audit.CompletedUtc.ToLocalTime():dd/MM/yyyy HH:mm} · " +
+            $"{(Audit.Kind == AuditKind.Basic ? "Básica" : "Completa")} · {UiText.Diagnostic(Audit.Status)} · {Audit.Id:D}";
     }
 
     private void OnFilterChanged(object sender, RoutedEventArgs e)
@@ -297,12 +321,12 @@ public partial class RecoveryCenterView : UserControl
         var supported = center?.CanAnalyze(operation) == true;
         var canRecover = supported && operation is
             { Capability: RecoveryCapability.PotentiallyAvailable, Preview.CanRecover: true };
-        RefreshButton.IsEnabled = center is not null && !busy;
-        HistoryGrid.IsEnabled = !busy;
-        ClearFiltersButton.IsEnabled = !busy;
-        AnalyzeButton.IsEnabled = !busy && supported;
-        ConfirmationText.IsEnabled = !busy && canRecover;
-        RecoverButton.IsEnabled = !busy && canRecover && operation is not null &&
+        RefreshButton.IsEnabled = center is not null && !busy && !operationBlocked;
+        HistoryGrid.IsEnabled = !busy && !operationBlocked;
+        ClearFiltersButton.IsEnabled = !busy && !operationBlocked;
+        AnalyzeButton.IsEnabled = !busy && !operationBlocked && supported;
+        ConfirmationText.IsEnabled = !busy && !operationBlocked && canRecover;
+        RecoverButton.IsEnabled = !busy && !operationBlocked && canRecover && operation is not null &&
             string.Equals(ConfirmationText.Text, TweakManager.BuildRecoveryConfirmationText(operation.Id), StringComparison.Ordinal);
     }
 
@@ -310,6 +334,8 @@ public partial class RecoveryCenterView : UserControl
     {
         var operation = (HistoryGrid.SelectedItem as HistoryRow)?.Operation;
         if (busy || center is null || snapshot is null || !center.CanAnalyze(operation)) return;
+        using var productLease = BeginOperation is null ? standaloneOperations.Acquire() : BeginOperation();
+        if (productLease is null) return;
         busy = true;
         var pending = operation! with { Preview = null, Capability = RecoveryCapability.Blocked };
         snapshot = snapshot with { Operations = snapshot.Operations.Select(o =>
@@ -337,13 +363,15 @@ public partial class RecoveryCenterView : UserControl
             ApplyFilter(failed);
             StatusText.Text = "Análise indisponível; recuperação bloqueada: " + error.Message;
         }
-        finally { busy = false; UpdateButtons(); }
+        finally { busy = false; closeRequested = false; UpdateButtons(); BecameIdle?.Invoke(); }
     }
 
     private async void OnRecover(object sender, RoutedEventArgs e)
     {
         var operation = (HistoryGrid.SelectedItem as HistoryRow)?.Operation;
         if (busy || center is null || !center.CanAnalyze(operation) || !RecoverButton.IsEnabled) return;
+        using var productLease = BeginOperation is null ? standaloneOperations.Acquire() : BeginOperation();
+        if (productLease is null) return;
         var confirmation = ConfirmationText.Text;
         busy = true;
         StatusText.Text = "Recuperação em andamento. Aguarde a verificação dos alvos…";
@@ -363,8 +391,11 @@ public partial class RecoveryCenterView : UserControl
             busy = false;
             TweakRecoveryAttempted?.Invoke();
             UpdateButtons();
+            BecameIdle?.Invoke();
         }
-        await RefreshAsync();
+        if (closeRequested) { closeRequested = false; return; }
+        // Keep the recovery reservation until the authoritative history has also been reloaded.
+        await RefreshAsync(null, ownsOperation: true);
         StatusText.Text = resultText;
     }
 

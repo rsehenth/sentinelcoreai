@@ -100,11 +100,15 @@ public sealed class RecoveryCenter
             }
             unique.Add(group.First());
         }
-        var audits = history is IAuditCheckpointStore auditCheckpoints
+        var auditHistory = history is IAuditHistoryReader auditReader
+            ? await auditReader.ReadAuditHistoryAsync(cancellationToken).ConfigureAwait(false) : null;
+        var audits = auditHistory is not null
+            ? new StoreSnapshot(auditHistory.Audits.Where(audit => audit.Status == DiagnosticStatus.Interrupted).ToArray(), auditHistory.Warnings)
+            : history is IAuditCheckpointStore auditCheckpoints
             ? await auditCheckpoints.ReadInterruptedAuditsAsync(cancellationToken).ConfigureAwait(false)
             : null;
         return new(unique.OrderByDescending(o => o.AtUtc).ThenBy(o => o.Module).ThenBy(o => o.Id).ToArray(),
-            sources, warnings.Distinct().ToArray()) { InterruptedAudits = audits };
+            sources, warnings.Distinct().ToArray()) { InterruptedAudits = audits, Audits = auditHistory };
     }
 
     public static IReadOnlyList<RecoveryOperation> Filter(RecoveryCenterSnapshot snapshot, RecoveryCenterFilter filter)

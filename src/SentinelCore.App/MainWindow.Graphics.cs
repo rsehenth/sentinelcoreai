@@ -226,6 +226,8 @@ public partial class MainWindow
 
     private async void OnGraphicsRun(object sender, RoutedEventArgs e)
     {
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
         if (graphicsBusy || busy || hardwareBusy || eventBusy || performanceBusy || networkBusy || correlationBusy || monitoringBusy)
             return;
 
@@ -429,7 +431,7 @@ public partial class MainWindow
 
     private void UpdateGraphicsButtons()
     {
-        var idle = !graphicsBusy && !busy && !hardwareBusy && !eventBusy && !performanceBusy && !networkBusy &&
+        var idle = !operations.IsBusy && !graphicsBusy && !busy && !hardwareBusy && !eventBusy && !performanceBusy && !networkBusy &&
             !correlationBusy && !monitoringBusy;
         GraphicsRunButton.IsEnabled = idle;
         GraphicsCancelButton.IsEnabled = graphicsBusy && !graphicsSaving &&

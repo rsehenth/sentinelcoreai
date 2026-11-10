@@ -1,5 +1,25 @@
 # Execução
 
+## Etapa 6 — integração geral (10/11/2026)
+
+- [x] Reconhecer HEAD/branch/árvore, ler a transferência e mapear o código existente com Graphify e fontes.
+- [x] Compartilhar reserva entre diagnósticos, monitoramento, Tweaks, Debloat e Central até gravação/releitura.
+- [x] Integrar fechamento durante recuperação/leitura e preservar resultado R1 sem gravação.
+- [x] Atualizar origem de evidências por GUID e consolidar auditorias na Central sem reconstruir SQLite.
+- [x] Separar cliente IPC da imagem do broker; preparar perfil Native AOT e pin compilado sem ativação.
+- [x] Compilar Debug e Release com lockfiles; não executar testes ou binários.
+- [x] Preservar cinco gates, T0, esquema 12, históricos e composição sintética.
+- [x] Atualizar arquitetura, segurança, roadmap, validação, instruções e relatório técnico.
+- [x] Fechamento formal: revisar diff completo e novos arquivos, conferir requisitos 8.1–8.11 com a
+  transferência integral e registrar inventário Git, segurança, riscos e pendências sem novo build/teste.
+- [ ] Etapa 7: aguardar autorização para testes, homologação e geração/verificação do artefato AOT/pin.
+
+**Etapa 6 implementada e compilada, sem homologação funcional.** Workspace preservado, sem commit/push;
+versionamento depende de autorização específica. Evidências de compilação são anteriores ao fechamento.
+
+[Relatório](../docs/validation/2026-11-10-stage6-product-integration.md) ·
+[Plano](../docs/planning/PRODUCT_INTEGRATION_STAGE6.md). Sem commit/push/publish.
+
 ## Etapa 5 — Windows Repair Center (09/11/2026)
 
 - [x] Reutilizar catálogo, preflight, confirmação, autorização e intenção imutável do R1.
@@ -10,7 +30,7 @@
 - [x] Compilar Debug e Release com restore bloqueado. Manter composição sintética, cinco gates e T0.
 - [ ] Empacotamento privilegiado, pinagem da imagem Native AOT e homologação futura autorizada.
 
-Etapa 6 não iniciada. [Evidência de compilação](../docs/VALIDATION.md#etapa-5--windows-repair-center).
+Estado ao encerrar a Etapa 5: Etapa 6 ainda não iniciada. A integração posterior está documentada acima. [Evidência de compilação](../docs/VALIDATION.md#etapa-5--windows-repair-center).
 
 ## Etapa 4 — gerenciamento Appx/MSIX (09/11/2026)
 

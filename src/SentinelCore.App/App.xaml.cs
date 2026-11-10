@@ -122,7 +122,7 @@ public partial class App : System.Windows.Application
                 performanceRunner, networkRunner, graphicsRunner, correlationRunner, monitoringRunner,
                 tweakManager, repairManager, store, store, store, store, store, store, store, store,
                 debloat: debloatManager, recovery: new RecoveryCenter(store, tweaks: tweakManager),
-                debloatObserver: debloatObserver);
+                debloatObserver: debloatObserver, operations: new ProductOperationCoordinator(transactionLocks));
             MainWindow.Show();
         }
         catch (Exception error)

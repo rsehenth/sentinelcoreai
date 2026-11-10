@@ -254,6 +254,8 @@ public partial class MainWindow
 
     private async void OnCorrelationRun(object sender, RoutedEventArgs e)
     {
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
         if (correlationBusy || busy || hardwareBusy || eventBusy || performanceBusy || networkBusy || graphicsBusy)
             return;
 
@@ -546,7 +548,33 @@ public partial class MainWindow
                 CorrelationOriginStatus.Text = "Transação indisponível no histórico carregado.";
             return;
         }
-        CorrelationOriginStatus.Text = OpenDiagnosticRecord(origin.Source, id) ?? string.Empty;
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
+        CorrelationOriginStatus.Text = await OpenDiagnosticRecordAsync(origin.Source, id) ?? string.Empty;
+    }
+
+    private async Task<string?> OpenDiagnosticRecordAsync(CorrelationSource source, Guid id)
+    {
+        // Refresh the existing history only; navigation never starts a collector or maintenance operation.
+        try
+        {
+            switch (source)
+            {
+                case CorrelationSource.Audits: await ReloadAsync(id, readOnly: true); break;
+                case CorrelationSource.Hardware: await ReloadHardwareAsync(id); break;
+                case CorrelationSource.Events: await ReloadEventsAsync(id); break;
+                case CorrelationSource.Performance: await ReloadPerformanceAsync(id); break;
+                case CorrelationSource.Network: await ReloadNetworksAsync(id); break;
+                case CorrelationSource.Graphics: await ReloadGraphicsAsync(id); break;
+                case CorrelationSource.Monitoring: await ReloadMonitoringAsync(id); break;
+            }
+        }
+        catch (Exception error)
+        {
+            logFailure(error);
+            return "Não foi possível carregar o registro de origem. A página atual foi preservada.";
+        }
+        return OpenDiagnosticRecord(source, id);
     }
 
     private string? OpenDiagnosticRecord(CorrelationSource source, Guid id)
@@ -614,7 +642,7 @@ public partial class MainWindow
 
     private void UpdateCorrelationButtons()
     {
-        var idle = !correlationBusy && !busy && !hardwareBusy && !eventBusy && !performanceBusy &&
+        var idle = !operations.IsBusy && !correlationBusy && !busy && !hardwareBusy && !eventBusy && !performanceBusy &&
             !networkBusy && !graphicsBusy;
         CorrelationRunButton.IsEnabled = idle && SelectedCorrelationSources() != CorrelationSources.None;
         CorrelationCancelButton.IsEnabled = correlationBusy && !correlationSaving &&
@@ -642,7 +670,7 @@ public partial class MainWindow
         UpdateNetworkButtons();
         UpdateGraphicsButtons();
         UpdateMonitoringButtons();
-        RunButton.IsEnabled = !busy && !hardwareBusy && !eventBusy && !performanceBusy && !networkBusy &&
+        RunButton.IsEnabled = !operations.IsBusy && !busy && !hardwareBusy && !eventBusy && !performanceBusy && !networkBusy &&
             !graphicsBusy && !correlationBusy && !monitoringBusy;
     }
 

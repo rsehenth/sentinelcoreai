@@ -51,7 +51,7 @@ public sealed class RepairBrokerClient : IRepairBrokerExecutor
                 return Finish(NativeOutcome.BeforeStart(RepairBrokerStatus.Refused, "Intenção, autorização ou cliente não reconhecido."));
 
             var imagePath = BrokerWindows.InstalledImage(BrokerWindows.BrokerName);
-            using var pinnedImage = BrokerWindows.OpenPinnedBrokerImage(imagePath);
+            using var pinnedImage = BrokerImageTrust.Open(imagePath);
             var pipeId = Guid.NewGuid().ToString("N");
             var sid = BrokerWindows.CurrentSid();
             var session = BrokerWindows.CurrentSession();

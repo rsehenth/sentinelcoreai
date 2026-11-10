@@ -121,6 +121,10 @@ public sealed class AuditRunner
             var result = reading.Result;
             if (result.AuditId != id || result.CollectorId != step.Id || !Enum.IsDefined(result.Status) ||
                 result.Status is DiagnosticStatus.Pending or DiagnosticStatus.Running or DiagnosticStatus.Interrupted ||
+                result.Evidence is { } evidence && (!AuditEvidenceReference.IsDiagnosticModule(evidence.Source) ||
+                    evidence.RecordId == Guid.Empty || evidence.RecordId == id || result.Data is not null ||
+                    step.Id != AuditEvidenceReference.CollectorIdFor(evidence.Source) ||
+                    string.IsNullOrWhiteSpace(evidence.Summary) || evidence.Summary.Length > 512) ||
                 result.Limitations is null || result.CompletedUtc < result.StartedUtc || result.Duration < TimeSpan.Zero)
                 throw new InvalidDataException("Contrato inválido retornado pelo coletor.");
 

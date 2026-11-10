@@ -4,8 +4,57 @@ using SentinelCore.Domain;
 
 namespace SentinelCore.Persistence;
 
-public sealed partial class MemoryStore : IAuditCheckpointStore
+public sealed partial class MemoryStore : IAuditCheckpointStore, IAuditHistoryReader
 {
+    public Task<StoreSnapshot> ReadAuditHistoryAsync(CancellationToken cancellationToken = default) => Task.Run(() =>
+    {
+        var warnings = new List<string>();
+        var audits = new List<AuditRecord>();
+        var verified = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            CheckRecoveryPath(root, verified);
+            var lockPath = Path.Combine(root, "data", "store.lock");
+            CheckRecoveryPath(lockPath, verified);
+            using var historyLock = new FileStream(lockPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            foreach (var kind in Enum.GetValues<AuditKind>())
+            {
+                var directory = Path.Combine(root, "memory", "audits", kind.ToString().ToLowerInvariant());
+                CheckRecoveryPath(directory, verified);
+                if (RecoveryAttributes(directory) is null) continue;
+                foreach (var path in Directory.EnumerateFiles(directory, "*.md"))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    try
+                    {
+                        CheckRecoveryPath(path, verified);
+                        var record = ReadRecord(path);
+                        if (record.Kind != kind || !Guid.TryParseExact(Path.GetFileNameWithoutExtension(path), "D", out var id) ||
+                            id != record.Id)
+                            throw new InvalidDataException("Identidade ou tipo de auditoria divergente do caminho.");
+                        audits.Add(record);
+                    }
+                    catch (Exception error) when (IsRecoveryReadError(error))
+                    {
+                        warnings.Add($"Auditoria {Path.GetFileName(path)} indisponível ({error.GetType().Name}). Original preservado.");
+                    }
+                }
+            }
+            var finals = audits.Select(audit => audit.Id).ToHashSet();
+            audits.AddRange(ReadAuditInterruptions(warnings, cancellationToken).Where(audit => !finals.Contains(audit.Id)));
+        }
+        catch (Exception error) when (IsRecoveryReadError(error))
+        {
+            warnings.Add($"Histórico de auditorias incompleto ({error.GetType().Name}). Não equivale a histórico vazio.");
+        }
+        var groups = audits.GroupBy(audit => audit.Id).ToArray();
+        foreach (var duplicate in groups.Where(group => group.Count() > 1))
+            warnings.Add($"Auditoria {duplicate.Key:D} duplicada entre históricos; identidade excluída da leitura.");
+        return new StoreSnapshot(groups.Where(group => group.Count() == 1).Select(group => group.Single())
+            .OrderByDescending(audit => audit.CompletedUtc).ThenBy(audit => audit.Id).ToArray(), warnings);
+    }, cancellationToken);
+
     private string AuditCheckpoints => Path.Combine(root, "memory", "audits", "pending");
     private string AuditCheckpointPath(Guid id) => Path.Combine(AuditCheckpoints, $"{id:D}.md");
     private string AuditLeasePath(Guid id) => Path.Combine(root, "data", "audit-leases", $"{id:D}.lock");

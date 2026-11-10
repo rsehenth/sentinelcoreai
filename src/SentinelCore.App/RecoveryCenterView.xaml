@@ -84,11 +84,11 @@
             </Border>
 
             <TextBlock x:Name="SummaryText" Text="Históricos ainda não carregados. Contagens indisponíveis." Margin="0,16,0,8" Foreground="{DynamicResource Muted}" AutomationProperties.AutomationId="RecoverySummary" AutomationProperties.LiveSetting="Polite"/>
-            <Expander x:Name="AuditInterruptionsPanel" Header="Auditorias interrompidas" Visibility="Collapsed" Margin="0,0,0,12">
+            <Expander x:Name="AuditInterruptionsPanel" Header="Auditorias e interrupções" Visibility="Collapsed" Margin="0,0,0,12">
                 <StackPanel Margin="12,8">
                     <TextBlock x:Name="AuditInterruptionsSummary" Style="{DynamicResource Caption}" TextWrapping="Wrap"/>
                     <ListBox x:Name="AuditInterruptionsList" MaxHeight="180" Margin="0,8,0,0"
-                             AutomationProperties.Name="Auditorias interrompidas recuperadas">
+                             AutomationProperties.Name="Histórico de auditorias e interrupções">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Button Content="{Binding Label}" Click="OnOpenInterruptedAudit" Style="{DynamicResource CompactButton}"

@@ -1,5 +1,18 @@
 # SentinelCore AI
 
+**Etapa 6 — integração geral (10/11/2026): implementada e compilada, sem homologação funcional.**
+Fechamento formal por revisão estática dos requisitos 8.1–8.11, sem novos builds ou testes.
+As jornadas do shell compartilham uma reserva de operação,
+incluindo coleta, simulação, recuperação, persistência e atualização dos históricos. A Central reúne também
+as auditorias básicas/completas e suas interrupções por leitura autoritativa. A navegação de evidências
+atualiza o histórico da fonte antes de localizar o GUID. Fechamento e gravação pendente de Reparos foram integrados.
+
+O cliente IPC foi separado em `SentinelCore.RepairBroker.Client`. Perfil Native AOT e preparação de pin SHA-256
+ficam fora do App distribuído. Nenhum broker foi publicado ou instalado; a imagem/pin aprovados e a homologação
+continuam pendentes. Cinco gates, T0, esquema 12 e `SyntheticRepairExecutor` preservados.
+[Relatório técnico da Etapa 6](docs/validation/2026-11-10-stage6-product-integration.md).
+Testes e execução do produto continuam suspensos; Etapa 7 depende de autorização.
+
 **Etapa 5 — Reparos do Windows (09/11/2026).** A solução inclui o projeto isolado
 `SentinelCore.RepairBroker`, com executor de SFC, DISM, CHKDSK e REAGENTC para as oito operações do R1.
 O fluxo reaproveita plano, confirmação, intenção e histórico. O broker revalida a solicitação por IPC local

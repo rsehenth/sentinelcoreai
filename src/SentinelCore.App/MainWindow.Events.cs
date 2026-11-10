@@ -275,6 +275,8 @@ public partial class MainWindow
 
     private async void OnEventRun(object sender, RoutedEventArgs e)
     {
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
         if (eventBusy || busy || hardwareBusy || performanceBusy || networkBusy || graphicsBusy || correlationBusy || monitoringBusy)
             return;
         var window = (EventWindowCombo.SelectedItem as EventWindowRow)?.Window ?? EventWindow.Last7Days;
@@ -373,6 +375,8 @@ public partial class MainWindow
 
     private async void OnEventReload(object sender, RoutedEventArgs e)
     {
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
         if (eventBusy || busy || hardwareBusy || performanceBusy || networkBusy || graphicsBusy || correlationBusy || monitoringBusy)
             return;
         eventBusy = true;
@@ -455,7 +459,7 @@ public partial class MainWindow
 
     private void UpdateEventButtons()
     {
-        var idle = !eventBusy && !busy && !hardwareBusy && !performanceBusy && !networkBusy && !graphicsBusy &&
+        var idle = !operations.IsBusy && !eventBusy && !busy && !hardwareBusy && !performanceBusy && !networkBusy && !graphicsBusy &&
             !correlationBusy && !monitoringBusy;
         EventRunButton.IsEnabled = idle;
         EventReloadButton.IsEnabled = idle;

@@ -21,6 +21,16 @@ public partial class DebloatView : UserControl
     private bool loaded;
     private bool updating;
     private bool initialized;
+    private bool operationBlocked;
+    private readonly ProductOperationCoordinator standaloneOperations = new();
+    internal Func<IDisposable?>? BeginOperation { get; set; }
+    internal event Action? HistoryChanged;
+
+    internal void SetOperationBlocked(bool blocked)
+    {
+        operationBlocked = blocked;
+        UpdateButtons();
+    }
 
     public DebloatView()
     {
@@ -77,6 +87,8 @@ public partial class DebloatView : UserControl
     private async void OnNativeRefresh(object sender, RoutedEventArgs e)
     {
         if (nativeObserver is null || busy) return;
+        using var productLease = BeginOperation is null ? standaloneOperations.Acquire() : BeginOperation();
+        if (productLease is null) return;
         nativeBusy = true;
         BeginWork("Consultando metadados do Windows…");
         nativeObservation = null;
@@ -211,6 +223,8 @@ public partial class DebloatView : UserControl
     private async Task RefreshAsync()
     {
         if (manager is null || busy) return;
+        using var productLease = BeginOperation is null ? standaloneOperations.Acquire() : BeginOperation();
+        if (productLease is null) return;
         BeginWork("Lendo inventário sintético e histórico local…");
         InvalidatePlan();
         try
@@ -380,6 +394,8 @@ public partial class DebloatView : UserControl
         if (manager is null || busy || InventoryGrid.SelectedItem is not InventoryRow row ||
             ScenarioCombo.SelectedItem is not ScenarioRow scenario) return;
         var id = row.Assessment.Package.CatalogId;
+        using var productLease = BeginOperation is null ? standaloneOperations.Acquire() : BeginOperation();
+        if (productLease is null) return;
         var mediumReview = MediumReviewCheck.IsChecked == true;
         InvalidatePlan();
         BeginWork("Preparando plano sintético e verificando bloqueios…");
@@ -430,6 +446,8 @@ public partial class DebloatView : UserControl
         if (manager is null || busy || preparedPlan is not { Simulation.CanExecute: true } plan ||
             !string.Equals(ConfirmationText.Text, plan.Confirmation, StringComparison.Ordinal)) return;
         var confirmation = ConfirmationText.Text;
+        using var productLease = BeginOperation is null ? standaloneOperations.Acquire() : BeginOperation();
+        if (productLease is null) return;
         preparedPlan = null;
         ConfirmationText.Text = string.Empty;
         BeginWork("Executando somente a simulação autorizada…");
@@ -470,6 +488,7 @@ public partial class DebloatView : UserControl
             }
             PlanText.Text = executionDetails;
             ConfirmationHint.Text = "A autorização foi encerrada. Prepare um novo plano para outra simulação.";
+            HistoryChanged?.Invoke();
             EndWork();
         }
     }
@@ -520,21 +539,21 @@ public partial class DebloatView : UserControl
         if (!initialized) return;
         var row = InventoryGrid.SelectedItem as InventoryRow;
         var mediumReady = row?.Assessment.EffectiveRisk != RiskLevel.Medium || MediumReviewCheck.IsChecked == true;
-        RefreshButton.IsEnabled = manager is not null && !busy;
-        NativeRefreshButton.IsEnabled = nativeObserver is not null && !busy;
+        RefreshButton.IsEnabled = manager is not null && !busy && !operationBlocked;
+        NativeRefreshButton.IsEnabled = nativeObserver is not null && !busy && !operationBlocked;
         NativeCancelButton.IsEnabled = nativeBusy && cancellation?.IsCancellationRequested == false;
-        NativePreviewButton.IsEnabled = !busy && NativeGrid.SelectedItem is NativeRow;
+        NativePreviewButton.IsEnabled = !busy && !operationBlocked && NativeGrid.SelectedItem is NativeRow;
         NativeGrid.IsEnabled = NativeSearch.IsEnabled = NativeCategory.IsEnabled =
-            NativeRisk.IsEnabled = NativeScope.IsEnabled = !busy;
-        OpenRecoveryButton.IsEnabled = !busy && OpenRecoveryRequested is not null;
-        SearchText.IsEnabled = !busy;
-        FilterCombo.IsEnabled = !busy;
-        InventoryGrid.IsEnabled = !busy;
-        ScenarioCombo.IsEnabled = !busy && row is not null;
-        MediumReviewCheck.IsEnabled = !busy && row?.Assessment.EffectiveRisk == RiskLevel.Medium;
-        PrepareButton.IsEnabled = manager is not null && !busy && row?.Assessment.CanSimulate == true && mediumReady;
-        ConfirmationText.IsEnabled = !busy && preparedPlan?.Simulation.CanExecute == true;
-        ExecuteButton.IsEnabled = manager is not null && !busy && preparedPlan?.Simulation.CanExecute == true &&
+            NativeRisk.IsEnabled = NativeScope.IsEnabled = !busy && !operationBlocked;
+        OpenRecoveryButton.IsEnabled = !busy && !operationBlocked && OpenRecoveryRequested is not null;
+        SearchText.IsEnabled = !busy && !operationBlocked;
+        FilterCombo.IsEnabled = !busy && !operationBlocked;
+        InventoryGrid.IsEnabled = !busy && !operationBlocked;
+        ScenarioCombo.IsEnabled = !busy && !operationBlocked && row is not null;
+        MediumReviewCheck.IsEnabled = !busy && !operationBlocked && row?.Assessment.EffectiveRisk == RiskLevel.Medium;
+        PrepareButton.IsEnabled = manager is not null && !busy && !operationBlocked && row?.Assessment.CanSimulate == true && mediumReady;
+        ConfirmationText.IsEnabled = !busy && !operationBlocked && preparedPlan?.Simulation.CanExecute == true;
+        ExecuteButton.IsEnabled = manager is not null && !busy && !operationBlocked && preparedPlan?.Simulation.CanExecute == true &&
             string.Equals(ConfirmationText.Text, preparedPlan.Confirmation, StringComparison.Ordinal);
         CancelButton.IsEnabled = busy && cancellation?.IsCancellationRequested == false;
         BusyProgress.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;

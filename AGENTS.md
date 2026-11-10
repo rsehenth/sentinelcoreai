@@ -1,5 +1,28 @@
 # SentinelCore AI — instruções do projeto
 
+## Etapa 6 — integração geral (10/11/2026)
+
+- Fechamento formal: **implementada e compilada, sem homologação funcional**. Requisitos 8.1–8.11
+  reconferidos estaticamente com a transferência integral. Evidências de Debug/Release são anteriores;
+  na revisão de fechamento também estão proibidos novos builds. Etapa 7 não iniciada; aguardar
+  autorização específica para testes/homologação e, separadamente, commit/push.
+- O pedido de transferência redefine Etapa 6 como integração geral e Etapa 7 como testes/homologação.
+  Relatório: `docs/validation/2026-11-10-stage6-product-integration.md`;
+  plano: `docs/planning/PRODUCT_INTEGRATION_STAGE6.md`. As definições históricas abaixo não reabrem execução.
+- Durante desenvolvimento, NÃO executar testes de qualquer tipo, produto, broker, coletores reais,
+  consultas Windows, publish, benchmarks ou homologação. Compilar Debug/Release com lockfiles é permitido.
+  Não inspecionar a raiz operacional nem limpar temporários históricos. Sem commit/push automático.
+- `ProductOperationCoordinator` usa `IExclusiveLockFactory` para serializar jornadas do shell, Debloat e
+  Central até persistência/releitura. Não substituir locks por alvo/store/auditoria nem usar reserva para
+  autorizar efeitos. O escopo de arquivo continua relativo à raiz; mutex de sessão e reserva do broker são independentes.
+- A Central lê também `IAuditHistoryReader`, sem reconstruir SQLite. Avisos de auditorias impedem afirmar
+  completude. Preserve formatos v1/v2, GUIDs, Markdown autoritativo e esquema 12.
+- Cliente IPC em `SentinelCore.RepairBroker.Client`, fora do WPF; protocolo/preflight têm fontes compartilhadas.
+  Perfil AOT e preparação estática do pin não autorizam publish ou execução. Pin padrão vazio; cinco gates
+  fechados, T0 intacta e App com `SyntheticRepairExecutor`. Imagem/pin aprovados e homologação pendentes.
+- Casos novos foram escritos/compilados, não executados nem adicionados à seleção sintética auditada.
+  Não atualizar hashes indiscriminadamente nem apresentar compilação como validação funcional.
+
 ## V2 — isolamento da inicialização (07/11/2026)
 
 - Relatório: `docs/validation/2026-11-07-v2-startup-isolation.md`; matriz `2026-11-07-v2-test-matrix.csv`.

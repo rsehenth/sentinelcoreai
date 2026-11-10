@@ -47,9 +47,10 @@ public sealed record RecoveryCenterSnapshot(IReadOnlyList<RecoveryOperation> Ope
     IReadOnlyList<RecoveryHistorySource> Sources, IReadOnlyList<string> Warnings)
 {
     public StoreSnapshot? InterruptedAudits { get; init; }
+    public StoreSnapshot? Audits { get; init; }
 
     public bool IsComplete => Sources.Count == 4 && Sources.All(s => s.Status == RecoveryEvidenceStatus.Complete)
-        && Warnings.Count == 0;
+        && Warnings.Count == 0 && (Audits?.Warnings.Count ?? InterruptedAudits?.Warnings.Count ?? 0) == 0;
 }
 
 public sealed record RecoveryCenterFilter(

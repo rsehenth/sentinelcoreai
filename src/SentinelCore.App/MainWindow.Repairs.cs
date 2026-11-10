@@ -90,6 +90,8 @@ public partial class MainWindow
         bool ignoreBusy = false)
     {
         if (repairs is null || (repairsBusy && !ignoreBusy)) return;
+        using var productLease = ignoreBusy ? null : TryBeginProductOperation();
+        if (!ignoreBusy && productLease is null) return;
         repairsBusy = true;
         UpdateRepairButtons();
         RepairsStatusText.Text = "Lendo catálogo, volumes e histórico…";
@@ -196,7 +198,9 @@ public partial class MainWindow
 
     private async void OnRepairDetails(object sender, RoutedEventArgs e)
     {
-        if (repairs is null || repairsBusy) return;
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
+        if (repairs is null || repairsBusy || repairPersistenceFailed) return;
         if (sender is not FrameworkElement { DataContext: RepairCardRow { OperationId: var operationId } }) return;
         var view = repairViews.FirstOrDefault(item => item.OperationId == operationId);
         if (view is null) return;
@@ -271,7 +275,9 @@ public partial class MainWindow
 
     private async void OnRepairAuthorize(object sender, RoutedEventArgs e)
     {
-        if (repairs is null || repairsBusy || repairPlan is null) return;
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
+        if (repairs is null || repairsBusy || repairPlan is null || repairPersistenceFailed) return;
         var plan = repairPlan;
         if (!CanRunRepairPlan(plan))
         {
@@ -294,6 +300,8 @@ public partial class MainWindow
 
         repairsBusy = true;
         repairPersistenceFailed = false;
+        repairPlan = null;
+        RepairsConfirmationText.Clear();
         repairCancellation = new CancellationTokenSource();
         repairCommitted = false;
         repairElapsed.Restart();
@@ -358,6 +366,7 @@ public partial class MainWindow
         finally
         {
             reporting = false;
+            InvalidateMaintenanceHistory();
             repairElapsedTimer.Stop();
             repairElapsed.Stop();
             repairsBusy = false;
@@ -389,6 +398,8 @@ public partial class MainWindow
 
     private async void OnRepairRetrySave(object sender, RoutedEventArgs e)
     {
+        using var productLease = TryBeginProductOperation();
+        if (productLease is null) return;
         if (repairs is null || repairsBusy || repairRecord is null || !repairPersistenceFailed) return;
         repairsBusy = true;
         UpdateRepairButtons();
@@ -396,6 +407,7 @@ public partial class MainWindow
         {
             repairRecord = await repairs.RetrySaveAsync(repairRecord);
             repairPersistenceFailed = false;
+            InvalidateMaintenanceHistory();
             ShowRepairRecord(repairRecord);
             await ReloadRepairHistoryAsync(repairRecord.Id, "Registro de reparo salvo novamente.");
         }
@@ -474,13 +486,14 @@ public partial class MainWindow
     private void UpdateRepairButtons()
     {
         if (RepairsAuthorizeButton is null) return;
-        var idle = !repairsBusy;
+        var idle = !operations.IsBusy && !repairsBusy;
         RepairsRefreshButton.IsEnabled = idle && repairs is not null;
         var expected = repairPlan is null ? string.Empty : RepairManager.BuildConfirmationText(repairPlan);
         var eligible = repairs?.RealExecutionEnabled == true
             ? repairPlan is { RealExecutionAllowed: true }
             : repairPlan is { SimulationAllowed: true } && RepairsScenarioCombo.SelectedItem is RepairScenarioRow;
-        RepairsAuthorizeButton.IsEnabled = idle && repairs is not null && eligible &&
+        RepairsCardsHost.IsEnabled = idle && !repairPersistenceFailed;
+        RepairsAuthorizeButton.IsEnabled = idle && !repairPersistenceFailed && repairs is not null && eligible &&
             string.Equals(RepairsConfirmationText.Text.Trim(), expected, StringComparison.Ordinal);
         RepairsCancelButton.IsEnabled = repairsBusy && repairCancellation is { IsCancellationRequested: false };
         RepairsRetrySaveButton.IsEnabled = idle && repairPersistenceFailed && repairRecord is not null;
