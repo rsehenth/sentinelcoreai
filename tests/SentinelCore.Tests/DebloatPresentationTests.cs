@@ -23,7 +23,7 @@ public sealed class DebloatPresentationTests
         var execute = document.Descendants(Presentation + "Button")
             .Single(item => (string?)item.Attribute(Xaml + "Name") == "ExecuteButton");
         Assert.Equal("False", (string?)execute.Attribute("IsEnabled"));
-        Assert.Contains("simulação", (string?)execute.Attribute("Content") ?? string.Empty);
+        Assert.Contains("simulação", UiResourceText.ResolveAttribute(execute, "Content"), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -31,7 +31,7 @@ public sealed class DebloatPresentationTests
     {
         var document = XDocument.Parse(Source("DebloatView.xaml"));
         Assert.Contains(document.Descendants(Presentation + "TextBlock"),
-            item => (string?)item.Attribute("Text") == DebloatLimits.SyntheticWarning);
+            item => UiResourceText.ResolveAttribute(item, "Text") == DebloatLimits.SyntheticWarning);
         var gridStyle = document.Descendants(Presentation + "Style")
             .Single(item => (string?)item.Attribute("TargetType") == "DataGrid");
         Assert.Contains(gridStyle.Elements(Presentation + "Setter"), item =>
@@ -50,14 +50,23 @@ public sealed class DebloatPresentationTests
     {
         var document = XDocument.Parse(Source("DebloatView.xaml"));
         var labels = document.Descendants(Presentation + "TextBlock")
-            .Select(item => (string?)item.Attribute("Text") ?? string.Empty).ToArray();
+            .Select(item => UiResourceText.ResolveAttribute(item, "Text")).ToArray();
         Assert.Contains("Catálogo de aplicativos", labels);
         Assert.Contains("Inventário de aplicativos", labels);
-        Assert.Contains(labels, text => text.Contains("Não verificado — inventário real indisponível", StringComparison.Ordinal));
+        // A coluna de estado do inventário nativo é exatamente a projeção de presença: o texto de
+        // "não verificado" só chega à grade por DebloatPresentation.Presence, nunca por ausência inventada.
+        Assert.Contains(document.Descendants(Presentation + "DataGridTextColumn"),
+            item => (string?)item.Attribute("Binding") == "{Binding State}");
+        var view = Source("DebloatView.xaml.cs");
+        Assert.Contains("public string State => Loc.T(DebloatPresentation.Presence(Assessment.Presence));", view);
+        Assert.DoesNotContain("não instalado", DebloatPresentation.Presence(DebloatPresence.NotVerified),
+            StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Não verificado — inventário real indisponível",
+            DebloatPresentation.Presence(DebloatPresence.NotVerified), StringComparison.Ordinal);
         Assert.DoesNotContain(labels, text => text.Contains("não encontrado", StringComparison.OrdinalIgnoreCase) ||
             text.Contains("não instalado", StringComparison.OrdinalIgnoreCase));
         var headers = document.Descendants(Presentation + "DataGridTextColumn")
-            .Select(item => (string?)item.Attribute("Header") ?? string.Empty).ToArray();
+            .Select(item => UiResourceText.ResolveAttribute(item, "Header")).ToArray();
         Assert.Contains("Origem do registro", headers);
         Assert.Contains("Presença no inventário", headers);
     }
@@ -67,9 +76,9 @@ public sealed class DebloatPresentationTests
     {
         var document = XDocument.Parse(Source("DebloatView.xaml"));
         Assert.Contains(document.Descendants(Presentation + "TextBlock"), item =>
-            (string?)item.Attribute("Text") == DebloatLimits.RecoveryWarning);
+            UiResourceText.ResolveAttribute(item, "Text") == DebloatLimits.RecoveryWarning);
         var labels = document.Descendants(Presentation + "Button")
-            .Select(item => (string?)item.Attribute("Content") ?? string.Empty).ToArray();
+            .Select(item => UiResourceText.ResolveAttribute(item, "Content")).ToArray();
         Assert.DoesNotContain(labels, label => label.Contains("rollback", StringComparison.OrdinalIgnoreCase) ||
             label.Contains("reinstalar", StringComparison.OrdinalIgnoreCase) ||
             label.Contains("remover", StringComparison.OrdinalIgnoreCase));

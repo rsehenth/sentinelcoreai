@@ -23,6 +23,8 @@ internal sealed class SyntheticSessionClock : TimeProvider
     public override long TimestampFrequency => TimeSpan.TicksPerSecond;
     public override long GetTimestamp() => Interlocked.Read(ref ticks);
     public override DateTimeOffset GetUtcNow() => MonitoringSamples.Now.AddTicks(GetTimestamp());
+    /// <summary>Simula trabalho de coleta que consome a janela sem esperar em tempo real.</summary>
+    public void Advance(TimeSpan duration) => Interlocked.Add(ref ticks, Math.Max(0, duration.Ticks));
     public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
     {
         if (period != Timeout.InfiniteTimeSpan) throw new NotSupportedException("One-shot fixture timers only.");

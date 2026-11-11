@@ -17,10 +17,11 @@ public sealed class GraphicsUiContractTests
     public void NavigationContainsGraphicsEntryAndHistoryKeepsTheLastShortcut()
     {
         var xaml = AppSource("MainWindow.xaml");
-        Assert.Contains("Content=\"Gráficos &amp; GPU\"", xaml);
-        Assert.Contains("Ctrl+7", xaml);
-        Assert.Contains("Ctrl+8", xaml);
-        Assert.Contains("<TabItem Header=\"Gráficos &amp; GPU\">", xaml);
+        var graphics = UiResourceText.Resource("Gráficos & GPU");
+        Assert.Contains($"Content=\"{graphics}\"", xaml);
+        Assert.Contains($"ToolTip=\"{UiResourceText.Resource("Gráficos & GPU — diagnóstico somente leitura (Ctrl+7)")}\"", xaml);
+        Assert.Contains($"ToolTip=\"{UiResourceText.Resource("Correlação — evidências históricas relacionadas (Ctrl+8)")}\"", xaml);
+        Assert.Contains($"<TabItem x:Name=\"GraphicsTab\" Header=\"{graphics}\">", xaml);
     }
 
     [Fact]
@@ -55,8 +56,8 @@ public sealed class GraphicsUiContractTests
     public void GraphicsNavigationPrecedesHistorySoCtrlSevenAndEightKeepTheirMeaning()
     {
         var xaml = AppSource("MainWindow.xaml");
-        var graphics = xaml.IndexOf("Content=\"Gráficos &amp; GPU\"", StringComparison.Ordinal);
-        var history = xaml.IndexOf("Content=\"Histórico\"", StringComparison.Ordinal);
+        var graphics = xaml.IndexOf($"Content=\"{UiResourceText.Resource("Gráficos & GPU")}\"", StringComparison.Ordinal);
+        var history = xaml.IndexOf($"Content=\"{UiResourceText.Resource("Histórico")}\"", StringComparison.Ordinal);
         Assert.True(graphics >= 0 && history > graphics);
     }
 

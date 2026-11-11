@@ -51,7 +51,7 @@ public sealed class NetworkSessionRunnerTests
                 ],
                 Limitations: []));
 
-        var runner = new NetworkSessionRunner([sampleCollector], [factsCollector], new InstantTimeProvider(BaseUtc), selfMeterFactory: () => new FakeSelfOverheadMeter());
+        var runner = new NetworkSessionRunner([sampleCollector], [factsCollector], new SyntheticSessionClock(), selfMeterFactory: () => new FakeSelfOverheadMeter());
         var session = await runner.RunAsync(NetworkSessionPreset.Snapshot);
 
         Assert.Equal(NetworkSessionPreset.Snapshot, session.Preset);
@@ -70,7 +70,7 @@ public sealed class NetworkSessionRunnerTests
     [Fact]
     public async Task MultiSampleSessionMarksFirstSampleAsWarmupAndReportsProgress()
     {
-        var clock = new InstantTimeProvider(BaseUtc);
+        var clock = new SyntheticSessionClock();
         var sampleCollector = new FakeSampleCollector("network-endpoints", NetworkSourceCategory.Endpoints,
             (index, at) => CreateSampleReading("network-endpoints", at, index));
         var progressUpdates = new List<NetworkProgress>();
@@ -96,19 +96,20 @@ public sealed class NetworkSessionRunnerTests
     [Fact]
     public async Task SlowCollectorSkipsMissedOpportunitiesWithoutBursting()
     {
-        var clock = new InstantTimeProvider(BaseUtc);
+        var clock = new SyntheticSessionClock();
         var slowFirstTick = new FakeSampleCollector("network-endpoints", NetworkSourceCategory.Endpoints,
-            async (index, at, ct) =>
+            (index, at) =>
             {
                 if (index == 0)
                 {
-                    await Task.Delay(TimeSpan.FromMilliseconds(1150), ct);
+                    clock.Advance(TimeSpan.FromMilliseconds(1150));
                 }
                 return CreateSampleReading("network-endpoints", at, index);
             });
 
         var runner = new NetworkSessionRunner([slowFirstTick], clock: clock, selfMeterFactory: () => new FakeSelfOverheadMeter());
-        var session = await runner.RunAsync(NetworkSessionRequest.ForPreset(NetworkSessionPreset.Seconds30));
+        var request = NetworkSessionRequest.ForPreset(NetworkSessionPreset.Seconds30);
+        var session = await runner.RunAsync(request);
 
         Assert.NotNull(session.Coverage);
         Assert.True(session.Coverage!.MissedOpportunities >= 1);
@@ -116,13 +117,25 @@ public sealed class NetworkSessionRunnerTests
         Assert.Equal(NetworkCoverageStatus.Partial, session.Coverage.Status);
         Assert.Equal(NetworkSessionStatus.Partial, session.Status);
         Assert.Contains(session.Limitations, item => item.Contains("oportunidade(s) de amostragem perdida(s)", StringComparison.Ordinal));
+        // Sem rajada de recuperação: a sobrecarga de 1150 ms da primeira coleta consome a grade de 1 s,
+        // a oportunidade perdida é descartada e as amostras seguintes mantêm o intervalo nominal, sem
+        // comprimir o atraso em coletas imediatas.
+        Assert.True(session.Samples.Count < session.Coverage.ExpectedSamples,
+            $"Amostras: {session.Samples.Count} de {session.Coverage.ExpectedSamples}.");
+        var minimumGap = request.SampleInterval - TimeSpan.FromMilliseconds(50);
+        for (var index = 2; index < session.Samples.Count; index++)
+        {
+            var gap = session.Samples[index].TimestampUtc - session.Samples[index - 1].TimestampUtc;
+            Assert.True(gap >= minimumGap,
+                $"Intervalo de {gap.TotalMilliseconds:F0} ms na amostra {index} indica rajada de recuperação.");
+        }
     }
 
     [Fact]
     public async Task CancellationPreservesCollectedSamplesAndMarksSessionCancelled()
     {
         using var cts = new CancellationTokenSource();
-        var clock = new InstantTimeProvider(BaseUtc);
+        var clock = new SyntheticSessionClock();
         var collector = new FakeSampleCollector("network-endpoints", NetworkSourceCategory.Endpoints,
             (index, at) =>
             {
@@ -160,7 +173,7 @@ public sealed class NetworkSessionRunnerTests
                 return CreateSampleReading("network-endpoints", at, index);
             });
 
-        var runner = new NetworkSessionRunner([blockingCollector], clock: new InstantTimeProvider(BaseUtc), selfMeterFactory: () => new FakeSelfOverheadMeter());
+        var runner = new NetworkSessionRunner([blockingCollector], clock: new SyntheticSessionClock(), selfMeterFactory: () => new FakeSelfOverheadMeter());
         var firstRun = runner.RunAsync(NetworkSessionPreset.Snapshot);
         await startedTcs.Task;
 
@@ -180,7 +193,7 @@ public sealed class NetworkSessionRunnerTests
         var failing = new FakeSampleCollector("network-statistics", NetworkSourceCategory.Statistics,
             (_, _) => throw new InvalidOperationException("collector failed"));
 
-        var partialRunner = new NetworkSessionRunner([working, failing], clock: new InstantTimeProvider(BaseUtc), selfMeterFactory: () => new FakeSelfOverheadMeter());
+        var partialRunner = new NetworkSessionRunner([working, failing], clock: new SyntheticSessionClock(), selfMeterFactory: () => new FakeSelfOverheadMeter());
         var partialSession = await partialRunner.RunAsync(NetworkSessionPreset.Snapshot);
 
         Assert.Equal(NetworkSessionStatus.Partial, partialSession.Status);
@@ -189,7 +202,7 @@ public sealed class NetworkSessionRunnerTests
         Assert.Equal(NetworkCoverageStatus.Partial, partialSession.Coverage.Status);
         Assert.Contains("network-statistics", partialSession.Coverage.UnavailableCollectors);
 
-        var failedRunner = new NetworkSessionRunner([failing], clock: new InstantTimeProvider(BaseUtc), selfMeterFactory: () => new FakeSelfOverheadMeter());
+        var failedRunner = new NetworkSessionRunner([failing], clock: new SyntheticSessionClock(), selfMeterFactory: () => new FakeSelfOverheadMeter());
         var failedSession = await failedRunner.RunAsync(NetworkSessionPreset.Snapshot);
 
         Assert.Equal(NetworkSessionStatus.Failed, failedSession.Status);
@@ -224,7 +237,7 @@ public sealed class NetworkSessionRunnerTests
             });
 
         var limits = new NetworkLimits { MaxPersistedEndpoints = 3 };
-        var runner = new NetworkSessionRunner([collector], clock: new InstantTimeProvider(BaseUtc), limits: limits, selfMeterFactory: () => new FakeSelfOverheadMeter());
+        var runner = new NetworkSessionRunner([collector], clock: new SyntheticSessionClock(), limits: limits, selfMeterFactory: () => new FakeSelfOverheadMeter());
 
         var defaultSession = await runner.RunAsync(
             NetworkSessionRequest.ForPreset(NetworkSessionPreset.Snapshot, includeAddresses: false));
@@ -314,7 +327,7 @@ public sealed class NetworkSessionRunnerTests
         Assert.Throws<ArgumentException>(() => new NetworkSessionRunner([], selfMeterFactory: () => new FakeSelfOverheadMeter()));
         Assert.Throws<ArgumentException>(() => new NetworkSessionRunner([collector, collector], selfMeterFactory: () => new FakeSelfOverheadMeter()));
 
-        var runner = new NetworkSessionRunner([collector], clock: new InstantTimeProvider(BaseUtc), selfMeterFactory: () => new FakeSelfOverheadMeter());
+        var runner = new NetworkSessionRunner([collector], clock: new SyntheticSessionClock(), selfMeterFactory: () => new FakeSelfOverheadMeter());
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             runner.RunAsync(new NetworkSessionRequest(NetworkSessionPreset.Snapshot, TimeSpan.FromSeconds(1), TimeSpan.Zero)));
@@ -434,39 +447,5 @@ public sealed class NetworkSessionRunnerTests
     private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
     {
         public void Report(T value) => handler(value);
-    }
-
-    private sealed class InstantTimeProvider(DateTimeOffset startUtc) : TimeProvider
-    {
-        private long utcTicks = startUtc.UtcTicks;
-
-        public override DateTimeOffset GetUtcNow() =>
-            new(Interlocked.Read(ref utcTicks), TimeSpan.Zero);
-
-        public override ITimer CreateTimer(
-            TimerCallback callback,
-            object? state,
-            TimeSpan dueTime,
-            TimeSpan period)
-        {
-            if (dueTime > TimeSpan.Zero && dueTime != Timeout.InfiniteTimeSpan)
-            {
-                Interlocked.Add(ref utcTicks, dueTime.Ticks);
-            }
-            var timer = new InstantTimer(callback, state);
-            if (dueTime != Timeout.InfiniteTimeSpan)
-            {
-                timer.Fire();
-            }
-            return timer;
-        }
-
-        private sealed class InstantTimer(TimerCallback callback, object? state) : ITimer
-        {
-            public void Fire() => ThreadPool.QueueUserWorkItem(_ => callback(state));
-            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
-            public void Dispose() { }
-            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-        }
     }
 }

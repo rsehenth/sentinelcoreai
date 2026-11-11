@@ -22,11 +22,13 @@ public sealed class MonitoringUiContractTests
     public void NavigationAndTabExposeMonitoringWithoutShadowingHistoryShortcut()
     {
         var xaml = AppSource("MainWindow.xaml");
-        Assert.Contains("Content=\"Monitoramento\"", xaml);
-        Assert.Contains("<TabItem Header=\"Monitoramento\">", xaml);
-        Assert.Contains("Ctrl+9", xaml);
-        var history = xaml.IndexOf("Content=\"Histórico\"", StringComparison.Ordinal);
-        var monitoring = xaml.IndexOf("Content=\"Monitoramento\"", StringComparison.Ordinal);
+        var monitoringKey = UiResourceText.Resource("Monitoramento");
+        Assert.Contains($"Content=\"{monitoringKey}\"", xaml);
+        Assert.Contains($"<TabItem x:Name=\"MonitoringTab\" Header=\"{monitoringKey}\">", xaml);
+        Assert.Contains($"ToolTip=\"{UiResourceText.Resource("Monitoramento — sessões autorizadas e incidentes")}\"", xaml);
+        Assert.Contains($"ToolTip=\"{UiResourceText.Resource("Histórico — auditorias salvas neste computador (Ctrl+9)")}\"", xaml);
+        var history = xaml.IndexOf($"Content=\"{UiResourceText.Resource("Histórico")}\"", StringComparison.Ordinal);
+        var monitoring = xaml.IndexOf($"Content=\"{monitoringKey}\"", StringComparison.Ordinal);
         Assert.True(history >= 0 && monitoring > history);
     }
 
@@ -49,9 +51,9 @@ public sealed class MonitoringUiContractTests
                  })
             Assert.Contains($"x:Name=\"{control}\"", xaml);
 
-        Assert.Contains("Header=\"Incidentes\"", xaml);
-        Assert.Contains("Header=\"Linha do tempo\"", xaml);
-        Assert.Contains("Header=\"Orçamento e limites\"", xaml);
+        Assert.Contains($"Header=\"{UiResourceText.Resource("Incidentes")}\"", xaml);
+        Assert.Contains($"Header=\"{UiResourceText.Resource("Linha do tempo")}\"", xaml);
+        Assert.Contains($"Header=\"{UiResourceText.Resource("Orçamento e limites")}\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"StartMonitoring\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"RegisterIncident\"", xaml);
         Assert.Contains("AutomationProperties.AutomationId=\"CorrelateIncident\"", xaml);

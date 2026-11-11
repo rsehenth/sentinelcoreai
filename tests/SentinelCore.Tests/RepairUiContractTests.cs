@@ -18,10 +18,11 @@ public sealed class RepairUiContractTests
     public void NavigationAndTabExposeTheWindowsRepairCenterAfterPersonalization()
     {
         var xaml = AppSource("MainWindow.xaml");
-        Assert.Contains("Content=\"Reparos do Windows\"", xaml);
-        Assert.Contains("<TabItem x:Name=\"RepairsTab\" Header=\"Reparos do Windows\">", xaml);
-        var personalization = xaml.IndexOf("Content=\"Personalização &amp; Debloat\"", StringComparison.Ordinal);
-        var repairs = xaml.IndexOf("Content=\"Reparos do Windows\"", StringComparison.Ordinal);
+        var repairsKey = UiResourceText.Resource("Reparos do Windows");
+        Assert.Contains($"Content=\"{repairsKey}\"", xaml);
+        Assert.Contains($"<TabItem x:Name=\"RepairsTab\" Header=\"{repairsKey}\">", xaml);
+        var personalization = xaml.IndexOf($"Content=\"{UiResourceText.Resource("Personalização & Debloat")}\"", StringComparison.Ordinal);
+        var repairs = xaml.IndexOf($"Content=\"{repairsKey}\"", StringComparison.Ordinal);
         Assert.True(personalization >= 0 && repairs > personalization);
     }
 
@@ -47,10 +48,10 @@ public sealed class RepairUiContractTests
         Assert.Contains("RepairPlan", xaml);
         Assert.Contains("RepairOutput", xaml);
         Assert.Contains("RepairDocumented", xaml);
-        Assert.Contains("Operações documentadas, indisponíveis", xaml);
-        Assert.Contains("Volumes locais validados", xaml);
-        Assert.Contains("Demonstração sintética", xaml);
-        Assert.Contains("Saída e interpretação", xaml);
+        Assert.Contains($"Text=\"{UiResourceText.Resource("Operações documentadas, indisponíveis")}\"", xaml);
+        Assert.Contains($"Text=\"{UiResourceText.Resource("Volumes locais validados")}\"", xaml);
+        Assert.Contains($"Text=\"{UiResourceText.Resource("Demonstração sintética")}\"", xaml);
+        Assert.Contains($"Text=\"{UiResourceText.Resource("Saída e interpretação")}\"", xaml);
 
         Assert.Equal(4, RepairCategories.All.Count);
         Assert.Contains(RepairCategories.Integrity, RepairCategories.All);

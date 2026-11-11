@@ -1,5 +1,19 @@
 # Execução
 
+## Etapa 7B.3 — expansão da regressão sintética (11/11/2026)
+
+- [x] Confirmar master/5ef5c33 e árvore inicial limpa; nenhum arquivo em `src/` foi alterado.
+- [x] Resolver os três cenários temporais de Rede: relógio virtual único controla UTC, monotônico e atrasos.
+- [x] Ampliar a classificação de 1.219 Unclassified: 1.184 casos aprovados, 31 mantidos bloqueados com justificativa.
+- [x] Cobrir duas integrações runner→persistência→reabertura de sessões de rede cancelada e parcial.
+- [x] Corrigir 7B3-01..05 em testes (fixture temporal, contratos de UI migrados, gate/distribuição, aviso de Debloat).
+- [x] Aplicar revisão independente e corrigir afrouxamento de padrão, tautologia e finais de linha.
+- [x] Fechar 1.621/1.621 SyntheticSafe em Debug/Release; inventário 1.658; builds 0/0.
+- [ ] Homologação WPF interativa/operacional e os 31 Unclassified restantes: pendentes de autorização.
+- [ ] 7C, commit/push/publish/deploy: não autorizados.
+
+[Relatório](../docs/validation/2026-11-11-stage7b3-synthetic-regression.md).
+
 ## Etapa 7B complementar — desenvolvimento e regressão sintética (11/11/2026)
 
 - [x] Reconhecer master/d2f08a4 e preservar 13 arquivos modificados/dois testes novos recebidos da 7B.

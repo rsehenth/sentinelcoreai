@@ -1,5 +1,27 @@
 # SentinelCore AI — instruções do projeto
 
+## Etapa 7B.3 — expansão da regressão sintética (11/11/2026)
+
+- Fechamento sintético: 1.658 inventariados; **1.621 SyntheticSafe** (1.215 métodos) aprovados em Debug
+  e Release, seis WindowsReadOnly e 31 Unclassified não executados. Builds 0/0. Sem homologação WPF/operacional.
+- Nenhum arquivo em `src/` foi alterado: os cinco gates e a política T0 mantêm o comportamento anterior.
+- Os três cenários temporais de Rede foram resolvidos. Causa raiz: `InstantTimeProvider` avançava UTC e
+  timers, mas não `GetTimestamp()`, então a cadência de `SessionTimer` media `Stopwatch` real enquanto os
+  atrasos vinham do relógio falso. Agora os três usam `SyntheticSessionClock` (UTC e monotônico juntos) e
+  `Advance()` simula coleta lenta. Não reintroduzir atraso real nesses casos.
+- 31 Unclassified permanecem bloqueados: 15 `T4b2InterruptionAndConcurrencyTests` e 6
+  `MultiprocessJournalTests` (processo auxiliar `SyntheticJournalWorker` não auditado quanto a isolamento)
+  e 10 `WindowsValueTests` (`WmiRead`/P/Invoke sobre Windows real).
+- Contratos de UI migrados para `DynamicResource` são verificados por `UiResourceText`, que resolve a chave
+  para o texto visível em português; reordenar `Strings.Entries` mantém as asserções verdes.
+- `T4b3DistributionAndProbeTests` mantém duas neutralizações revisadas e estreitas: a chamada
+  `RealRepairBuildGate.AllowsRealExecution(GetCommandLineArgs())` (condicionada a `RealExecutionImplemented
+  == false`) e os cinco links `<Compile Include="../SentinelCore.RepairBroker/...">`. Não ampliar sem revisão.
+- Evidências e matriz próprias: `docs/validation/2026-11-11-stage7b3-synthetic-regression.md`.
+  Componentes puros e contratos estáticos não homologam interação/renderização WPF.
+- Sem App completo, broker/IPC/UAC, sensores/coletores/inventários reais, manutenção, raiz operacional,
+  alteração permanente de ambiente, commit/push/publish/deploy ou início automático da 7C.
+
 ## Etapa 7B complementar — correções e isolamento autorizados (11/11/2026)
 
 - Fechamento sintético: 1.655 inventariados; 430 SyntheticSafe aprovados em Debug/Release, seis

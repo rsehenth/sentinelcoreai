@@ -17,25 +17,35 @@ public sealed class NetworkUiContractTests
         File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App", fileName));
 
     [Theory]
-    [InlineData("MainWindow.Network.cs", "NetworkPresetRow")]
+    [InlineData("NetworkPresentationRows.cs", "NetworkPresetRow")]
     [InlineData("MainWindow.Performance.cs", "PerformancePresetRow")]
     [InlineData("MainWindow.Graphics.cs", "GraphicsPresetRow")]
-    [InlineData("MainWindow.Correlation.cs", "CorrelationPresetRow")]
+    [InlineData("CorrelationPresentationRows.cs", "CorrelationPresetRow")]
+    [InlineData("CorrelationPresentationRows.cs", "CorrelationOriginRow")]
     [InlineData("MainWindow.Events.cs", "EventWindowRow")]
     [InlineData("MainWindow.Events.cs", "EventCategoryRow")]
-    [InlineData("MainWindow.Monitoring.cs", "MonitoringPresetRow")]
-    [InlineData("MainWindow.Monitoring.cs", "MonitoringCategoryRow")]
+    [InlineData("MonitoringPresentationRows.cs", "MonitoringPresetRow")]
+    [InlineData("MonitoringPresentationRows.cs", "MonitoringCategoryRow")]
     [InlineData("MainWindow.Repairs.cs", "RepairScenarioRow")]
     public void ComboBoxItemRecordsOverrideToStringSoTheSelectionBoxShowsTheLabel(string file, string record)
     {
         // O ControlTemplate de ComboBox em App.xaml exibe SelectionBoxItem; sem ToString() a caixa fechada mostra
         // a representação técnica do record ("NetworkPresetRow { Preset = ..., Label = ... }") em vez do rótulo.
+        // O corpo do record precisa declarar (ou receber) Label e sobrescrever ToString() devolvendo esse rótulo.
         var source = AppSource(file);
-        var pattern = new Regex(
-            @"record\s+" + record + @"\([^)]*string\s+Label\)\s*\{\s*public\s+override\s+string\s+ToString\(\)\s*=>\s*Label;\s*\}",
-            RegexOptions.CultureInvariant);
+        var declaration = new Regex(
+            @"record\s+" + record + @"\((?<parameters>[^)]*)\)\s*(?<body>\{[\s\S]*?\n\s*\})",
+            RegexOptions.CultureInvariant).Match(source);
 
-        Assert.Matches(pattern, source);
+        Assert.True(declaration.Success, $"{record} não foi encontrado em {file}.");
+        var parameters = declaration.Groups["parameters"].Value;
+        var body = declaration.Groups["body"].Value;
+        Assert.True(
+            Regex.IsMatch(parameters, @"string\s+(Label|PortugueseLabel)\b", RegexOptions.CultureInvariant) ||
+            Regex.IsMatch(body, @"public\s+string\s+Label\s*=>", RegexOptions.CultureInvariant),
+            $"{record} precisa expor um rótulo Label ou PortugueseLabel.");
+        Assert.Matches(new Regex(
+            @"public\s+override\s+string\s+ToString\(\)\s*=>\s*Label;", RegexOptions.CultureInvariant), body);
     }
 
     [Fact]
@@ -44,7 +54,7 @@ public sealed class NetworkUiContractTests
         // Se alguém criar um novo ComboBox com DisplayMemberPath="Label" a lista acima precisa crescer junto.
         var xaml = AppSource("MainWindow.xaml");
         var comboBoxesBoundToLabel = Regex.Matches(xaml, @"<ComboBox\b[^>]*DisplayMemberPath=""Label""", RegexOptions.Singleline).Count;
-        Assert.Equal(9, comboBoxesBoundToLabel);
+        Assert.Equal(10, comboBoxesBoundToLabel);
     }
 
     private static NetworkTcpipEventContext TcpipContext(int attempts, int ephemeral) =>

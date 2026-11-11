@@ -85,7 +85,7 @@ public sealed class DebloatRemovalBoundaryTests
         XNamespace wpf = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
         var document = XDocument.Load(TestRepository.Combine("src", "SentinelCore.App", "DebloatRemovalView.xaml"));
         Assert.Empty(document.Descendants(wpf + "Button"));
-        Assert.Contains(document.Descendants(wpf + "TextBlock"), e => (string?)e.Attribute("Text") == DebloatLimits.SyntheticWarning);
+        Assert.Contains(document.Descendants(wpf + "TextBlock"), e => UiResourceText.ResolveAttribute(e, "Text") == DebloatLimits.SyntheticWarning);
         Assert.Contains(document.Descendants(wpf + "Setter"), e => (string?)e.Attribute("Property") == "IsReadOnly" &&
             (string?)e.Attribute("Value") == "True");
         var data = DebloatRemovalPresentation.Unavailable();

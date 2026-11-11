@@ -122,15 +122,15 @@ public sealed class DebloatNativeBoundaryTests
             "DebloatView.xaml")));
         var status = document.Descendants(Presentation + "TextBlock")
             .Single(item => (string?)item.Attribute("AutomationProperties.AutomationId") == "DebloatNativeInventoryStatus");
-        Assert.Contains("Consulta ainda não executada", (string?)status.Attribute("Text") ?? string.Empty, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("somente leitura", (string?)status.Attribute("Text") ?? string.Empty,
-            StringComparison.OrdinalIgnoreCase);
+        var statusText = UiResourceText.ResolveAttribute(status, "Text");
+        Assert.Contains("Consulta ainda não executada", statusText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("somente leitura", statusText, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(document.Descendants(Presentation + "TextBlock"), item =>
             (string?)item.Attribute("AutomationProperties.AutomationId") == "DebloatNativeInventoryStates");
         Assert.Contains(document.Descendants(Presentation + "TextBlock"), item =>
-            (string?)item.Attribute("Text") == DebloatLimits.SyntheticWarning);
+            UiResourceText.ResolveAttribute(item, "Text") == DebloatLimits.SyntheticWarning);
         var buttons = document.Descendants(Presentation + "Button")
-            .Select(item => (string?)item.Attribute("Content") ?? string.Empty).ToArray();
+            .Select(item => UiResourceText.ResolveAttribute(item, "Content")).ToArray();
         Assert.Contains("Consultar inventário", buttons);
         Assert.Contains("Ver prévia de remoção", buttons);
         Assert.DoesNotContain(buttons, label => label.Contains("remover", StringComparison.OrdinalIgnoreCase) ||
