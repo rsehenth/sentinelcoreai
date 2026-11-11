@@ -51,7 +51,7 @@ public sealed class NetworkSessionRunnerTests
                 ],
                 Limitations: []));
 
-        var runner = new NetworkSessionRunner([sampleCollector], [factsCollector], new InstantTimeProvider(BaseUtc));
+        var runner = new NetworkSessionRunner([sampleCollector], [factsCollector], new InstantTimeProvider(BaseUtc), selfMeterFactory: () => new FakeSelfOverheadMeter());
         var session = await runner.RunAsync(NetworkSessionPreset.Snapshot);
 
         Assert.Equal(NetworkSessionPreset.Snapshot, session.Preset);
@@ -76,7 +76,7 @@ public sealed class NetworkSessionRunnerTests
         var progressUpdates = new List<NetworkProgress>();
         var progress = new SynchronousProgress<NetworkProgress>(progressUpdates.Add);
 
-        var runner = new NetworkSessionRunner([sampleCollector], clock: clock);
+        var runner = new NetworkSessionRunner([sampleCollector], clock: clock, selfMeterFactory: () => new FakeSelfOverheadMeter());
         var request = new NetworkSessionRequest(
             Preset: NetworkSessionPreset.Seconds30,
             Duration: TimeSpan.FromSeconds(30),
@@ -107,7 +107,7 @@ public sealed class NetworkSessionRunnerTests
                 return CreateSampleReading("network-endpoints", at, index);
             });
 
-        var runner = new NetworkSessionRunner([slowFirstTick], clock: clock);
+        var runner = new NetworkSessionRunner([slowFirstTick], clock: clock, selfMeterFactory: () => new FakeSelfOverheadMeter());
         var session = await runner.RunAsync(NetworkSessionRequest.ForPreset(NetworkSessionPreset.Seconds30));
 
         Assert.NotNull(session.Coverage);
@@ -133,7 +133,7 @@ public sealed class NetworkSessionRunnerTests
                 return CreateSampleReading("network-endpoints", at, index);
             });
 
-        var runner = new NetworkSessionRunner([collector], clock: clock);
+        var runner = new NetworkSessionRunner([collector], clock: clock, selfMeterFactory: () => new FakeSelfOverheadMeter());
         var session = await runner.RunAsync(
             new NetworkSessionRequest(NetworkSessionPreset.Seconds30, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(5)),
             cancellationToken: cts.Token);
@@ -160,7 +160,7 @@ public sealed class NetworkSessionRunnerTests
                 return CreateSampleReading("network-endpoints", at, index);
             });
 
-        var runner = new NetworkSessionRunner([blockingCollector], clock: new InstantTimeProvider(BaseUtc));
+        var runner = new NetworkSessionRunner([blockingCollector], clock: new InstantTimeProvider(BaseUtc), selfMeterFactory: () => new FakeSelfOverheadMeter());
         var firstRun = runner.RunAsync(NetworkSessionPreset.Snapshot);
         await startedTcs.Task;
 
@@ -180,7 +180,7 @@ public sealed class NetworkSessionRunnerTests
         var failing = new FakeSampleCollector("network-statistics", NetworkSourceCategory.Statistics,
             (_, _) => throw new InvalidOperationException("collector failed"));
 
-        var partialRunner = new NetworkSessionRunner([working, failing], clock: new InstantTimeProvider(BaseUtc));
+        var partialRunner = new NetworkSessionRunner([working, failing], clock: new InstantTimeProvider(BaseUtc), selfMeterFactory: () => new FakeSelfOverheadMeter());
         var partialSession = await partialRunner.RunAsync(NetworkSessionPreset.Snapshot);
 
         Assert.Equal(NetworkSessionStatus.Partial, partialSession.Status);
@@ -189,7 +189,7 @@ public sealed class NetworkSessionRunnerTests
         Assert.Equal(NetworkCoverageStatus.Partial, partialSession.Coverage.Status);
         Assert.Contains("network-statistics", partialSession.Coverage.UnavailableCollectors);
 
-        var failedRunner = new NetworkSessionRunner([failing], clock: new InstantTimeProvider(BaseUtc));
+        var failedRunner = new NetworkSessionRunner([failing], clock: new InstantTimeProvider(BaseUtc), selfMeterFactory: () => new FakeSelfOverheadMeter());
         var failedSession = await failedRunner.RunAsync(NetworkSessionPreset.Snapshot);
 
         Assert.Equal(NetworkSessionStatus.Failed, failedSession.Status);
@@ -224,7 +224,7 @@ public sealed class NetworkSessionRunnerTests
             });
 
         var limits = new NetworkLimits { MaxPersistedEndpoints = 3 };
-        var runner = new NetworkSessionRunner([collector], clock: new InstantTimeProvider(BaseUtc), limits: limits);
+        var runner = new NetworkSessionRunner([collector], clock: new InstantTimeProvider(BaseUtc), limits: limits, selfMeterFactory: () => new FakeSelfOverheadMeter());
 
         var defaultSession = await runner.RunAsync(
             NetworkSessionRequest.ForPreset(NetworkSessionPreset.Snapshot, includeAddresses: false));
@@ -311,10 +311,10 @@ public sealed class NetworkSessionRunnerTests
         var collector = new FakeSampleCollector("network-endpoints", NetworkSourceCategory.Endpoints,
             (index, at) => CreateSampleReading("network-endpoints", at, index));
 
-        Assert.Throws<ArgumentException>(() => new NetworkSessionRunner([]));
-        Assert.Throws<ArgumentException>(() => new NetworkSessionRunner([collector, collector]));
+        Assert.Throws<ArgumentException>(() => new NetworkSessionRunner([], selfMeterFactory: () => new FakeSelfOverheadMeter()));
+        Assert.Throws<ArgumentException>(() => new NetworkSessionRunner([collector, collector], selfMeterFactory: () => new FakeSelfOverheadMeter()));
 
-        var runner = new NetworkSessionRunner([collector], clock: new InstantTimeProvider(BaseUtc));
+        var runner = new NetworkSessionRunner([collector], clock: new InstantTimeProvider(BaseUtc), selfMeterFactory: () => new FakeSelfOverheadMeter());
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             runner.RunAsync(new NetworkSessionRequest(NetworkSessionPreset.Snapshot, TimeSpan.FromSeconds(1), TimeSpan.Zero)));

@@ -12,8 +12,8 @@ public sealed class U2VisualContractTests
     private static readonly XNamespace Xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
     private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
     private static string AppFile(string name) => TestRepository.Combine("src", "SentinelCore.App", name);
-    private static string Source(string name) => File.ReadAllText(AppFile(name));
-    private static XDocument Window() => XDocument.Load(AppFile("MainWindow.xaml"));
+    private static string Source(string name) => TestRepository.AppSource(name);
+    private static XDocument Window() => XDocument.Parse(Source("MainWindow.xaml"));
 
     [Fact]
     public void ShellKeepsThirteenGroupedPagesWithNamesForTheCollapsedMenu()
@@ -24,9 +24,11 @@ public sealed class U2VisualContractTests
         Assert.Equal(13, items.Length);
         foreach (var item in items)
         {
-            // Recolhido, só o ícone aparece: o nome vem do conteúdo (UIA) e a dica repete o rótulo.
+            // Recolhido, só o ícone aparece: o nome vem do conteúdo (UIA); a dica descreve a mesma área.
             var label = (string)item.Attribute("Content")!;
-            Assert.StartsWith(label, (string?)item.Attribute("ToolTip"), StringComparison.Ordinal);
+            var expectedTip = (string?)item.Attribute(Xaml + "Name") == "TweaksNav"
+                ? "Personalização, inventário Appx/MSIX e simulação Debloat" : label;
+            Assert.StartsWith(expectedTip, (string?)item.Attribute("ToolTip"), StringComparison.Ordinal);
             Assert.NotNull(item.Attribute("Tag"));
         }
         var groups = items.Select(i => i.Attributes().FirstOrDefault(a => a.Name.LocalName == "Nav.Group")?.Value).ToArray();

@@ -54,7 +54,7 @@ public sealed class PerformanceRunnerTests
     [Fact]
     public async Task CompletedSessionKeepsStatisticsAndSamples()
     {
-        var runner = new PerformanceSessionRunner([Cpu(), Memory(), Processes(), Storage()]);
+        var runner = new PerformanceSessionRunner([Cpu(), Memory(), Processes(), Storage()], selfMeterFactory: () => new FakeSelfOverheadMeter());
         var session = await runner.RunAsync(new PerformanceSessionRequest(PerformanceSessionPreset.Custom,
             TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(250)));
         Assert.Equal(PerformanceSessionStatus.Completed, session.Status);
@@ -80,7 +80,7 @@ public sealed class PerformanceRunnerTests
         var collector = new FakeCollector("performance-processes", PerformanceSourceCategory.Processes,
             index => new("performance-processes", DateTimeOffset.UtcNow, false, null, null,
                 [PerformanceSamples.Process()], index == 0 ? [] : [exit], [], []));
-        var runner = new PerformanceSessionRunner([collector]);
+        var runner = new PerformanceSessionRunner([collector], selfMeterFactory: () => new FakeSelfOverheadMeter());
         var session = await runner.RunAsync(Request());
         Assert.Contains(session.Samples,
             sample => sample.Exits.Any(e => e.Identity == exit.Identity && e.Reason == "Processo encerrado"));
@@ -89,7 +89,7 @@ public sealed class PerformanceRunnerTests
     [Fact]
     public async Task UnavailableCollectorKeepsExecutionCompletedAndCoveragePartial()
     {
-        var runner = new PerformanceSessionRunner([Cpu(fail: true), Memory(), Processes(), Storage()]);
+        var runner = new PerformanceSessionRunner([Cpu(fail: true), Memory(), Processes(), Storage()], selfMeterFactory: () => new FakeSelfOverheadMeter());
         var session = await runner.RunAsync(Request());
         Assert.Equal(PerformanceSessionStatus.Completed, session.Status);
         Assert.Equal(PerformanceSourceStatus.Failed,
@@ -104,7 +104,7 @@ public sealed class PerformanceRunnerTests
     [Fact]
     public async Task AllFailedIsFailed()
     {
-        var runner = new PerformanceSessionRunner([Cpu(fail: true)]);
+        var runner = new PerformanceSessionRunner([Cpu(fail: true)], selfMeterFactory: () => new FakeSelfOverheadMeter());
         var session = await runner.RunAsync(Request());
         Assert.Equal(PerformanceSessionStatus.Failed, session.Status);
         var coverage = Assert.IsType<PerformanceCoverage>(session.Coverage);
@@ -116,7 +116,7 @@ public sealed class PerformanceRunnerTests
     public async Task CancellationPreservesCollectedSamples()
     {
         using var cts = new CancellationTokenSource();
-        var runner = new PerformanceSessionRunner([Cpu(), Memory(), Processes(), Storage()]);
+        var runner = new PerformanceSessionRunner([Cpu(), Memory(), Processes(), Storage()], selfMeterFactory: () => new FakeSelfOverheadMeter());
         var running = runner.RunAsync(new PerformanceSessionRequest(PerformanceSessionPreset.Custom,
             TimeSpan.FromSeconds(5), TimeSpan.FromMilliseconds(100)), cancellationToken: cts.Token);
         await Task.Delay(150);
@@ -134,7 +134,7 @@ public sealed class PerformanceRunnerTests
     [Fact]
     public async Task OnlyOneSessionCanRunAtATime()
     {
-        var runner = new PerformanceSessionRunner([Cpu()]);
+        var runner = new PerformanceSessionRunner([Cpu()], selfMeterFactory: () => new FakeSelfOverheadMeter());
         var running = runner.RunAsync(new PerformanceSessionRequest(PerformanceSessionPreset.Custom,
             TimeSpan.FromSeconds(2), TimeSpan.FromMilliseconds(100)));
         await Assert.ThrowsAsync<InvalidOperationException>(() => runner.RunAsync(Request()));
@@ -145,7 +145,7 @@ public sealed class PerformanceRunnerTests
     public async Task RequestExceedingInjectedSampleLimitIsRejected()
     {
         var runner = new PerformanceSessionRunner([Cpu()],
-            limits: new PerformanceLimits { MaxSamples = 2, MaxSessionDuration = TimeSpan.FromSeconds(1) });
+            limits: new PerformanceLimits { MaxSamples = 2, MaxSessionDuration = TimeSpan.FromSeconds(1) }, selfMeterFactory: () => new FakeSelfOverheadMeter());
         await Assert.ThrowsAsync<ArgumentException>(() => runner.RunAsync(
             new PerformanceSessionRequest(PerformanceSessionPreset.Custom,
                 TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(100))));
@@ -170,7 +170,7 @@ public sealed class PerformanceRunnerTests
             _ => new("performance-processes", DateTimeOffset.UtcNow, false, null, null,
                 [PerformanceSamples.Process()], [], [],
                 ["Limite de 20 processos acompanhados atingido; processos com menos atividade omitidos."]));
-        var runner = new PerformanceSessionRunner([Cpu(), limited]);
+        var runner = new PerformanceSessionRunner([Cpu(), limited], selfMeterFactory: () => new FakeSelfOverheadMeter());
         var session = await runner.RunAsync(Request());
         Assert.Equal(PerformanceSessionStatus.Completed, session.Status);
         var coverage = Assert.IsType<PerformanceCoverage>(session.Coverage);
@@ -185,7 +185,7 @@ public sealed class PerformanceRunnerTests
     public async Task PerSourceReadDurationIsRecorded()
     {
         var runner = new PerformanceSessionRunner([new SlowFirstTickCollector(
-            TimeSpan.FromMilliseconds(60))]);
+            TimeSpan.FromMilliseconds(60))], selfMeterFactory: () => new FakeSelfOverheadMeter());
         var session = await runner.RunAsync(Request());
         var source = Assert.Single(session.Sources);
         Assert.NotNull(source.MeanReadMilliseconds);
@@ -205,7 +205,7 @@ public sealed class PerformanceRunnerTests
     public async Task ProgressReportsEveryTickAndNeverClaimsCompletionEarly()
     {
         var recorder = new RecordingProgress();
-        var runner = new PerformanceSessionRunner([Cpu()]);
+        var runner = new PerformanceSessionRunner([Cpu()], selfMeterFactory: () => new FakeSelfOverheadMeter());
         var session = await runner.RunAsync(Request(), progress: recorder);
         Assert.Equal(session.Samples.Count, recorder.Updates.Count);
         Assert.All(recorder.Updates, update =>
@@ -216,7 +216,7 @@ public sealed class PerformanceRunnerTests
     public async Task SlowCollectionSkipsMissedTicksInsteadOfBursting()
     {
         var runner = new PerformanceSessionRunner([new SlowFirstTickCollector(
-            TimeSpan.FromMilliseconds(350))]);
+            TimeSpan.FromMilliseconds(350))], selfMeterFactory: () => new FakeSelfOverheadMeter());
         var session = await runner.RunAsync(new PerformanceSessionRequest(PerformanceSessionPreset.Custom,
             TimeSpan.FromSeconds(1), TimeSpan.FromMilliseconds(100)));
         Assert.Equal(PerformanceSessionStatus.Completed, session.Status);
@@ -237,7 +237,7 @@ public sealed class PerformanceRunnerTests
     {
         var intervals = new List<TimeSpan>();
         var collector = new ElapsedCapturingCollector(intervals);
-        var runner = new PerformanceSessionRunner([collector]);
+        var runner = new PerformanceSessionRunner([collector], selfMeterFactory: () => new FakeSelfOverheadMeter());
         var session = await runner.RunAsync(Request());
         Assert.True(intervals.Count >= 3);
         Assert.Equal(TimeSpan.Zero, intervals[0]);
@@ -249,7 +249,7 @@ public sealed class PerformanceRunnerTests
     public async Task SessionDurationLimitIsHonoredWhenInjected()
     {
         var runner = new PerformanceSessionRunner([Cpu()],
-            limits: new PerformanceLimits { MaxSessionDuration = TimeSpan.FromMilliseconds(200) });
+            limits: new PerformanceLimits { MaxSessionDuration = TimeSpan.FromMilliseconds(200) }, selfMeterFactory: () => new FakeSelfOverheadMeter());
         await Assert.ThrowsAsync<ArgumentException>(() => runner.RunAsync(Request()));
     }
 

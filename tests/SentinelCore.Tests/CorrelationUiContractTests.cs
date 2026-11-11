@@ -11,8 +11,7 @@ namespace SentinelCore.Tests;
 /// </summary>
 public sealed class CorrelationUiContractTests
 {
-    private static string AppSource(string fileName) =>
-        File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App", fileName));
+    private static string AppSource(string fileName) => TestRepository.AppSource(fileName);
 
     private static string Source(string fileName) =>
         File.ReadAllText(TestRepository.Combine("src", "SentinelCore.Application", fileName));
@@ -24,7 +23,9 @@ public sealed class CorrelationUiContractTests
         Assert.Contains("Content=\"Correlação\"", xaml);
         Assert.Contains("Ctrl+8", xaml);
         Assert.Contains("Ctrl+9", xaml);
-        Assert.Contains("<TabItem Header=\"Correlação de evidências\">", xaml);
+        var document = System.Xml.Linq.XDocument.Parse(xaml);
+        Assert.Contains(document.Descendants(), element => element.Name.LocalName == "TabItem" &&
+            (string?)element.Attribute("Header") == "Correlação");
         var correlation = xaml.IndexOf("Content=\"Correlação\"", StringComparison.Ordinal);
         var history = xaml.IndexOf("Content=\"Histórico\"", StringComparison.Ordinal);
         Assert.True(correlation >= 0 && history > correlation);

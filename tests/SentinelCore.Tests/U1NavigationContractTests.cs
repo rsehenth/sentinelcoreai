@@ -8,7 +8,7 @@ public sealed class U1NavigationContractTests
     [Fact]
     public void EveryNavigationEntryMatchesItsPageAndDashboardTarget()
     {
-        var document = XDocument.Load(TestRepository.Combine("src", "SentinelCore.App", "MainWindow.xaml"));
+        var document = XDocument.Parse(TestRepository.AppSource("MainWindow.xaml"));
         XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
         var navigation = document.Descendants().Single(e => (string?)e.Attribute(xaml + "Name") == "NavList");
         var pages = document.Descendants().Single(e => (string?)e.Attribute(xaml + "Name") == "Pages");

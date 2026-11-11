@@ -11,11 +11,12 @@ public sealed class PerformanceSessionRunner
     private readonly PerformanceRuleOptions rules;
     private readonly PerformanceLimits limits;
     private readonly TimeProvider clock;
+    private readonly Func<ISelfOverheadMeter> selfMeterFactory;
     private int running;
 
     public PerformanceSessionRunner(IEnumerable<IPerformanceCollector> collectors,
         TimeProvider? clock = null, PerformanceLimits? limits = null,
-        PerformanceRuleOptions? rules = null)
+        PerformanceRuleOptions? rules = null, Func<ISelfOverheadMeter>? selfMeterFactory = null)
     {
         this.collectors = collectors.ToArray();
         if (this.collectors.Count == 0 ||
@@ -23,6 +24,7 @@ public sealed class PerformanceSessionRunner
             throw new ArgumentException("Coletores de desempenho devem ter identificadores únicos e não podem estar vazios.",
                 nameof(collectors));
         this.clock = clock ?? TimeProvider.System;
+        this.selfMeterFactory = selfMeterFactory ?? (() => new ProcessSelfOverheadMeter());
         this.limits = limits ?? PerformanceLimits.Default;
         this.rules = rules ?? PerformanceRuleOptions.Default;
         analyzer = new(this.rules);
@@ -53,7 +55,7 @@ public sealed class PerformanceSessionRunner
     {
         var id = Guid.NewGuid();
         var started = clock.GetUtcNow();
-        var stopwatch = Stopwatch.StartNew();
+        var stopwatch = new SessionTimer(clock);
         var expected = request.ExpectedSamples;
         var map = HardwareStorageIdentityMap.From(hardware);
         var context = new PerformanceCollectionContext(id, map.PhysicalDisks, map.Volumes, limits);
@@ -71,11 +73,9 @@ public sealed class PerformanceSessionRunner
         var cancelled = false;
         var missed = 0;
         var lastTickElapsed = TimeSpan.Zero;
-        using var self = Process.GetCurrentProcess();
-        var lastSelfCpu = self.TotalProcessorTime;
-        var lastSelfElapsed = TimeSpan.Zero;
         try
         {
+            using var self = selfMeterFactory();
             var nextDue = TimeSpan.Zero;
             var jitterTolerance = TimeSpan.FromMilliseconds(Math.Min(50, request.SampleInterval.TotalMilliseconds * 0.2));
             for (var index = 0; index < expected; index++)
@@ -118,8 +118,7 @@ public sealed class PerformanceSessionRunner
                     reads.SelectMany(reading => reading.Limitations)
                         .Distinct(StringComparer.Ordinal).Take(8).ToArray());
                 samples.Add(sample);
-                overhead.Add(MeasureSelf(self, stopwatch.Elapsed, ref lastSelfCpu, ref lastSelfElapsed,
-                    collection.ElapsedMilliseconds));
+                overhead.Add(self.Measure(stopwatch.Elapsed, collection.ElapsedMilliseconds));
                 progress?.Report(new PerformanceProgress(samples.Count, expected, stopwatch.Elapsed,
                     request.Duration, sample));
                 if (samples.Count >= limits.MaxSamples &&
@@ -197,21 +196,6 @@ public sealed class PerformanceSessionRunner
             request.Preset, request.Duration, request.SampleInterval, started, completed,
             stopwatch.Elapsed, status, sources, stats, analysis.Observations, analysis.Notes,
             samples, SummarizeSelf(overhead), limitations, coverage);
-    }
-
-    private static SelfOverheadSample MeasureSelf(Process self, TimeSpan wallElapsed,
-        ref TimeSpan lastCpu, ref TimeSpan lastElapsed, long collectionMilliseconds)
-    {
-        self.Refresh();
-        var cpu = self.TotalProcessorTime;
-        var wall = wallElapsed - lastElapsed;
-        var percent = wall <= TimeSpan.Zero ? 0 : Math.Clamp(
-            (cpu - lastCpu).TotalMilliseconds / (wall.TotalMilliseconds * Environment.ProcessorCount) * 100,
-            0, 100);
-        lastCpu = cpu;
-        lastElapsed = wallElapsed;
-        return new(Math.Round(percent, 1), (ulong)Math.Max(0, self.WorkingSet64),
-            (ulong)Math.Max(0, self.PrivateMemorySize64), collectionMilliseconds);
     }
 
     private static SelfOverheadSummary SummarizeSelf(IReadOnlyList<SelfOverheadSample> samples) =>

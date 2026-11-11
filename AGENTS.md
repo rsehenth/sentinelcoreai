@@ -1,5 +1,39 @@
 # SentinelCore AI — instruções do projeto
 
+## Etapa 7B complementar — correções e isolamento autorizados (11/11/2026)
+
+- Fechamento sintético: 1.655 inventariados; 430 SyntheticSafe aprovados em Debug/Release, seis
+  WindowsReadOnly e 1.219 Unclassified não executados. Builds 0/0. Sem homologação WPF/operacional.
+
+- Pedido específico autoriza correções de localização, abstração mínima da automedição e regressão
+  somente SyntheticSafe inspecionada, além de builds Debug/Release com lockfiles/gates falsos.
+- `ISelfOverheadMeter` separa as consultas ao processo; testes dos runners devem injetar medidor falso
+  e coletores falsos. O default continua operacional: não presumir isolamento por injetar apenas coletores.
+- A cadência de Desempenho/Rede/Monitoramento usa o timestamp monotônico do TimeProvider injetado.
+  A troca de idioma atualiza apresentação em memória; não deve recarregar serviços ou invalidar planos.
+- Evidências e matriz próprias: `docs/validation/2026-11-11-stage7b-complement-functional-regression.md`.
+  Componentes puros e contratos estáticos não homologam interação/renderização WPF.
+- Sem App completo, broker/IPC/UAC, sensores/coletores/inventários reais, manutenção, raiz operacional,
+  alteração permanente de ambiente, commit/push/publish/deploy ou início automático da 7C.
+
+## Etapa 7B — regressão funcional sintética autorizada (11/11/2026)
+
+- Fechamento sintético: 1.627 inventariados; 354 SyntheticSafe aprovados em Debug/Release,
+  oito WindowsReadOnly e 1.265 Unclassified não executados. Builds 0 avisos/erros.
+  Localização dinâmica parcial (7B-04/média) e homologação visual/operacional permanecem pendentes.
+- O pedido explícito da 7B autoriza desenvolvimento, classificação progressiva, builds Debug/Release
+  com lockfiles/gates falsos e execução somente dos métodos `SyntheticSafe` inspecionados.
+  A proibição histórica de iniciar 7B abaixo foi substituída por esse pedido.
+- Evidências locais: `docs/validation/2026-11-11-stage7b-functional-regression.md` e matriz própria.
+  Docs/artefatos continuam privados e ignorados. Sem commit/push/publish/deploy ou 7C automático.
+- Preservar seleção positiva, hashes revisados e TEMP/TMP exclusivos do runner. Os runners
+  Performance/Network medem o processo atual mesmo com coletores falsos: não presumir isolamento.
+  Os testes de auditoria completa desta etapa cancelam antes dessas duas etapas.
+- Localização nos testes vincula somente `Localization.cs`/`Strings.cs`; não referencia o projeto App,
+  não cria Application/Window nem inicializa serviços operacionais. Contratos XAML são inspeção estática.
+- Sem App completo, broker/IPC/UAC, WMI/CIM/Event Log/inventário real, manutenção ou acesso à raiz
+  operacional. Cinco gates, T0, schema 12, Markdown autoritativo e históricos preservados.
+
 ## Etapa 7A — auditoria e regressão sintética autorizadas (11/11/2026)
 
 - O pedido explícito da Etapa 7A substitui a suspensão de testes da Etapa 6 somente para casos

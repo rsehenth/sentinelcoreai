@@ -10,9 +10,13 @@ namespace SentinelCore.App;
 /// <summary>Native inventory and preview, isolated from the executable synthetic flow.</summary>
 public partial class DebloatView : UserControl
 {
+    private readonly LocalizedMessages debloatMessages = new();
+
     private DebloatManager? manager;
     private DebloatInventoryObserver? nativeObserver;
     private DebloatInventoryObservation? nativeObservation;
+    private DebloatNativeRemovalPreview? nativePreview;
+    private bool reinstallFromHistory;
     private IReadOnlyList<NativeRow> nativeRows = [];
     private bool nativeBusy;
     private IReadOnlyList<InventoryRow> inventory = [];
@@ -37,23 +41,50 @@ public partial class DebloatView : UserControl
     {
         InitializeComponent();
         updating = true;
+        FilterCombo.DisplayMemberPath = "Label";
         FilterCombo.ItemsSource = new[]
         {
             "Todos", "Opcionais", "Baixo", "Médio", "Alto", "Não validados",
             "Presentes no inventário", "Ausentes no inventário", "Não verificados",
             "Protegidos", "Microsoft", "Terceiros/OEM"
-        };
+        }.Select(key => new LocalizedChoice<string>(key, key)).ToArray();
         FilterCombo.SelectedIndex = 0;
         ScenarioCombo.ItemsSource = Enum.GetValues<DebloatScenario>()
-            .Select(value => new ScenarioRow(value, ScenarioLabel(value))).ToArray();
+            .Select(value => new LocalizedChoice<DebloatScenario>(value, () => ScenarioLabel(value))).ToArray();
         ScenarioCombo.SelectedIndex = 0;
-        NativeCategory.ItemsSource = new[] { "Todas" }.Concat(Enum.GetValues<DebloatNativeCategory>().Select(DebloatPresentation.Category));
-        NativeRisk.ItemsSource = new[] { "Todos" }.Concat(Enum.GetValues<RiskLevel>().Select(RiskLabel).Distinct());
-        NativeScope.ItemsSource = new[] { "Todos" }.Concat(new[] { DebloatScope.CurrentUser, DebloatScope.OtherUser, DebloatScope.Provisioned }
-            .Select(DebloatPresentation.Scope));
+        NativeCategory.DisplayMemberPath = NativeRisk.DisplayMemberPath = NativeScope.DisplayMemberPath = "Label";
+        NativeCategory.ItemsSource = new[] { new LocalizedChoice<DebloatNativeCategory?>(null, "Todas") }
+            .Concat(Enum.GetValues<DebloatNativeCategory>().Select(value => new LocalizedChoice<DebloatNativeCategory?>(value, DebloatPresentation.Category(value)))).ToArray();
+        NativeRisk.ItemsSource = new[] { new LocalizedChoice<RiskLevel?>(null, "Todos") }
+            .Concat(Enum.GetValues<RiskLevel>().Select(value => new LocalizedChoice<RiskLevel?>(value, () => RiskLabel(value)))).ToArray();
+        NativeScope.ItemsSource = new[] { new LocalizedChoice<DebloatScope?>(null, "Todos") }
+            .Concat(new[] { DebloatScope.CurrentUser, DebloatScope.OtherUser, DebloatScope.Provisioned }
+                .Select(value => new LocalizedChoice<DebloatScope?>(value, DebloatPresentation.Scope(value)))).ToArray();
         NativeCategory.SelectedIndex = NativeRisk.SelectedIndex = NativeScope.SelectedIndex = 0;
         updating = false;
         initialized = true;
+        UpdateButtons();
+    }
+
+    internal void RefreshLanguage()
+    {
+        updating = true;
+        try
+        {
+            foreach (var combo in new[] { FilterCombo, ScenarioCombo, NativeCategory, NativeRisk, NativeScope })
+                foreach (var choice in combo.Items.OfType<ILocalizedChoice>()) choice.RefreshLanguage();
+            InventoryGrid.Items.Refresh();
+            HistoryList.Items.Refresh();
+            NativeGrid.Items.Refresh();
+            ShowNativeSelection(preservePreview: true);
+            if (nativePreview is { } preview) ShowNativePreview(preview, bringIntoView: false);
+            ShowSelection(preservePlan: true);
+            if (preparedPlan is { } plan) ShowPlan(plan);
+            ShowHistorySelection(updateReinstallation: reinstallFromHistory);
+            if (nativeObserver is null) debloatMessages.Set(nameof(NativeInventoryStatus), () => NativeInventoryStatus.Text = Loc.T("Leitor nativo indisponível nesta composição."));
+            debloatMessages.Refresh();
+        }
+        finally { updating = false; }
         UpdateButtons();
     }
 
@@ -63,7 +94,7 @@ public partial class DebloatView : UserControl
         if (manager is not null) throw new InvalidOperationException("Debloat já foi composto.");
         manager = debloatManager;
         nativeObserver = observer;
-        if (observer is null) NativeInventoryStatus.Text = Loc.T("Leitor nativo indisponível nesta composição.");
+        if (observer is null) debloatMessages.Set(nameof(NativeInventoryStatus), () => NativeInventoryStatus.Text = Loc.T("Leitor nativo indisponível nesta composição."));
         UpdateButtons();
         if (IsLoaded) _ = RefreshAsync();
     }
@@ -95,7 +126,7 @@ public partial class DebloatView : UserControl
         nativeObservation = null;
         nativeRows = [];
         ApplyNativeFilter();
-        NativeSummary.Text = Loc.T("Leitura em andamento…");
+        debloatMessages.Set(nameof(NativeSummary), () => NativeSummary.Text = Loc.T("Leitura em andamento…"));
         NativeWarnings.Visibility = Visibility.Collapsed;
         var token = cancellation!.Token;
         try
@@ -108,20 +139,20 @@ public partial class DebloatView : UserControl
                 .OrderBy(row => row.Name, StringComparer.CurrentCultureIgnoreCase).ToArray();
             var scopes = observation.Query.AdditionalScopes.Select(scope =>
                 ScopeStatus(scope.Scope, scope.State, scope.Packages.Count));
-            NativeInventoryStatus.Text = string.Join(Environment.NewLine,
-                scopes.Prepend(ScopeStatus(DebloatScope.CurrentUser, observation.Query.State, observation.ObservedCount)));
+            debloatMessages.Set(nameof(NativeInventoryStatus), () => NativeInventoryStatus.Text = string.Join(Environment.NewLine,
+                scopes.Prepend(ScopeStatus(DebloatScope.CurrentUser, observation.Query.State, observation.ObservedCount))));
             NativeWarnings.Text = string.Join(Environment.NewLine, observation.Warnings.Take(20));
             NativeWarnings.Visibility = Visibility.Visible;
             ApplyNativeFilter();
         }
         catch (OperationCanceledException)
         {
-            NativeInventoryStatus.Text = Loc.T("Consulta interrompida. Nenhuma ausência foi confirmada.");
+            debloatMessages.Set(nameof(NativeInventoryStatus), () => NativeInventoryStatus.Text = Loc.T("Consulta interrompida. Nenhuma ausência foi confirmada."));
             ApplyNativeFilter();
         }
         catch (Exception error) when (error is not OutOfMemoryException)
         {
-            NativeInventoryStatus.Text = Loc.F($"Consulta indisponível (0x{error.HResult:X8}). Nenhuma ausência foi confirmada.");
+            debloatMessages.Set(nameof(NativeInventoryStatus), () => NativeInventoryStatus.Text = Loc.F($"Consulta indisponível (0x{error.HResult:X8}). Nenhuma ausência foi confirmada."));
             ApplyNativeFilter();
         }
         finally
@@ -133,18 +164,18 @@ public partial class DebloatView : UserControl
 
     private static string ScopeStatus(DebloatScope scope, DebloatInventoryQueryState state, int count) =>
         $"{Loc.T(DebloatPresentation.Scope(scope))} · {Loc.T(DebloatPresentation.QueryState(state))}" +
-        (count > 0 ? $" {count} pacote(s) observado(s)." : "");
+        (count > 0 ? Loc.F($" {count} pacote(s) observado(s).") : "");
 
     private void OnNativeCancel(object sender, RoutedEventArgs e)
     {
         Cancel();
         NativeCancelButton.IsEnabled = false;
-        NativeInventoryStatus.Text = Loc.T("Aguardando o encerramento da consulta…");
+        debloatMessages.Set(nameof(NativeInventoryStatus), () => NativeInventoryStatus.Text = Loc.T("Aguardando o encerramento da consulta…"));
     }
 
     private void OnNativeFilter(object sender, RoutedEventArgs e)
     {
-        if (initialized && !busy) ApplyNativeFilter();
+        if (initialized && !updating && !busy) ApplyNativeFilter();
     }
 
     private void ApplyNativeFilter()
@@ -152,26 +183,26 @@ public partial class DebloatView : UserControl
         var selected = NativeGrid.SelectedItem;
         var term = NativeSearch.Text.Trim();
         var rows = nativeRows.Where(row =>
-            (NativeCategory.SelectedIndex == 0 || Equals(NativeCategory.SelectedItem, row.Category)) &&
-            (NativeRisk.SelectedIndex == 0 || Equals(NativeRisk.SelectedItem, row.Risk)) &&
-            (NativeScope.SelectedIndex == 0 || Equals(NativeScope.SelectedItem, row.Scope)) &&
+            (NativeCategory.SelectedIndex == 0 || (NativeCategory.SelectedItem as LocalizedChoice<DebloatNativeCategory?>)?.Value == row.Assessment.Category) &&
+            (NativeRisk.SelectedIndex == 0 || (NativeRisk.SelectedItem as LocalizedChoice<RiskLevel?>)?.Value == row.Assessment.EffectiveRisk) &&
+            (NativeScope.SelectedIndex == 0 || (NativeScope.SelectedItem as LocalizedChoice<DebloatScope?>)?.Value == row.Package.Scope) &&
             (term.Length == 0 || row.Search.Contains(term, StringComparison.CurrentCultureIgnoreCase))).ToArray();
         NativeGrid.ItemsSource = rows;
         if (selected is NativeRow row && rows.Contains(row)) NativeGrid.SelectedItem = selected;
-        NativeSummary.Text = nativeObservation is null ? Loc.T("Consulte o inventário para carregar a lista.")
+        debloatMessages.Set(nameof(NativeSummary), () => NativeSummary.Text = nativeObservation is null ? Loc.T("Consulte o inventário para carregar a lista.")
             : rows.Length == 0 ? Loc.T("Nenhum pacote observado corresponde aos filtros. Confira a cobertura acima.")
-            : Loc.F($"{rows.Length} de {nativeRows.Count} pacote(s) observado(s).");
+            : Loc.F($"{rows.Length} de {nativeRows.Count} pacote(s) observado(s)."));
         ShowNativeSelection();
     }
 
     private void OnNativeSelection(object sender, SelectionChangedEventArgs e)
     {
-        if (initialized) ShowNativeSelection();
+        if (initialized && !updating) ShowNativeSelection();
     }
 
-    private void ShowNativeSelection()
+    private void ShowNativeSelection(bool preservePreview = false)
     {
-        NativePreview.Visibility = Visibility.Collapsed;
+        if (!preservePreview) { nativePreview = null; NativePreview.Visibility = Visibility.Collapsed; }
         if (NativeGrid.SelectedItem is not NativeRow row)
         {
             NativeDetails.Text = Loc.T("Selecione um pacote para consultar identidade, dependências e bloqueios.");
@@ -193,8 +224,13 @@ public partial class DebloatView : UserControl
     private void OnNativePreview(object sender, RoutedEventArgs e)
     {
         if (busy || nativeObservation is null || NativeGrid.SelectedItem is not NativeRow row) return;
-        var plan = DebloatRemovalPreflightEngine.PreviewNative(nativeObservation, row.Assessment);
-        NativePreview.Text = Loc.F($"Prévia individual · {row.Scope} · {plan.ObservedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}\n") +
+        nativePreview = DebloatRemovalPreflightEngine.PreviewNative(nativeObservation, row.Assessment);
+        ShowNativePreview(nativePreview);
+    }
+
+    private void ShowNativePreview(DebloatNativeRemovalPreview plan, bool bringIntoView = true)
+    {
+        NativePreview.Text = Loc.F($"Prévia individual · {Loc.T(DebloatPresentation.Scope(plan.Package.Scope))} · {plan.ObservedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss}\n") +
             Loc.F($"{Available(plan.Package.PackageFullName)}\nRisco T0: {RiskLabel(plan.Preflight.RealRisk)}\n") +
             Loc.F($"Dependências informadas: {NativeDependencyLabel(plan.Dependencies, plan.Dependencies is not null)}\n") +
             Loc.F($"Dependentes observados: {NativeDependencyLabel(plan.Dependents, plan.DependenciesComplete)}\n") +
@@ -205,19 +241,19 @@ public partial class DebloatView : UserControl
             string.Join(Loc.T("\n"), plan.Consequences) + Loc.T("\n\nBloqueios\n") +
             string.Join(Loc.T("\n"), plan.Preflight.RealBlockers) + Loc.T("\n\n") + plan.Reinstallation;
         NativePreview.Visibility = Visibility.Visible;
-        NativePreview.BringIntoView();
+        if (bringIntoView) NativePreview.BringIntoView();
     }
 
     private static string NativeDependencyLabel(IReadOnlyList<string>? names, bool complete) => names switch
     {
         { Count: > 0 } => string.Join(", ", names.Select(Available)),
-        _ when complete => "Nenhuma na consulta estática.",
-        _ => "Indisponível ou incompleto."
+        _ when complete => Loc.T("Nenhuma na consulta estática."),
+        _ => Loc.T("Indisponível ou incompleto.")
     };
 
     private static string Available(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return "Indisponível";
+        if (string.IsNullOrWhiteSpace(value)) return Loc.T("Indisponível");
         return new string(value.Where(c => !char.IsControl(c)).Take(DebloatNativeLimits.MaximumText).ToArray());
     }
 
@@ -233,15 +269,15 @@ public partial class DebloatView : UserControl
             await LoadInventoryAsync(cancellation!.Token);
             await LoadHistoryAsync(cancellation.Token);
             loaded = true;
-            StatusText.Text = Loc.T("Inventário sintético atualizado. Atualizar não restaura fixtures já removidas nesta sessão.");
+            debloatMessages.Set(nameof(StatusText), () => StatusText.Text = Loc.T("Inventário sintético atualizado. Atualizar não restaura fixtures já removidas nesta sessão."));
         }
         catch (OperationCanceledException)
         {
-            StatusText.Text = Loc.T("Leitura cancelada. Nenhum aplicativo real foi consultado ou removido.");
+            debloatMessages.Set(nameof(StatusText), () => StatusText.Text = Loc.T("Leitura cancelada. Nenhum aplicativo real foi consultado ou removido."));
         }
         catch (Exception error)
         {
-            StatusText.Text = Loc.T("Não foi possível atualizar o inventário ou histórico: ") + error.Message;
+            debloatMessages.Set(nameof(StatusText), () => StatusText.Text = Loc.T("Não foi possível atualizar o inventário ou histórico: ") + error.Message);
         }
         finally { EndWork(); }
     }
@@ -265,11 +301,11 @@ public partial class DebloatView : UserControl
         var rows = records.OrderByDescending(item => item.AtUtc).Select(item => new HistoryRow(item)).ToArray();
         HistoryList.ItemsSource = rows;
         HistoryList.SelectedItem = rows.FirstOrDefault(row => row.Item.Id == selectedId);
-        HistorySummary.Text = warnings.Count > 0
+        debloatMessages.Set(nameof(HistorySummary), () => HistorySummary.Text = warnings.Count > 0
             ? Loc.F($"Histórico incompleto: {rows.Length} registro(s) válido(s) carregado(s). O total não foi determinado; examine os avisos.")
             : rows.Length == 0
                 ? Loc.T("Nenhuma simulação persistida. Registros futuros aparecerão aqui após a execução.")
-                : Loc.F($"{rows.Length} registro(s) sintético(s). Horários exibidos no fuso local.");
+                : Loc.F($"{rows.Length} registro(s) sintético(s). Horários exibidos no fuso local."));
         HistoryWarnings.Text = string.Join(Environment.NewLine, warnings);
     }
 
@@ -282,44 +318,18 @@ public partial class DebloatView : UserControl
     private void ApplyFilter(string? selectedId)
     {
         var search = SearchText.Text.Trim();
-        var filter = FilterCombo.SelectedItem as string ?? "Todos";
-        var rows = inventory.Where(row => MatchesFilter(row, filter) &&
+        var filter = (FilterCombo.SelectedItem as LocalizedChoice<string>)?.Value ?? "Todos";
+        var rows = inventory.Where(row => DebloatFilters.Matches(row.Assessment, filter) &&
             (search.Length == 0 || row.Search.Contains(search, StringComparison.OrdinalIgnoreCase))).ToArray();
         updating = true;
         InventoryGrid.ItemsSource = rows;
         InventoryGrid.SelectedItem = rows.FirstOrDefault(row => row.Assessment.Package.CatalogId == selectedId);
         updating = false;
-        InventorySummary.Text = rows.Length == 0
+        debloatMessages.Set(nameof(InventorySummary), () => InventorySummary.Text = rows.Length == 0
             ? Loc.T("Nenhum aplicativo corresponde à busca e ao filtro. Altere os critérios.")
-            : Loc.F($"{rows.Length} de {inventory.Count} entrada(s). Todos os estados e identidades abaixo são sintéticos.");
+            : Loc.F($"{rows.Length} de {inventory.Count} entrada(s). Todos os estados e identidades abaixo são sintéticos."));
         ShowSelection();
     }
-
-    private static bool MatchesFilter(InventoryRow row, string filter)
-    {
-        var assessment = row.Assessment;
-        var package = assessment.Package;
-        return filter switch
-        {
-            "Opcionais" => assessment.CanSimulate,
-            "Baixo" => assessment.EffectiveRisk == RiskLevel.Low,
-            "Médio" => assessment.EffectiveRisk == RiskLevel.Medium,
-            "Alto" => assessment.EffectiveRisk == RiskLevel.High,
-            "Não validados" => assessment.EffectiveRisk == RiskLevel.NotValidated,
-            "Presentes no inventário" => assessment.Presence == DebloatPresence.PresentInSyntheticInventory,
-            "Ausentes no inventário" => assessment.Presence == DebloatPresence.AbsentInConsultedInventory,
-            "Não verificados" => assessment.Presence == DebloatPresence.NotVerified,
-            "Protegidos" => assessment.Eligibility == DebloatEligibility.ProtectedOrBlocked,
-            "Microsoft" => IsMicrosoft(assessment.CatalogEntry?.TechnicalName ?? package.TechnicalName),
-            "Terceiros/OEM" => !IsMicrosoft(assessment.CatalogEntry?.TechnicalName ?? package.TechnicalName),
-            _ => true
-        };
-    }
-
-    private static bool IsMicrosoft(string technicalName) =>
-        technicalName.StartsWith("Microsoft.", StringComparison.OrdinalIgnoreCase) ||
-        technicalName.StartsWith("MicrosoftCorporationII.", StringComparison.OrdinalIgnoreCase) ||
-        technicalName.Equals("Clipchamp.Clipchamp", StringComparison.OrdinalIgnoreCase);
 
     private void OnSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -327,12 +337,16 @@ public partial class DebloatView : UserControl
         ShowSelection();
     }
 
-    private void ShowSelection()
+    private void ShowSelection(bool preservePlan = false)
     {
-        InvalidatePlan();
-        updating = true;
-        MediumReviewCheck.IsChecked = false;
-        updating = false;
+        if (!preservePlan)
+        {
+            reinstallFromHistory = false;
+            InvalidatePlan();
+            updating = true;
+            MediumReviewCheck.IsChecked = false;
+            updating = false;
+        }
         if (InventoryGrid.SelectedItem is not InventoryRow row)
         {
             DetailsText.Text = Loc.T("Selecione um aplicativo no inventário sintético.");
@@ -385,7 +399,7 @@ public partial class DebloatView : UserControl
         RemovalPresentation.Present(DebloatRemovalPresentation.Unavailable());
         preparedPlan = null;
         ConfirmationText.Text = string.Empty;
-        ConfirmationHint.Text = Loc.T("A confirmação exata será exibida após preparar um plano elegível.");
+        debloatMessages.Set(nameof(ConfirmationHint), () => ConfirmationHint.Text = Loc.T("A confirmação exata será exibida após preparar um plano elegível."));
         PlanText.Text = Loc.T("Prepare um plano após revisar os detalhes. Alterações de aplicativo, cenário ou revisão invalidam o plano.");
         if (initialized) UpdateButtons();
     }
@@ -393,7 +407,7 @@ public partial class DebloatView : UserControl
     private async void OnPrepare(object sender, RoutedEventArgs e)
     {
         if (manager is null || busy || InventoryGrid.SelectedItem is not InventoryRow row ||
-            ScenarioCombo.SelectedItem is not ScenarioRow scenario) return;
+            ScenarioCombo.SelectedItem is not LocalizedChoice<DebloatScenario> scenario) return;
         var id = row.Assessment.Package.CatalogId;
         using var productLease = BeginOperation is null ? standaloneOperations.Acquire() : BeginOperation();
         if (productLease is null) return;
@@ -406,12 +420,12 @@ public partial class DebloatView : UserControl
             cancellation.Token.ThrowIfCancellationRequested();
             preparedPlan = plan;
             ShowPlan(plan);
-            StatusText.Text = plan.Simulation.CanExecute
+            debloatMessages.Set(nameof(StatusText), () => StatusText.Text = plan.Simulation.CanExecute
                 ? Loc.T("Plano preparado. Revise as consequências e digite a confirmação exata para autorizar somente esta simulação.")
-                : Loc.T("Plano bloqueado. Consulte os motivos; autorização indisponível.");
+                : Loc.T("Plano bloqueado. Consulte os motivos; autorização indisponível."));
         }
-        catch (OperationCanceledException) { StatusText.Text = Loc.T("Preparação cancelada. Prepare um novo plano para continuar."); }
-        catch (Exception error) { StatusText.Text = Loc.T("Plano não preparado: ") + error.Message; }
+        catch (OperationCanceledException) { debloatMessages.Set(nameof(StatusText), () => StatusText.Text = Loc.T("Preparação cancelada. Prepare um novo plano para continuar.")); }
+        catch (Exception error) { debloatMessages.Set(nameof(StatusText), () => StatusText.Text = Loc.T("Plano não preparado: ") + error.Message); }
         finally { EndWork(); }
     }
 
@@ -434,7 +448,7 @@ public partial class DebloatView : UserControl
         text.AppendLine(Loc.T("Limitações:")); AppendItems(text, plan.Limitations.Concat(simulation.Limitations).Distinct());
         text.AppendLine(DebloatLimits.RecoveryWarning);
         PlanText.Text = text.ToString();
-        ConfirmationHint.Text = simulation.CanExecute ? Loc.T("Digite exatamente: ") + plan.Confirmation : Loc.T("Plano bloqueado; confirmação indisponível.");
+        debloatMessages.Set(nameof(ConfirmationHint), () => ConfirmationHint.Text = simulation.CanExecute ? Loc.T("Digite exatamente: ") + plan.Confirmation : Loc.T("Plano bloqueado; confirmação indisponível."));
     }
 
     private void OnConfirmationChanged(object sender, TextChangedEventArgs e)
@@ -460,18 +474,18 @@ public partial class DebloatView : UserControl
             historyId = result.Transaction.Transaction?.TransactionId;
             var transaction = result.Transaction.Transaction;
             var state = transaction is null ? "Resultado sem registro final" : StateLabel(transaction.State.ToString(), transaction.Succeeded, transaction.IsIndeterminate);
-            StatusText.Text = Loc.F($"SIMULAÇÃO: {state}. {result.Summary}");
+            debloatMessages.Set(nameof(StatusText), () => StatusText.Text = Loc.F($"SIMULAÇÃO: {Loc.T(state)}. {result.Summary}"));
             PlanText.Text += Environment.NewLine + Environment.NewLine + "Resultado sintético:" + Environment.NewLine +
                 state + Environment.NewLine + result.Summary + Environment.NewLine +
                 string.Join(Environment.NewLine, result.Transaction.Blockers);
         }
         catch (OperationCanceledException)
         {
-            StatusText.Text = Loc.T("Simulação cancelada. O histórico identifica estados persistidos; cancelamento não equivale a sucesso.");
+            debloatMessages.Set(nameof(StatusText), () => StatusText.Text = Loc.T("Simulação cancelada. O histórico identifica estados persistidos; cancelamento não equivale a sucesso."));
         }
         catch (Exception error)
         {
-            StatusText.Text = Loc.T("Simulação não concluída: ") + error.Message + Loc.T(" Consulte o histórico e seus avisos antes de preparar outro plano.");
+            debloatMessages.Set(nameof(StatusText), () => StatusText.Text = Loc.T("Simulação não concluída: ") + error.Message + Loc.T(" Consulte o histórico e seus avisos antes de preparar outro plano."));
         }
         finally
         {
@@ -488,7 +502,7 @@ public partial class DebloatView : UserControl
                     Loc.T(" Resultado persistido não confirmado. Use Atualizar inventário sintético.");
             }
             PlanText.Text = executionDetails;
-            ConfirmationHint.Text = Loc.T("A autorização foi encerrada. Prepare um novo plano para outra simulação.");
+            debloatMessages.Set(nameof(ConfirmationHint), () => ConfirmationHint.Text = Loc.T("A autorização foi encerrada. Prepare um novo plano para outra simulação."));
             HistoryChanged?.Invoke();
             EndWork();
         }
@@ -498,10 +512,17 @@ public partial class DebloatView : UserControl
     {
         Cancel();
         CancelButton.IsEnabled = false;
-        StatusText.Text = Loc.T("Cancelamento solicitado; aguardando o registro do estado sintético…");
+        debloatMessages.Set(nameof(StatusText), () => StatusText.Text = Loc.T("Cancelamento solicitado; aguardando o registro do estado sintético…"));
     }
 
     private void OnHistorySelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (updating) return;
+        reinstallFromHistory = true;
+        ShowHistorySelection();
+    }
+
+    private void ShowHistorySelection(bool updateReinstallation = true)
     {
         if (HistoryList.SelectedItem is not HistoryRow row)
         {
@@ -514,15 +535,15 @@ public partial class DebloatView : UserControl
             Loc.F($"Horário local: {item.AtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss zzz}\nEstado: {StateLabel(item.State, item.Succeeded, item.Indeterminate)}\n") +
             Loc.F($"Estado técnico: {item.State}\nLimitações: {item.Limitations}\nRelatório local: {item.ReportPath}\n") + DebloatLimits.RecoveryWarning;
         if (item.Evidence is { } evidence) HistoryDetails.Text += "\n\n" + evidence;
-        ReinstallText.Text = item.ReinstallInformation;
+        if (updateReinstallation) ReinstallText.Text = item.ReinstallInformation;
     }
 
     private void BeginWork(string status)
     {
         busy = true;
         cancellation = new CancellationTokenSource();
-        if (nativeBusy) NativeInventoryStatus.Text = status;
-        else StatusText.Text = status;
+        if (nativeBusy) debloatMessages.Set(nameof(NativeInventoryStatus), () => NativeInventoryStatus.Text = Loc.T(status));
+        else debloatMessages.Set(nameof(StatusText), () => StatusText.Text = Loc.T(status));
         UpdateButtons();
     }
 
@@ -567,30 +588,30 @@ public partial class DebloatView : UserControl
         else foreach (var value in items) text.AppendLine("• " + value);
     }
 
-    private static string YesNo(bool value) => value ? "Sim" : "Não";
-    private static string NullableLabel(bool? value) => value is null ? "Indisponível" : YesNo(value.Value);
-    private static string RiskLabel(RiskLevel value) => value switch
+    private static string YesNo(bool value) => Loc.T(value ? "Sim" : "Não");
+    private static string NullableLabel(bool? value) => value is null ? Loc.T("Indisponível") : YesNo(value.Value);
+    private static string RiskLabel(RiskLevel value) => Loc.T(value switch
     {
         RiskLevel.Low => "Baixo", RiskLevel.Medium => "Médio", RiskLevel.High => "Alto", _ => "Não validado"
-    };
-    private static string InstallLabel(DebloatInstallState value) => value switch
+    });
+    private static string InstallLabel(DebloatInstallState value) => Loc.T(value switch
     {
         DebloatInstallState.Installed => "Instalado (fixture)",
         DebloatInstallState.NotFound => "Ausente no inventário efetivamente consultado",
         DebloatInstallState.RemovedSynthetic => "Removido (simulação)",
         _ => "Não observado ou indeterminado"
-    };
-    private static string ScopeLabel(DebloatScope value) => value switch
+    });
+    private static string ScopeLabel(DebloatScope value) => Loc.T(value switch
     {
         DebloatScope.CurrentUser => "Usuário atual (fixture)", DebloatScope.OtherUser => "Outro usuário (bloqueado)",
         DebloatScope.Provisioned => "Provisionado (bloqueado)", DebloatScope.AllUsers => "Todos os usuários (bloqueado)", _ => "Indisponível"
-    };
-    private static string DependencyLabel(DebloatDependencyStatus value) => value switch
+    });
+    private static string DependencyLabel(DebloatDependencyStatus value) => Loc.T(value switch
     {
         DebloatDependencyStatus.KnownNone => "Nenhuma na fixture", DebloatDependencyStatus.Known => "Detectadas na fixture",
         DebloatDependencyStatus.NotInvestigated => "Não investigadas", _ => "Desconhecidas"
-    };
-    private static string ScenarioLabel(DebloatScenario value) => value switch
+    });
+    private static string ScenarioLabel(DebloatScenario value) => Loc.T(value switch
     {
         DebloatScenario.Success => "Sucesso sintético", DebloatScenario.NotFound => "Aplicativo ausente (cenário sintético)",
         DebloatScenario.AccessDenied => "Acesso negado", DebloatScenario.Protected => "Aplicativo protegido",
@@ -600,13 +621,13 @@ public partial class DebloatView : UserControl
         DebloatScenario.Cancelled => "Cancelamento sintético", DebloatScenario.Indeterminate => "Estado indeterminado",
         DebloatScenario.PersistenceUnavailable => "Persistência indisponível", DebloatScenario.Unverifiable => "Resultado não verificável",
         _ => "Cenário não reconhecido (bloqueado)"
-    };
+    });
     private static string StateLabel(string state, bool succeeded, bool indeterminate)
     {
-        if (indeterminate) return "Indeterminado (simulação; sem sucesso confirmado)";
+        if (indeterminate) return Loc.T("Indeterminado (simulação; sem sucesso confirmado)");
         const string syntheticPrefix = "SINTÉTICO — ";
         if (state.StartsWith(syntheticPrefix, StringComparison.Ordinal)) state = state[syntheticPrefix.Length..];
-        return state switch
+        return Loc.T(state switch
         {
             nameof(TransactionState.VerificationPassed) when succeeded => "Concluído e verificado (simulação)",
             nameof(TransactionState.Cancelled) => "Cancelado (simulação)",
@@ -615,14 +636,10 @@ public partial class DebloatView : UserControl
             nameof(TransactionState.ExecutionFailed) => "Falha de execução (simulação)",
             nameof(TransactionState.VerificationFailed) => "Falha de verificação (simulação)",
             nameof(TransactionState.ExecutionIndeterminate) => "Indeterminado (simulação)",
-            _ => "Sem sucesso confirmado (simulação): " + state
-        };
+            _ => Loc.F($"Sem sucesso confirmado (simulação): {state}")
+        });
     }
 
-    private sealed record ScenarioRow(DebloatScenario Value, string Label)
-    {
-        public override string ToString() => Label;
-    }
     private sealed record HistoryRow(DebloatHistoryItem Item)
     {
         public string Label => $"{Item.AtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss} — {Item.Name} — {StateLabel(Item.State, Item.Succeeded, Item.Indeterminate)}";
@@ -633,15 +650,15 @@ public partial class DebloatView : UserControl
         public string Category => Loc.T(DebloatPresentation.Category(Assessment.Category));
         public string Scope => Loc.T(DebloatPresentation.Scope(Package.Scope));
         public string Risk => RiskLabel(Assessment.EffectiveRisk);
-        public string Eligibility => "Bloqueada";
-        public string InstallState => Package.InstallState switch
+        public string Eligibility => Loc.T("Bloqueada");
+        public string InstallState => Loc.T(Package.InstallState switch
         {
             DebloatNativeInstallState.Available => "Disponível",
             DebloatNativeInstallState.NotAvailable => "Indisponível no Windows",
             DebloatNativeInstallState.Degraded => "Com restrição informada pelo Windows",
             _ => "Estado de instalação indisponível"
-        };
-        public string Kind => Package.Kind switch
+        });
+        public string Kind => Loc.T(Package.Kind switch
         {
             DebloatPackageKind.Framework => "Framework",
             DebloatPackageKind.Resource => "Recurso",
@@ -649,8 +666,8 @@ public partial class DebloatView : UserControl
             _ when Package.IsOptional => "Pacote opcional",
             DebloatPackageKind.Appx => "Appx/MSIX principal",
             _ => "Tipo indisponível"
-        };
-        public string Signature => Package.Signature switch
+        });
+        public string Signature => Loc.T(Package.Signature switch
         {
             DebloatNativeSignature.Store => "Microsoft Store",
             DebloatNativeSignature.System => "Sistema Windows",
@@ -658,7 +675,7 @@ public partial class DebloatView : UserControl
             DebloatNativeSignature.Enterprise => "Empresa",
             DebloatNativeSignature.Unsigned => "Sem assinatura",
             _ => "Indisponível"
-        };
+        });
         public string Search => string.Join(" ", Name, Package.TechnicalName, Package.PackageFamilyName,
             Package.PackageFullName, Package.Publisher, Package.Version, Signature);
     }
@@ -667,7 +684,7 @@ public partial class DebloatView : UserControl
         public string Name => Assessment.Package.FriendlyName;
         public string Publisher => Assessment.Package.Publisher;
         public string Version => Assessment.Package.Version;
-        public string Category => Assessment.CatalogEntry?.Category ?? "Não catalogado";
+        public string Category => Loc.T(Assessment.CatalogEntry?.Category ?? "Não catalogado");
         public string Origin => Loc.T(DebloatPresentation.Origin(Assessment.Presence));
         public string State => Loc.T(DebloatPresentation.Presence(Assessment.Presence));
         public string Risk => RiskLabel(Assessment.EffectiveRisk);

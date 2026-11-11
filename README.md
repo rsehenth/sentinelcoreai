@@ -17,7 +17,7 @@ Local. Offline. Read-only by design.</p>
 
 ---
 
-> **Development status — stage 7A is a controlled synthetic audit.** Stages 1 through 6 are implemented
+> **Development status — stage 7B completed its controlled synthetic regression.** Stages 1 through 6 are implemented
 > and compile; final operational homologation remains pending. The shipped build is **read-only**: Personalization,
 > Debloat and Repairs are implemented in code, but real execution stays behind a closed build gate and is
 > only demonstrated with clearly marked synthetic data. To date this application has never changed a Windows
@@ -90,7 +90,7 @@ Windows APIs · WMI · Event Log · WER
 | **Feature phases 0–5** | Foundation, hardware, events/WER, performance, network, graphics, correlation, monitoring | Delivered, with quality gates and recorded real-run evidence |
 | **Integration stages 1–5** | Evidence-to-origin navigation, diagnostic journey, recovery/tweaks, Appx/MSIX inventory, native repairs | **Implemented in code** |
 | **Integration stage 6** | Whole-product integration: shell, histories, coordinated journeys, isolated broker packaging | **Implemented and compiled** (static close-out, 10 Nov 2026) |
-| **Integration stage 7** | Controlled synthetic audit (7A); operational homologation and distribution preparation remain separate | **7A only; operational homologation pending** |
+| **Integration stage 7** | Controlled synthetic audit (7A) and progressive functional regression (7B); operational homologation and distribution preparation remain separate | **Synthetic scope only; operational homologation pending** |
 | **Future** | Real validation of tweaks/debloat/repairs, signed distribution, installer, AI assistance | Planned |
 
 Still missing before this leaves preview: functional homologation of the integrated journeys, a single

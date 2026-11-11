@@ -10,6 +10,8 @@ namespace SentinelCore.App;
 /// <summary>Read-only history UI; the optional recovery flow accepts synthetic targets only.</summary>
 public partial class RecoveryCenterView : UserControl
 {
+    private readonly LocalizedMessages recoveryMessages = new();
+
     private RecoveryCenter? center;
     private RecoveryCenterSnapshot? snapshot;
     private CancellationTokenSource? readCancellation;
@@ -62,11 +64,26 @@ public partial class RecoveryCenterView : UserControl
         UpdateButtons();
     }
 
-    public void Initialize(RecoveryCenter recoveryCenter, bool loadIfVisible = true)
+    internal void RefreshLanguage()
     {
-        ArgumentNullException.ThrowIfNull(recoveryCenter);
-        if (center is not null) throw new InvalidOperationException("Central de Recuperação já composta.");
-        center = recoveryCenter;
+        updating = true;
+        try
+        {
+            foreach (var combo in new[] { ModuleCombo, OutcomeCombo, OriginCombo, CapabilityCombo,
+                         TypeCombo, StateCombo, RiskCombo, AvailableCombo, ConflictCombo, InterventionCombo })
+                foreach (var choice in combo.Items.OfType<ILocalizedChoice>()) choice.RefreshLanguage();
+            HistoryGrid.Items.Refresh();
+            UpdateSummary();
+            ShowSelection(preserveConfirmation: true);
+            UpdateModeText();
+            recoveryMessages.Refresh();
+        }
+        finally { updating = false; }
+    }
+
+    private void UpdateModeText()
+    {
+        if (center is null) return;
         ModeText.Text = center.SyntheticRecoveryAvailable
             ? Loc.T("HOST SINTÉTICO — recuperação apenas de alvos Synthetic")
             : center.RealRecoveryAvailable ? Loc.T("Recuperação controlada — HKCU do usuário atual")
@@ -76,6 +93,14 @@ public partial class RecoveryCenterView : UserControl
             : center.RealRecoveryAvailable
                 ? Loc.T("Analise os alvos antes de confirmar. O serviço revalida o backup e preserva valores em conflito.")
                 : Loc.T("Rollback desabilitado na distribuição. Os detalhes mostram a evidência registrada.");
+    }
+
+    public void Initialize(RecoveryCenter recoveryCenter, bool loadIfVisible = true)
+    {
+        ArgumentNullException.ThrowIfNull(recoveryCenter);
+        if (center is not null) throw new InvalidOperationException("Central de Recuperação já composta.");
+        center = recoveryCenter;
+        UpdateModeText();
         UpdateButtons();
         if (loadIfVisible && IsLoaded) _ = RefreshAsync();
     }
@@ -116,7 +141,7 @@ public partial class RecoveryCenterView : UserControl
         busy = true;
         readCancellation = new CancellationTokenSource();
         var interrupted = false;
-        StatusText.Text = Loc.T("Lendo as fontes duráveis de histórico…");
+        recoveryMessages.Set(nameof(StatusText), () => StatusText.Text = Loc.T("Lendo as fontes duráveis de histórico…"));
         UpdateButtons();
         try
         {
@@ -133,18 +158,18 @@ public partial class RecoveryCenterView : UserControl
             ApplyFilter(tweakId is { } id
                 ? snapshot.Operations.SingleOrDefault(operation => operation.Id == id && operation.Module == RecoveryModule.Tweaks)
                 : selected);
-            StatusText.Text = snapshot.IsComplete
-                ? Loc.F($"Histórico carregado às {DateTime.Now:HH:mm:ss} (horário local). Nenhuma operação de manutenção foi iniciada.")
-                : Loc.F($"Leitura incompleta às {DateTime.Now:HH:mm:ss} (horário local): examine os avisos. As contagens cobrem somente os registros válidos carregados.");
+            recoveryMessages.Set(nameof(StatusText), () => StatusText.Text = snapshot.IsComplete
+                ? Loc.F($"Histórico carregado às {loadedAt:HH:mm:ss} (horário local). Nenhuma operação de manutenção foi iniciada.")
+                : Loc.F($"Leitura incompleta às {loadedAt:HH:mm:ss} (horário local): examine os avisos. As contagens cobrem somente os registros válidos carregados."));
         }
         catch (OperationCanceledException)
         {
             interrupted = readCancellation.IsCancellationRequested;
-            InvalidateHistory("Leitura interrompida. O histórico não foi determinado.");
+            InvalidateHistory(() => Loc.T("Leitura interrompida. O histórico não foi determinado."));
         }
         catch (Exception error)
         {
-            InvalidateHistory("Não foi possível carregar os históricos: " + error.Message);
+            InvalidateHistory(() => Loc.T("Não foi possível carregar os históricos: ") + error.Message);
         }
         finally
         {
@@ -161,7 +186,7 @@ public partial class RecoveryCenterView : UserControl
         }
     }
 
-    private void InvalidateHistory(string message)
+    private void InvalidateHistory(Func<string> message)
     {
         snapshot = null;
         loaded = false;
@@ -170,10 +195,10 @@ public partial class RecoveryCenterView : UserControl
         AuditInterruptionsPanel.Visibility = Visibility.Collapsed;
         SummaryCards.ItemsSource = null;
         SummaryText.Text = Loc.T("Históricos indisponíveis. Contagens não determinadas.");
-        HistorySummary.Text = Loc.T("Leitura não concluída; não representa ausência de operações.");
+        recoveryMessages.Set(nameof(HistorySummary), () => HistorySummary.Text = Loc.T("Leitura não concluída; não representa ausência de operações."));
         WarningsPanel.Visibility = Visibility.Visible;
-        WarningsText.Text = message;
-        StatusText.Text = message;
+        recoveryMessages.Set(nameof(WarningsText), () => WarningsText.Text = message());
+        recoveryMessages.Set(nameof(StatusText), () => StatusText.Text = message());
         ShowSelection();
     }
 
@@ -181,8 +206,8 @@ public partial class RecoveryCenterView : UserControl
     {
         if (snapshot is null) return;
         var summary = RecoveryCenter.Summarize(snapshot);
-        var detail = summary.IsComplete ? "nos históricos carregados" : "só registros legíveis";
-        string Count(int value) => !summary.IsComplete && value == 0 ? "Não determinado" : value.ToString(CultureInfo.CurrentCulture);
+        var detail = Loc.T(summary.IsComplete ? "nos históricos carregados" : "só registros legíveis");
+        string Count(int value) => !summary.IsComplete && value == 0 ? Loc.T("Não determinado") : value.ToString(CultureInfo.CurrentCulture);
         SummaryCards.ItemsSource = new[]
         {
             new SummaryItem("Operações registradas", Count(summary.Registered), detail),
@@ -196,10 +221,10 @@ public partial class RecoveryCenterView : UserControl
             new SummaryItem("Recuperações realizadas",
                 Count(summary.RecoveriesCompleted + summary.RecoveriesPartial + summary.RecoveriesBlocked + summary.RecoveriesFailed),
                 summary.IsComplete || summary.RecoveriesCompleted + summary.RecoveriesPartial + summary.RecoveriesBlocked + summary.RecoveriesFailed > 0
-                    ? $"Integral: {summary.RecoveriesCompleted}; parcial: {summary.RecoveriesPartial}; bloqueada: {summary.RecoveriesBlocked}; falha: {summary.RecoveriesFailed}. {detail}."
-                    : "Distribuição não determinada; fontes incompletas.")
+                    ? Loc.F($"Integral: {summary.RecoveriesCompleted}; parcial: {summary.RecoveriesPartial}; bloqueada: {summary.RecoveriesBlocked}; falha: {summary.RecoveriesFailed}. {detail}.")
+                    : Loc.T("Distribuição não determinada; fontes incompletas."))
         };
-        SummaryText.Text = RecoveryCenterPresentation.Summary(snapshot);
+        SummaryText.Text = RecoveryCenterPresentation.Summary(snapshot, Loc.T);
         if ((snapshot.Audits ?? snapshot.InterruptedAudits) is { } audits)
         {
             AuditInterruptionsPanel.Visibility = Visibility.Visible;
@@ -210,13 +235,13 @@ public partial class RecoveryCenterView : UserControl
                 : Loc.F($"{audits.Audits.Count} auditoria(s) carregada(s), incluindo ") +
                   Loc.F($"{audits.Audits.Count(audit => audit.Status == DiagnosticStatus.Interrupted)} interrompida(s). Abra a origem para consultar as evidências.");
         }
-        var warnings = snapshot.Sources.SelectMany(source => source.Warnings.Select(w => $"{RecoveryCenterPresentation.Label(source.Module)}: {w}"))
+        var warnings = snapshot.Sources.SelectMany(source => source.Warnings.Select(w => Loc.F($"{Loc.T(RecoveryCenterPresentation.Label(source.Module))}: {w}")))
             .Concat(snapshot.Warnings)
             .Concat((snapshot.Audits ?? snapshot.InterruptedAudits)?.Warnings ?? [])
             .Concat(snapshot.Sources.Where(s => s.Status != RecoveryEvidenceStatus.Complete)
-                .Select(s => $"{RecoveryCenterPresentation.Label(s.Module)}: fonte {s.Status}; contagem total indisponível."))
+                .Select(s => Loc.F($"{Loc.T(RecoveryCenterPresentation.Label(s.Module))}: fonte {s.Status}; contagem total indisponível.")))
             .Distinct().ToArray();
-        WarningsText.Text = string.Join(Environment.NewLine, warnings);
+        recoveryMessages.Set(nameof(WarningsText), () => WarningsText.Text = string.Join(Environment.NewLine, warnings));
         WarningsPanel.Visibility = !snapshot.IsComplete || warnings.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -227,8 +252,8 @@ public partial class RecoveryCenterView : UserControl
 
     private sealed record InterruptedAuditRow(AuditRecord Audit)
     {
-        public string Label => $"Abrir auditoria · {Audit.CompletedUtc.ToLocalTime():dd/MM/yyyy HH:mm} · " +
-            $"{(Audit.Kind == AuditKind.Basic ? "Básica" : "Completa")} · {UiText.Diagnostic(Audit.Status)} · {Audit.Id:D}";
+        public string Label => Loc.F($"Abrir auditoria · {Audit.CompletedUtc.ToLocalTime():dd/MM/yyyy HH:mm} · ") +
+            Loc.F($"{Loc.T(Audit.Kind == AuditKind.Basic ? "Básica" : "Completa")} · {UiText.Diagnostic(Audit.Status)} · {Audit.Id:D}");
     }
 
     private void OnFilterChanged(object sender, RoutedEventArgs e)
@@ -248,15 +273,15 @@ public partial class RecoveryCenterView : UserControl
             (to is null && !string.IsNullOrWhiteSpace(ToDate.Text)) || from > to)
         {
             HistoryGrid.ItemsSource = Array.Empty<HistoryRow>();
-            HistorySummary.Text = Loc.T("Datas inválidas. Informe um intervalo local válido.");
+            recoveryMessages.Set(nameof(HistorySummary), () => HistorySummary.Text = Loc.T("Datas inválidas. Informe um intervalo local válido."));
             ShowSelection();
             return;
         }
         var filter = new RecoveryCenterFilter(Search: SearchText.Text.Trim(),
-            Module: Value<RecoveryModule>(ModuleCombo), Type: (TypeCombo.SelectedItem as TextChoice)?.Value,
+            Module: Value<RecoveryModule>(ModuleCombo), Type: (TypeCombo.SelectedItem as LocalizedChoice<string?>)?.Value,
             FromUtc: from is { } start ? DateBoundaryUtc(start, false) : null,
             ToUtc: to is { } end ? DateBoundaryUtc(end, true) : null,
-            State: (StateCombo.SelectedItem as TextChoice)?.Value, Risk: Value<RiskLevel>(RiskCombo),
+            State: (StateCombo.SelectedItem as LocalizedChoice<string?>)?.Value, Risk: Value<RiskLevel>(RiskCombo),
             Outcome: Value<RecoveryOperationOutcome>(OutcomeCombo), Origin: Value<RecoveryOrigin>(OriginCombo),
             Capability: Value<RecoveryCapability>(CapabilityCombo), RecoveryAvailable: Value<bool>(AvailableCombo),
             Conflict: Value<bool>(ConflictCombo), Intervention: Value<bool>(InterventionCombo));
@@ -266,11 +291,11 @@ public partial class RecoveryCenterView : UserControl
         HistoryGrid.SelectedItem = rows.FirstOrDefault(row => selected is not null &&
             row.Operation.Id == selected.Id && row.Operation.Module == selected.Module);
         updating = false;
-        HistorySummary.Text = rows.Length == 0
+        recoveryMessages.Set(nameof(HistorySummary), () => HistorySummary.Text = rows.Length == 0
             ? snapshot.IsComplete && snapshot.Operations.Count == 0
                 ? Loc.T("Nenhuma operação registrada nas fontes carregadas.")
                 : Loc.T("Nenhum registro válido carregado corresponde aos filtros; fontes inacessíveis não são contadas como vazias.")
-            : Loc.F($"{rows.Length} de {snapshot.Operations.Count} registro(s) carregado(s). Horários no fuso local. Carga às {loadedAt:HH:mm:ss}.");
+            : Loc.F($"{rows.Length} de {snapshot.Operations.Count} registro(s) carregado(s). Horários no fuso local. Carga às {loadedAt:HH:mm:ss}."));
         ShowSelection();
     }
 
@@ -296,13 +321,13 @@ public partial class RecoveryCenterView : UserControl
         if (initialized && !updating) ShowSelection();
     }
 
-    private void ShowSelection()
+    private void ShowSelection(bool preserveConfirmation = false)
     {
         var operation = (HistoryGrid.SelectedItem as HistoryRow)?.Operation;
-        ConfirmationText.Clear();
-        DetailsTitle.Text = operation is null ? Loc.T("Detalhes da operação") : Loc.F($"{operation.OperationId} · {RecoveryCenterPresentation.Label(operation.Origin)}");
-        DetailsText.Text = operation is null ? Loc.T("Selecione uma operação do histórico.") : RecoveryCenterPresentation.Details(operation);
-        TimelineText.Text = operation is null ? Loc.T("Nenhum evento selecionado.") : RecoveryCenterPresentation.Timeline(operation);
+        if (!preserveConfirmation) ConfirmationText.Clear();
+        DetailsTitle.Text = operation is null ? Loc.T("Detalhes da operação") : Loc.F($"{operation.OperationId} · {Loc.T(RecoveryCenterPresentation.Label(operation.Origin))}");
+        DetailsText.Text = operation is null ? Loc.T("Selecione uma operação do histórico.") : RecoveryCenterPresentation.Details(operation, Loc.T);
+        TimelineText.Text = operation is null ? Loc.T("Nenhum evento selecionado.") : RecoveryCenterPresentation.Timeline(operation, Loc.T);
         ReportPathText.Text = operation?.ReportPath ?? string.Empty;
         ConfirmationHint.Text = operation is { Preview.CanRecover: true, Capability: RecoveryCapability.PotentiallyAvailable } &&
             center?.CanAnalyze(operation) == true
@@ -344,7 +369,7 @@ public partial class RecoveryCenterView : UserControl
         ConfirmationText.Clear();
         UpdateSummary();
         ApplyFilter(pending);
-        StatusText.Text = Loc.T("Analisando backup e estado atual dos alvos…");
+        recoveryMessages.Set(nameof(StatusText), () => StatusText.Text = Loc.T("Analisando backup e estado atual dos alvos…"));
         UpdateButtons();
         try
         {
@@ -352,7 +377,7 @@ public partial class RecoveryCenterView : UserControl
             snapshot = snapshot with { Operations = snapshot.Operations.Select(o => o.Id == analyzed.Id && o.Module == analyzed.Module ? analyzed : o).ToArray() };
             UpdateSummary();
             ApplyFilter(analyzed);
-            StatusText.Text = analyzed.Preview?.Reason ?? Loc.T("Prévia concluída. Confira os alvos e as condições de recuperação.");
+            recoveryMessages.Set(nameof(StatusText), () => StatusText.Text = analyzed.Preview?.Reason ?? Loc.T("Prévia concluída. Confira os alvos e as condições de recuperação."));
         }
         catch (Exception error)
         {
@@ -362,7 +387,7 @@ public partial class RecoveryCenterView : UserControl
                 o.Id == failed.Id && o.Module == failed.Module ? failed : o).ToArray() };
             UpdateSummary();
             ApplyFilter(failed);
-            StatusText.Text = Loc.T("Análise indisponível; recuperação bloqueada: ") + error.Message;
+            recoveryMessages.Set(nameof(StatusText), () => StatusText.Text = Loc.T("Análise indisponível; recuperação bloqueada: ") + error.Message);
         }
         finally { busy = false; closeRequested = false; UpdateButtons(); BecameIdle?.Invoke(); }
     }
@@ -375,17 +400,17 @@ public partial class RecoveryCenterView : UserControl
         if (productLease is null) return;
         var confirmation = ConfirmationText.Text;
         busy = true;
-        StatusText.Text = Loc.T("Recuperação em andamento. Aguarde a verificação dos alvos…");
+        recoveryMessages.Set(nameof(StatusText), () => StatusText.Text = Loc.T("Recuperação em andamento. Aguarde a verificação dos alvos…"));
         UpdateButtons();
-        string resultText;
+        Func<string> resultText;
         try
         {
             var result = await center.RecoverAsync(operation!, confirmation);
-            resultText = $"Recuperação: {UiText.Outcome(result.Outcome)}. Integral: {(result.FullyRecovered ? "sim" : "não")}. {result.Error}";
+            resultText = () => Loc.F($"Recuperação: {UiText.Outcome(result.Outcome)}. Integral: {Loc.T(result.FullyRecovered ? "sim" : "não")}. {result.Error}");
         }
         catch (Exception error)
         {
-            resultText = "Recuperação não confirmada; consulte histórico e limitações: " + error.Message;
+            resultText = () => Loc.T("Recuperação não confirmada; consulte histórico e limitações: ") + error.Message;
         }
         finally
         {
@@ -397,32 +422,35 @@ public partial class RecoveryCenterView : UserControl
         if (closeRequested) { closeRequested = false; return; }
         // Keep the recovery reservation until the authoritative history has also been reloaded.
         await RefreshAsync(null, ownsOperation: true);
-        StatusText.Text = resultText;
+        recoveryMessages.Set(nameof(StatusText), () => StatusText.Text = resultText());
     }
 
     private static void BindEnum<T>(ComboBox combo, Func<T, string> label) where T : struct, Enum
     {
-        combo.ItemsSource = new[] { new Choice<T>(null, "Todos") }
-            .Concat(Enum.GetValues<T>().Select(value => new Choice<T>(value, label(value)))).ToArray();
+        combo.DisplayMemberPath = "Label";
+        combo.ItemsSource = new[] { new LocalizedChoice<T?>(null, "Todos") }
+            .Concat(Enum.GetValues<T>().Select(value => new LocalizedChoice<T?>(value, () => label(value)))).ToArray();
         combo.SelectedIndex = 0;
     }
 
     private static void BindBoolean(ComboBox combo, string yes, string no)
     {
-        combo.ItemsSource = new[] { new Choice<bool>(null, "Todos"), new Choice<bool>(true, yes), new Choice<bool>(false, no) };
+        combo.DisplayMemberPath = "Label";
+        combo.ItemsSource = new[] { new LocalizedChoice<bool?>(null, "Todos"), new LocalizedChoice<bool?>(true, yes), new LocalizedChoice<bool?>(false, no) };
         combo.SelectedIndex = 0;
     }
 
     private static void BindText(ComboBox combo, IEnumerable<string> values, Func<string, string>? label = null)
     {
-        var selected = (combo.SelectedItem as TextChoice)?.Value;
-        var choices = new[] { new TextChoice(null, "Todos") }.Concat(values.Distinct(StringComparer.Ordinal)
-            .OrderBy(s => s, StringComparer.CurrentCulture).Select(s => new TextChoice(s, label?.Invoke(s) ?? s))).ToArray();
+        combo.DisplayMemberPath = "Label";
+        var selected = (combo.SelectedItem as LocalizedChoice<string?>)?.Value;
+        var choices = new[] { new LocalizedChoice<string?>(null, "Todos") }.Concat(values.Distinct(StringComparer.Ordinal)
+            .OrderBy(s => s, StringComparer.CurrentCulture).Select(s => new LocalizedChoice<string?>(s, () => label?.Invoke(s) ?? s))).ToArray();
         combo.ItemsSource = choices;
         combo.SelectedItem = choices.FirstOrDefault(c => c.Value == selected) ?? choices[0];
     }
 
-    private static T? Value<T>(ComboBox combo) where T : struct => (combo.SelectedItem as Choice<T>)?.Value;
+    private static T? Value<T>(ComboBox combo) where T : struct => (combo.SelectedItem as LocalizedChoice<T?>)?.Value;
     private static DateTimeOffset DateBoundaryUtc(DateTime date, bool endOfDay)
     {
         var boundary = endOfDay ? date.Date.AddTicks(TimeSpan.TicksPerDay - 1) : date.Date;
@@ -434,22 +462,18 @@ public partial class RecoveryCenterView : UserControl
         RiskLevel.NotValidated => "Não validado", _ => "Desconhecido"
     };
 
-    private sealed record Choice<T>(T? Value, string Label) where T : struct
+    private sealed record SummaryItem(string PortugueseTitle, string Value, string PortugueseDetail)
     {
-        public override string ToString() => Label;
+        public string Title => Loc.T(PortugueseTitle);
+        public string Detail => Loc.T(PortugueseDetail);
     }
-    private sealed record TextChoice(string? Value, string Label)
-    {
-        public override string ToString() => Label;
-    }
-    private sealed record SummaryItem(string Title, string Value, string Detail);
     private sealed record HistoryRow(RecoveryOperation Operation)
     {
         public string LocalDate => Operation.AtUtc.ToLocalTime().ToString("g", CultureInfo.CurrentCulture);
-        public string Module => RecoveryCenterPresentation.Label(Operation.Module);
-        public string Origin => RecoveryCenterPresentation.Label(Operation.Origin);
-        public string Outcome => RecoveryCenterPresentation.Label(Operation.Outcome);
-        public string Capability => RecoveryCenterPresentation.Label(Operation.Capability);
+        public string Module => Loc.T(RecoveryCenterPresentation.Label(Operation.Module));
+        public string Origin => Loc.T(RecoveryCenterPresentation.Label(Operation.Origin));
+        public string Outcome => Loc.T(RecoveryCenterPresentation.Label(Operation.Outcome));
+        public string Capability => Loc.T(RecoveryCenterPresentation.Label(Operation.Capability));
         public string StateText => UiText.Recorded(Operation.State);
     }
 }

@@ -1,5 +1,34 @@
 # Execução
 
+## Etapa 7B complementar — desenvolvimento e regressão sintética (11/11/2026)
+
+- [x] Reconhecer master/d2f08a4 e preservar 13 arquivos modificados/dois testes novos recebidos da 7B.
+- [x] Corrigir rótulos/filtros dinâmicos com chaves estáveis, consentimento localizado e atualização visual dos modelos em memória.
+- [x] Isolar automedição de Desempenho/Rede por factory de medidor; injetar somente fakes nos casos revistos.
+- [x] Usar relógio monotônico injetado na cadência e cobrir auditoria completa sintética, falhas, cancelamento e checkpoints.
+- [x] Inspecionar/reclassificar progressivamente casos; manter seleção positiva, hashes e TEMP/TMP exclusivos.
+- [x] Fechar 430/430 SyntheticSafe em Debug/Release, builds 0/0; reconciliar 363 hashes, matriz, TRX e limites.
+- [ ] Homologação WPF interativa/operacional, restantes Unclassified e testes temporais de Rede: pendentes.
+- [ ] 7C, commit/push/publish/deploy: não autorizados.
+
+[Relatório complementar](../docs/validation/2026-11-11-stage7b-complement-functional-regression.md).
+
+## Etapa 7B — regressão funcional sintética (11/11/2026)
+
+- [x] Confirmar master/d2f08a4 e árvore inicial limpa; preservar estado existente.
+- [x] Revisar fontes/fixtures dos lotes adicionais e manter manifesto positivo com hashes limitados.
+- [x] Avançar inventário para 1.627 casos: 354 SyntheticSafe, oito WindowsReadOnly, 1.265 Unclassified.
+- [x] Demonstrar e corrigir fallback de idioma e ordem da reserva na troca de idioma.
+- [x] Atualizar contratos estáticos das 13 páginas para resolver recursos de localização vigentes.
+- [x] Acrescentar regressões de coordenação, cancelamento, persistência/reabertura e auditoria completa interrompida.
+- [x] Reconciliar resultados finais Debug/Release: 354/354 em cada configuração, zero falhos/ignorados; builds 0/0, matriz, hashes, gates/T0 e revisão conferidos.
+- [x] Encerrar 7B no escopo sintético; Graphify estrutural atualizado e limitações documentadas.
+- [ ] Lacuna média 7B-04: completar localização dinâmica com preservação de contexto em regressão isolada futura.
+- [ ] Homologação operacional/visual, auditoria completa sem cancelamento, IPC/UAC e distribuição: fase futura específica.
+- [ ] Etapa 7C: aguardar autorização. Sem commit/push/release/deploy.
+
+[Relatório e limitações](../docs/validation/2026-11-11-stage7b-functional-regression.md).
+
 ## Etapa 7A — auditoria e regressão segura (11/11/2026)
 
 - [x] Reconhecer master/HEAD real e árvore limpa, divergência do commit informado e histórico de segurança.

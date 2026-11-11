@@ -135,7 +135,7 @@ public sealed class MonitoringSessionRunner
     {
         var id = Guid.NewGuid();
         var startedUtc = clock.GetUtcNow();
-        var timer = Stopwatch.StartNew();
+        var timer = new SessionTimer(clock);
         var run = new RunState(id, startedUtc, timer);
         lock (gate)
         {
@@ -736,11 +736,11 @@ public sealed class MonitoringSessionRunner
             CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Default);
 
-    private sealed class RunState(Guid sessionId, DateTimeOffset startedUtc, Stopwatch timer)
+    private sealed class RunState(Guid sessionId, DateTimeOffset startedUtc, SessionTimer timer)
     {
         public Guid SessionId { get; } = sessionId;
         public DateTimeOffset StartedUtc { get; } = startedUtc.ToUniversalTime();
-        public Stopwatch Timer { get; } = timer;
+        public SessionTimer Timer { get; } = timer;
         public int PerformanceObservations { get; set; }
         public int EventObservations { get; set; }
         public int NetworkObservations { get; set; }

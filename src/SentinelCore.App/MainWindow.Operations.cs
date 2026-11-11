@@ -21,6 +21,7 @@ public partial class MainWindow
 
     private void OnProductOperationChanged()
     {
+        LanguageRow.IsEnabled = !operations.IsBusy;
         UpdateAllBusyButtons();
         UpdateTweakButtons();
         UpdateRepairButtons();

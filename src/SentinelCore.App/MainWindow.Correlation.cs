@@ -1,3 +1,4 @@
+using static SentinelCore.App.CorrelationPresentationRows;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -13,6 +14,8 @@ namespace SentinelCore.App;
 
 public partial class MainWindow
 {
+    private readonly LocalizedMessages correlationMessages = new();
+
     private IReadOnlyList<CorrelationInvestigation> correlationInvestigations = [];
     private CorrelationInvestigation? selectedCorrelation;
     private CorrelationInvestigation? unsavedCorrelation;
@@ -25,6 +28,7 @@ public partial class MainWindow
     private void InitializeCorrelation()
     {
         updatingCorrelation = true;
+        CorrelationPresetCombo.DisplayMemberPath = "Label";
         CorrelationPresetCombo.ItemsSource = new[]
         {
             new CorrelationPresetRow(EventWindow.Last24Hours, "24 horas"),
@@ -134,7 +138,7 @@ public partial class MainWindow
         var associations = investigation.Relations.Count(relation => relation.IsHypothesis);
         CorrelationRelationValue.Text = associations.ToString(CultureInfo.CurrentCulture);
         CorrelationRelationCardDetail.Text =
-            Loc.F($"{(coverage.LimitHit ? "limite interno atingido" : "sem limite interno")} · ") +
+            Loc.F($"{Loc.T(coverage.LimitHit ? "limite interno atingido" : "sem limite interno")} · ") +
             Loc.F($"{investigation.Timeline.Count} item(ns) na linha do tempo");
 
         CorrelationTimelineList.ItemsSource = investigation.Timeline
@@ -169,9 +173,8 @@ public partial class MainWindow
         CorrelationProgress.Maximum = 3;
         CorrelationProgress.Value = 0;
         CorrelationInvestigationInfo.Text = Loc.T("Nenhuma investigação de correlação realizada.");
-        CorrelationStatusText.Text =
-            Loc.T("Selecione um período e as fontes. A correlação reutiliza somente registros históricos; nenhuma coleta ") +
-            Loc.T("nova é executada e nenhuma configuração do Windows é alterada.");
+        correlationMessages.Set(nameof(CorrelationStatusText), () => CorrelationStatusText.Text = Loc.T("Selecione um período e as fontes. A correlação reutiliza somente registros históricos; nenhuma coleta ") +
+            Loc.T("nova é executada e nenhuma configuração do Windows é alterada."));
         CorrelationSourceValue.Text = "—";
         CorrelationSourceDetail.Text = Loc.T("fontes consultadas");
         CorrelationEvidenceValue.Text = "—";
@@ -202,7 +205,7 @@ public partial class MainWindow
         var text = new StringBuilder();
         var associations = investigation.Relations.Count(relation => relation.IsHypothesis);
         text.AppendLine(associations == 0
-            ? Loc.F($"{CorrelationGuidance.InsufficientEvidenceStatement}.")
+            ? Loc.F($"{Loc.T(CorrelationGuidance.InsufficientEvidenceStatement)}.")
             : Loc.F($"{associations} associação(ões) determinística(s) identificada(s)."));
         text.AppendLine(Loc.T("Causalidade não avaliada."));
         text.AppendLine();
@@ -238,7 +241,7 @@ public partial class MainWindow
         text.AppendLine();
         foreach (var source in investigation.Sources)
         {
-            text.AppendLine(Loc.F($"{CorrelationGuidance.SourceName(source.Source)}: {CorrelationSourceStatusName(source.Status)} · ") +
+            text.AppendLine(Loc.F($"{Loc.T(CorrelationGuidance.SourceName(source.Source))}: {CorrelationSourceStatusName(source.Status)} · ") +
                 Loc.F($"{source.RecordsRead} lido(s) · {source.RecordsUsed} usado(s) · {source.EvidenceCount} referência(s)"));
             if (source.Note is not null) text.AppendLine(Loc.F($"  {source.Note}"));
             foreach (var limitation in source.Limitations) text.AppendLine(Loc.F($"  Limitação: {limitation}"));
@@ -272,18 +275,18 @@ public partial class MainWindow
             correlationBusy = true;
             correlationSaving = true;
             UpdateAllBusyButtons();
-            CorrelationStatusText.Text = Loc.T("Tentando salvar novamente a correlação pendente…");
+            correlationMessages.Set(nameof(CorrelationStatusText), () => CorrelationStatusText.Text = Loc.T("Tentando salvar novamente a correlação pendente…"));
             try
             {
                 var pending = unsavedCorrelation;
                 await correlationStore.SaveCorrelationInvestigationAsync(pending, CancellationToken.None);
                 unsavedCorrelation = null;
                 await ReloadCorrelationAsync(pending.Id);
-                CorrelationStatusText.Text = Loc.T("Correlação pendente salva novamente.");
+                correlationMessages.Set(nameof(CorrelationStatusText), () => CorrelationStatusText.Text = Loc.T("Correlação pendente salva novamente."));
             }
             catch (Exception error)
             {
-                ShowCorrelationFailure(Loc.T("Falha de gravação da correlação. O resultado permanece nesta janela; ") +
+                ShowCorrelationFailure(() => Loc.T("Falha de gravação da correlação. O resultado permanece nesta janela; ") +
                     Loc.T("tente salvar novamente"), error);
             }
             finally
@@ -310,8 +313,7 @@ public partial class MainWindow
         var saved = false;
         try
         {
-            CorrelationStatusText.Text =
-                Loc.T("Correlação em andamento. Leitura somente dos registros históricos; nenhuma coleta nova é executada.");
+            correlationMessages.Set(nameof(CorrelationStatusText), () => CorrelationStatusText.Text = Loc.T("Correlação em andamento. Leitura somente dos registros históricos; nenhuma coleta nova é executada."));
             var progress = new Progress<CorrelationProgress>(OnCorrelationProgress);
             var request = new CorrelationRequest(SelectedCorrelationWindow(), Sources: sources);
             var investigation = await correlationRunner.RunAsync(request, progress, correlationCancellation.Token);
@@ -319,17 +321,16 @@ public partial class MainWindow
             ApplyCorrelation(investigation);
             correlationSaving = true;
             UpdateAllBusyButtons();
-            CorrelationStatusText.Text = Loc.T("Salvando investigação e relatório na memória local…");
+            correlationMessages.Set(nameof(CorrelationStatusText), () => CorrelationStatusText.Text = Loc.T("Salvando investigação e relatório na memória local…"));
             await correlationStore.SaveCorrelationInvestigationAsync(investigation, CancellationToken.None);
             saved = true;
             unsavedCorrelation = null;
             await ReloadCorrelationAsync(investigation.Id);
-            CorrelationStatusText.Text =
-                Loc.F($"Correlação {CorrelationStatusName(investigation.Status).ToLowerInvariant()} salva. ") +
+            correlationMessages.Set(nameof(CorrelationStatusText), () => CorrelationStatusText.Text = Loc.F($"Correlação {CorrelationStatusName(investigation.Status).ToLowerInvariant()} salva. ") +
                 Loc.F($"{investigation.Coverage.EvidenceFound} referência(s) de evidência, ") +
                 Loc.F($"{investigation.Coverage.MergedReferences} consolidada(s), ") +
                 Loc.F($"{investigation.Relations.Count(relation => relation.IsHypothesis)} relação(ões). ") +
-                Loc.T("Causalidade não avaliada.");
+                Loc.T("Causalidade não avaliada."));
         }
         catch (Exception error)
         {
@@ -338,7 +339,7 @@ public partial class MainWindow
                 : saved
                     ? "A correlação foi salva, mas a memória local não pôde ser relida. Reabra o aplicativo"
                     : "A investigação de correlação não pôde ser concluída";
-            ShowCorrelationFailure(message, error);
+            ShowCorrelationFailure(() => Loc.T(message), error);
         }
         finally
         {
@@ -358,7 +359,7 @@ public partial class MainWindow
     {
         correlationCancellation?.Cancel();
         CorrelationCancelButton.IsEnabled = false;
-        CorrelationStatusText.Text = Loc.T("Cancelamento solicitado. Aguardando a leitura histórica em andamento…");
+        correlationMessages.Set(nameof(CorrelationStatusText), () => CorrelationStatusText.Text = Loc.T("Cancelamento solicitado. Aguardando a leitura histórica em andamento…"));
     }
 
     private async void OnCorrelationReport(object sender, RoutedEventArgs e)
@@ -371,7 +372,7 @@ public partial class MainWindow
         }
         catch (Exception error)
         {
-            ShowCorrelationFailure(Loc.T("Não foi possível abrir a localização do relatório de correlação"), error);
+            ShowCorrelationFailure(() => Loc.T("Não foi possível abrir a localização do relatório de correlação"), error);
         }
         finally
         {
@@ -402,8 +403,8 @@ public partial class MainWindow
         if (correlationSaving) return;
         CorrelationProgress.Maximum = Math.Max(1, update.Total);
         CorrelationProgress.Value = update.Finished;
-        CorrelationStatusText.Text = Loc.F($"{char.ToUpperInvariant(update.Phase[0])}{update.Phase[1..]} · ") +
-            Loc.F($"{update.Finished}/{update.Total} · leitura somente");
+        correlationMessages.Set(nameof(CorrelationStatusText), () => CorrelationStatusText.Text = Loc.F($"{char.ToUpperInvariant(update.Phase[0])}{update.Phase[1..]} · ") +
+            Loc.F($"{update.Finished}/{update.Total} · leitura somente"));
     }
 
     private void OnCorrelationHistorySelected(object sender, SelectionChangedEventArgs e)
@@ -428,9 +429,9 @@ public partial class MainWindow
         var text = new StringBuilder();
         text.AppendLine(relation.Title);
         text.AppendLine(Loc.F($"Regra: {relation.RuleId} {relation.RuleVersion} · tipo: ") +
-            Loc.F($"{CorrelationGuidance.RelationKindName(relation.Kind)}"));
-        text.AppendLine(Loc.F($"Severidade: {EventCatalog.SeverityName(relation.Severity)} · ") +
-            Loc.F($"confiança: {EventCatalog.ConfidenceName(relation.Confidence)} · causalidade: não avaliada"));
+            Loc.F($"{Loc.T(CorrelationGuidance.RelationKindName(relation.Kind))}"));
+        text.AppendLine(Loc.F($"Severidade: {Loc.T(EventCatalog.SeverityName(relation.Severity))} · ") +
+            Loc.F($"confiança: {Loc.T(EventCatalog.ConfidenceName(relation.Confidence))} · causalidade: não avaliada"));
         text.AppendLine();
         text.AppendLine(relation.Statement);
         text.AppendLine();
@@ -446,7 +447,7 @@ public partial class MainWindow
                 var evidence = selectedCorrelation?.Evidence.FirstOrDefault(item => item.Id == id);
                 text.AppendLine(evidence is null
                     ? Loc.F($"• {id}")
-                    : Loc.F($"• {evidence.Title} — {CorrelationGuidance.SourceName(evidence.Source)} · {id}"));
+                    : Loc.F($"• {evidence.Title} — {Loc.T(CorrelationGuidance.SourceName(evidence.Source))} · {id}"));
             }
         }
         if (relation.Limitations.Count > 0)
@@ -475,11 +476,11 @@ public partial class MainWindow
         var text = new StringBuilder();
         text.AppendLine(evidence.Title);
         text.AppendLine(Loc.F($"Identidade lógica: {evidence.Id}"));
-        text.AppendLine(Loc.F($"Fonte: {CorrelationGuidance.SourceName(evidence.Source)} · tipo: ") +
+        text.AppendLine(Loc.F($"Fonte: {Loc.T(CorrelationGuidance.SourceName(evidence.Source))} · tipo: ") +
             Loc.F($"{CorrelationEvidenceKindName(evidence.Kind)} · precisão: ") +
-            Loc.F($"{CorrelationGuidance.PrecisionName(evidence.Precision)}"));
-        text.AppendLine(Loc.F($"Severidade: {EventCatalog.SeverityName(evidence.Severity)} · ") +
-            Loc.F($"confiança: {EventCatalog.ConfidenceName(evidence.Confidence)} · causalidade não avaliada"));
+            Loc.F($"{Loc.T(CorrelationGuidance.PrecisionName(evidence.Precision))}"));
+        text.AppendLine(Loc.F($"Severidade: {Loc.T(EventCatalog.SeverityName(evidence.Severity))} · ") +
+            Loc.F($"confiança: {Loc.T(EventCatalog.ConfidenceName(evidence.Confidence))} · causalidade não avaliada"));
         if (evidence.Detail is not null) text.AppendLine(evidence.Detail);
         text.AppendLine();
         text.AppendLine(Loc.F($"Horário original: {Local(evidence.OriginalTimestampUtc)}"));
@@ -490,7 +491,7 @@ public partial class MainWindow
             text.AppendLine(Loc.F($"Identidade: {evidence.IdentityKey} ({evidence.IdentityKind})"));
         text.AppendLine(Loc.T("Origens"));
         foreach (var origin in evidence.Origins)
-            text.AppendLine(Loc.F($"• {CorrelationGuidance.SourceName(origin.Source)} · registro {origin.SourceRecordId} · ") +
+            text.AppendLine(Loc.F($"• {Loc.T(CorrelationGuidance.SourceName(origin.Source))} · registro {origin.SourceRecordId} · ") +
                 Loc.F($"{origin.OriginReference}"));
         if (evidence.Limitations.Count > 0)
         {
@@ -591,11 +592,11 @@ public partial class MainWindow
             CorrelationSource.Performance => (PerformanceTab, PerformanceHistoryList,
                 PerformanceHistoryList.Items.OfType<PerformanceHistoryRow>().FirstOrDefault(row => row.Session.Id == id)),
             CorrelationSource.Network => (NetworkTab, NetworkHistoryList,
-                NetworkHistoryList.Items.OfType<NetworkHistoryRow>().FirstOrDefault(row => row.Session.Id == id)),
+                NetworkHistoryList.Items.OfType<NetworkPresentationRows.NetworkHistoryRow>().FirstOrDefault(row => row.Session.Id == id)),
             CorrelationSource.Graphics => (GraphicsTab, GraphicsHistoryList,
                 GraphicsHistoryList.Items.OfType<GraphicsHistoryRow>().FirstOrDefault(row => row.Investigation.Id == id)),
             CorrelationSource.Monitoring => (MonitoringTab, MonitoringHistoryList,
-                MonitoringHistoryList.Items.OfType<MonitoringHistoryRow>().FirstOrDefault(row => row.Session.Id == id)),
+                MonitoringHistoryList.Items.OfType<MonitoringPresentationRows.MonitoringHistoryRow>().FirstOrDefault(row => row.Session.Id == id)),
             _ => null
         };
 
@@ -624,7 +625,7 @@ public partial class MainWindow
 
         var text = new StringBuilder();
         var source = row.Source;
-        text.AppendLine(Loc.F($"{CorrelationGuidance.SourceName(source.Source)} · {CorrelationSourceStatusName(source.Status)}"));
+        text.AppendLine(Loc.F($"{Loc.T(CorrelationGuidance.SourceName(source.Source))} · {CorrelationSourceStatusName(source.Status)}"));
         text.AppendLine(Loc.F($"{source.RecordsRead} registro(s) lido(s) · {source.RecordsUsed} usado(s) · ") +
             Loc.F($"{source.EvidenceCount} referência(s) de evidência"));
         if (source.Note is not null) text.AppendLine(source.Note);
@@ -675,109 +676,11 @@ public partial class MainWindow
             !graphicsBusy && !correlationBusy && !monitoringBusy;
     }
 
-    private void ShowCorrelationFailure(string message, Exception error)
+    private void ShowCorrelationFailure(Func<string> message, Exception error)
     {
         logFailure(error);
-        CorrelationStatusText.Text = message + ".";
-        ShowWarning(Loc.F($"{message}. {error.GetType().Name}: {error.Message}"));
+        correlationMessages.Set(nameof(CorrelationStatusText), () => CorrelationStatusText.Text = message() + ".");
+        ShowWarning(Loc.F($"{message()}. {error.GetType().Name}: {error.Message}"));
     }
 
-    private static string CorrelationStatusName(CorrelationStatus status) => status switch
-    {
-        CorrelationStatus.Running => "Em andamento",
-        CorrelationStatus.Completed => "Concluída",
-        CorrelationStatus.Partial => "Concluída com cobertura parcial",
-        CorrelationStatus.Failed => "Falhou",
-        CorrelationStatus.Cancelled => "Cancelada",
-        _ => status.ToString()
-    };
-
-    private static string CorrelationCoverageName(CorrelationCoverageStatus status) => status switch
-    {
-        CorrelationCoverageStatus.Complete => "completa",
-        CorrelationCoverageStatus.Partial => "parcial",
-        CorrelationCoverageStatus.Unavailable => "indisponível",
-        _ => status.ToString()
-    };
-
-    private static string CorrelationSourceStatusName(CorrelationSourceStatus status) => status switch
-    {
-        CorrelationSourceStatus.Completed => "concluída",
-        CorrelationSourceStatus.Partial => "parcial",
-        CorrelationSourceStatus.Unavailable => "indisponível",
-        CorrelationSourceStatus.Cancelled => "cancelada",
-        _ => "não selecionada"
-    };
-
-    private static string CorrelationEvidenceKindName(CorrelationEvidenceKind kind) => kind switch
-    {
-        CorrelationEvidenceKind.EventLog => "evento do Windows",
-        CorrelationEvidenceKind.WerReport => "relatório WER",
-        CorrelationEvidenceKind.PerformanceObservation => "observação de desempenho",
-        CorrelationEvidenceKind.NetworkObservation => "observação de rede",
-        CorrelationEvidenceKind.GraphicsObservation => "observação gráfica",
-        CorrelationEvidenceKind.HardwareChange => "alteração de hardware",
-        CorrelationEvidenceKind.GraphicsChange => "alteração gráfica",
-        CorrelationEvidenceKind.TweakJournalEvent => "evento de personalização",
-        _ => "inventário de dispositivo"
-    };
-
-    private sealed record CorrelationPresetRow(EventWindow Window, string Label)
-    {
-        public override string ToString() => Label;
-    }
-
-    private sealed record CorrelationOriginRow(CorrelationEvidenceOrigin Origin)
-    {
-        public string Label => $"{CorrelationGuidance.SourceName(Origin.Source)} · {Origin.SourceRecordId}";
-        public override string ToString() => Label;
-    }
-
-    private sealed record CorrelationHistoryRow(CorrelationInvestigation Investigation)
-    {
-        public string DateText => Investigation.CompletedUtc.ToLocalTime()
-            .ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.CurrentCulture);
-        public string SummaryText =>
-            $"{CorrelationStatusName(Investigation.Status)} · cobertura " +
-            $"{CorrelationCoverageName(Investigation.Coverage.Status)} · " +
-            $"{Investigation.Coverage.DistinctOccurrences} evidência(s) · " +
-            $"{Investigation.Relations.Count(relation => relation.IsHypothesis)} relação(ões)";
-    }
-
-    private sealed record CorrelationTimelineRow(CorrelationTimelineItem Item)
-    {
-        public string Time => Item.TimestampUtc.ToLocalTime()
-            .ToString("dd/MM HH:mm:ss", CultureInfo.CurrentCulture);
-        public string Precision => CorrelationGuidance.PrecisionName(Item.Precision);
-        public string Source => CorrelationGuidance.SourceName(Item.Source);
-        public string Kind => CorrelationEvidenceKindName(Item.Kind);
-        public string Title => Item.Title;
-    }
-
-    private sealed record CorrelationRelationRow(CorrelationRelation Relation)
-    {
-        public string Title => Relation.Title;
-        public string Subtitle =>
-            $"{CorrelationGuidance.RelationKindName(Relation.Kind)} · " +
-            $"{EventCatalog.SeverityName(Relation.Severity)} · confiança " +
-            $"{EventCatalog.ConfidenceName(Relation.Confidence)} · causalidade não avaliada";
-    }
-
-    private sealed record CorrelationEvidenceRow(CorrelationEvidence Evidence)
-    {
-        public string Title => Evidence.Title;
-        public string Subtitle =>
-            $"{CorrelationGuidance.SourceName(Evidence.Source)} · {CorrelationEvidenceKindName(Evidence.Kind)} · " +
-            $"{CorrelationGuidance.PrecisionName(Evidence.Precision)} · {Evidence.Origins.Count} origem(ns)";
-    }
-
-    private sealed record CorrelationSourceRow(CorrelationSourceSummary Source)
-    {
-        public string SourceName => CorrelationGuidance.SourceName(Source.Source);
-        public string Status => CorrelationSourceStatusName(Source.Status);
-        public string Records => $"{Source.RecordsRead} lido(s) · {Source.RecordsUsed} usado(s)";
-        public string Limitations => Source.Limitations.Count == 0
-            ? "—"
-            : string.Join(" ", Source.Limitations);
-    }
 }

@@ -13,6 +13,17 @@
     <ProjectReference Include="../SyntheticJournalWorker/SyntheticJournalWorker.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Localization components only: no App, window, startup or operational composition. -->
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WPF" />
+    <Compile Include="../../src/SentinelCore.App/Localization/Localization.cs" Link="Localization/Localization.cs" />
+    <Compile Include="../../src/SentinelCore.App/Localization/Strings.cs" Link="Localization/Strings.cs" />
+    <Compile Include="../../src/SentinelCore.App/Localization/LocalizedChoice.cs" Link="Presentation/Localization/LocalizedChoice.cs" />
+    <Compile Include="../../src/SentinelCore.App/Localization/LocalizedMessages.cs" Link="Presentation/Localization/LocalizedMessages.cs" />
+    <Compile Include="../../src/SentinelCore.App/DebloatFilters.cs" Link="Presentation/DebloatFilters.cs" />
+    <Compile Include="../../src/SentinelCore.App/Localization/AuditScopeText.cs" Link="Presentation/Localization/AuditScopeText.cs" />
+    <Compile Include="../../src/SentinelCore.App/CorrelationPresentationRows.cs" Link="Presentation/CorrelationPresentationRows.cs" />
+    <Compile Include="../../src/SentinelCore.App/NetworkPresentationRows.cs" Link="Presentation/NetworkPresentationRows.cs" />
+    <Compile Include="../../src/SentinelCore.App/MonitoringPresentationRows.cs" Link="Presentation/MonitoringPresentationRows.cs" />
     <!-- Only pure contracts/JSON helpers are exercised; no broker, pipe or native entry point is started. -->
     <Compile Include="../../src/SentinelCore.RepairBroker/BrokerProtocol.cs" Link="BrokerProtocol.cs" />
     <Compile Include="../../src/SentinelCore.RepairBroker/BrokerLeaseModels.cs" Link="BrokerLeaseModels.cs" />

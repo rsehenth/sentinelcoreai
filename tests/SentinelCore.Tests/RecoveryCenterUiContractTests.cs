@@ -5,7 +5,7 @@ namespace SentinelCore.Tests;
 
 public sealed class RecoveryCenterUiContractTests
 {
-    private static string Source(string file) => File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App", file));
+    private static string Source(string file) => TestRepository.AppSource(file);
     private static readonly XNamespace Xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
 
     [Fact]
@@ -39,11 +39,16 @@ public sealed class RecoveryCenterUiContractTests
     public void ProductionComposesHistoryWithoutRecoveryOrWindowsExecutor()
     {
         var app = Source("App.xaml.cs");
-        Assert.Contains("recovery: new RecoveryCenter(store)", app);
+        Assert.Contains("recovery: new RecoveryCenter(store, tweaks: tweakManager)", app);
+        Assert.Contains("TweakExecutionMode.RealDisabled", app);
         Assert.DoesNotContain("new RecoveryCenter(store, tweakRecovery)", app);
         var view = Source("RecoveryCenterView.xaml.cs");
         Assert.Contains("SyntheticRecoveryAvailable", view);
-        Assert.Contains("Module: RecoveryModule.Tweaks, Origin: RecoveryOrigin.Synthetic", view);
+        Assert.Contains("center?.CanAnalyze(operation) == true", view);
+        Assert.Contains("!center.CanAnalyze(operation)", view);
+        var backend = File.ReadAllText(TestRepository.Combine("src", "SentinelCore.Application", "RecoveryCenter.cs"));
+        Assert.Contains("SyntheticRecoveryAvailable && IsSyntheticTweak(operation)", backend);
+        Assert.Contains("RealRecoveryAvailable && operation is { Module: RecoveryModule.Tweaks,", backend);
         Assert.Contains("TweakManager.BuildRecoveryConfirmationText", view);
         Assert.DoesNotContain("Process.Start", view);
         Assert.DoesNotContain("HkcuRegistryAccess", view);

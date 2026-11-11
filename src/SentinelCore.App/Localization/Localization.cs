@@ -26,6 +26,7 @@ public static class Localizer
     public static void Initialize(string dataRoot)
     {
         file = Path.Combine(dataRoot, FileName);
+        Current = AppLanguage.English;
         try
         {
             Current = File.ReadAllText(file).Trim() == "pt" ? AppLanguage.Portuguese : AppLanguage.English;

@@ -1,3 +1,4 @@
+using static SentinelCore.App.NetworkPresentationRows;
 using System.Globalization;
 using System.IO;
 using System.Text;
@@ -25,6 +26,7 @@ public partial class MainWindow
     private void InitializeNetwork()
     {
         updatingNetwork = true;
+        NetworkPresetCombo.DisplayMemberPath = "Label";
         NetworkPresetCombo.ItemsSource = new[]
         {
             new NetworkPresetRow(NetworkSessionPreset.Snapshot, "Instantâneo"),
@@ -96,7 +98,7 @@ public partial class MainWindow
         NetworkProgress.Value = coverage?.CollectedSamples ?? session.Samples.Count;
 
         NetworkStatusText.Text =
-            Loc.F($"Sessão de {Local(session.CompletedUtc)} · {StatusName(session.Status)} · cobertura {CoverageName(coverage)} · ") +
+            Loc.F($"Sessão de {Local(session.CompletedUtc)} · {StatusName(session.Status)} · cobertura {NetworkPresentationRows.CoverageName(coverage)} · ") +
             Loc.F($"{session.Samples.Count} amostra(s) em {session.Duration.TotalSeconds.ToString("F1", CultureInfo.CurrentCulture)} s · ") +
             Loc.F($"ID {session.Id:D}") +
             (persisted ? string.Empty : Loc.T(" · não confirmada na memória local"));
@@ -405,9 +407,9 @@ public partial class MainWindow
         var observation = row.Observation;
         var text = new StringBuilder();
         text.AppendLine(observation.Title);
-        text.AppendLine(Loc.F($"Regra: {observation.RuleId} {observation.RuleVersion} · tipo: {KindName(observation.Kind)}"));
-        text.AppendLine(Loc.F($"Severidade: {EventCatalog.SeverityName(observation.Severity)} · ") +
-            Loc.F($"confiança: {EventCatalog.ConfidenceName(observation.Confidence)} · causalidade: não avaliada"));
+        text.AppendLine(Loc.F($"Regra: {observation.RuleId} {observation.RuleVersion} · tipo: {NetworkPresentationRows.KindName(observation.Kind)}"));
+        text.AppendLine(Loc.F($"Severidade: {Loc.T(EventCatalog.SeverityName(observation.Severity))} · ") +
+            Loc.F($"confiança: {Loc.T(EventCatalog.ConfidenceName(observation.Confidence))} · causalidade: não avaliada"));
         text.AppendLine();
         text.AppendLine(observation.Statement);
         text.AppendLine();
@@ -458,120 +460,4 @@ public partial class MainWindow
         ShowWarning(Loc.F($"{message}. {error.GetType().Name}: {error.Message}"));
     }
 
-    private static string StatusName(NetworkSessionStatus status) => status switch
-    {
-        NetworkSessionStatus.Running => "Em andamento",
-        NetworkSessionStatus.Completed => "Concluída",
-        NetworkSessionStatus.Partial => "Concluída com cobertura parcial",
-        NetworkSessionStatus.Cancelled => "Cancelada",
-        NetworkSessionStatus.Failed => "Falhou",
-        NetworkSessionStatus.Unsupported => "Não suportada",
-        _ => status.ToString()
-    };
-
-    private static string CoverageName(NetworkCoverage? coverage) => coverage?.Status switch
-    {
-        NetworkCoverageStatus.Complete => "completa",
-        NetworkCoverageStatus.Partial => "parcial",
-        NetworkCoverageStatus.Unavailable => "indisponível",
-        _ => "não informada"
-    };
-
-    private static string PresetName(NetworkSessionPreset preset) => preset switch
-    {
-        NetworkSessionPreset.Snapshot => "instantâneo",
-        NetworkSessionPreset.Seconds30 => "30 segundos",
-        NetworkSessionPreset.Minute1 => "1 minuto",
-        _ => preset.ToString()
-    };
-
-    private static string KindName(NetworkObservationKind kind) => kind switch
-    {
-        NetworkObservationKind.EndpointGrowth => "crescimento sustentado de endpoints",
-        NetworkObservationKind.ProcessConcentration => "concentração de endpoints por processo",
-        NetworkObservationKind.StateConcentration => "concentração de estado TCP",
-        NetworkObservationKind.DynamicPortPressure => "pressão na faixa dinâmica de portas",
-        NetworkObservationKind.AttemptFailures => "falhas de tentativas TCP",
-        _ => kind.ToString()
-    };
-
-    private static string TcpStateName(TcpConnectionState state) => state switch
-    {
-        TcpConnectionState.Closed => "CLOSED",
-        TcpConnectionState.Listen => "LISTEN",
-        TcpConnectionState.SynSent => "SYN_SENT",
-        TcpConnectionState.SynReceived => "SYN_RCVD",
-        TcpConnectionState.Established => "ESTABLISHED",
-        TcpConnectionState.FinWait1 => "FIN_WAIT_1",
-        TcpConnectionState.FinWait2 => "FIN_WAIT_2",
-        TcpConnectionState.CloseWait => "CLOSE_WAIT",
-        TcpConnectionState.Closing => "CLOSING",
-        TcpConnectionState.LastAck => "LAST_ACK",
-        TcpConnectionState.TimeWait => "TIME_WAIT",
-        TcpConnectionState.DeleteTcb => "DELETE_TCB",
-        _ => "DESCONHECIDO"
-    };
-
-    private static string Number(double? value) =>
-        value is { } number ? number.ToString("F1", CultureInfo.CurrentCulture) : "Indisponível";
-
-    private static string Value(double? value) =>
-        value is { } number ? number.ToString("0.###", CultureInfo.CurrentCulture) : "Indisponível";
-
-    private sealed record NetworkPresetRow(NetworkSessionPreset Preset, string Label)
-    {
-        public override string ToString() => Label;
-    }
-
-    private sealed record NetworkHistoryRow(NetworkSession Session)
-    {
-        public string DateText => Session.CompletedUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.CurrentCulture);
-        public string SummaryText =>
-            $"{PresetName(Session.Preset)} · {StatusName(Session.Status)} · " +
-            $"TCP {Session.Statistics.FinalTcpConnections} · UDP {Session.Statistics.FinalUdpEndpoints} · " +
-            $"{Session.Observations.Count} obs.";
-    }
-
-    private sealed record NetworkPortRow(NetworkPortCount PortCount)
-    {
-        public string Port => PortCount.Port.ToString(CultureInfo.CurrentCulture);
-        public string Endpoints => PortCount.Endpoints.ToString(CultureInfo.CurrentCulture);
-        public string Processes => PortCount.DistinctProcesses.ToString(CultureInfo.CurrentCulture);
-    }
-
-    private sealed record NetworkStateRow(NetworkStateCount StateCount)
-    {
-        public string State => TcpStateName(StateCount.State);
-        public string Connections => StateCount.Connections.ToString(CultureInfo.CurrentCulture);
-    }
-
-    private sealed record NetworkProcessRow(NetworkProcessCount Process)
-    {
-        public string Name =>
-            Process.Name is { Length: > 0 } name
-                ? $"{name} (PID {Process.Pid})"
-                : $"PID {Process.Pid}";
-        public string Counts =>
-            $"{Process.TcpConnections} / {Process.UdpEndpoints}";
-        public string Detail =>
-            $"total {Process.TcpConnections + Process.UdpEndpoints} · escuta {Process.ListeningPorts}";
-    }
-
-    private sealed record NetworkRangeRow(NetworkDynamicPortRange RangeItem)
-    {
-        public string Protocol => RangeItem.Protocol.ToString().ToUpperInvariant();
-        public string Family => RangeItem.Family.ToString();
-        public string Range => $"{RangeItem.StartPort}–{RangeItem.EndPort} ({RangeItem.PortCount})";
-        public string Origin =>
-            $"{(RangeItem.IsWindowsDefault ? "Padrão documentado do Windows" : "Configuração explícita")} · {RangeItem.Source}" +
-            (RangeItem.Exclusions.Count > 0 ? $" · {RangeItem.Exclusions.Count} exclusão(ões)" : string.Empty);
-    }
-
-    private sealed record NetworkObservationRow(NetworkObservation Observation)
-    {
-        public string Title => Observation.Title;
-        public string Subtitle =>
-            $"{KindName(Observation.Kind)} · {EventCatalog.SeverityName(Observation.Severity)} · " +
-            $"confiança {EventCatalog.ConfidenceName(Observation.Confidence)} · causalidade não avaliada";
-    }
 }

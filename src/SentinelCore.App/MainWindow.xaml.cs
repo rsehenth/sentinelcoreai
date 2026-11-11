@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? cancellation;
     private IReadOnlyList<AuditRecord> history = [];
     private AuditRecord? reportAudit;
+    private AuditRecord? displayedAudit;
     private AuditRecord? unsaved;
     private bool busy;
     private bool closingAfterSave;
@@ -238,7 +239,7 @@ public partial class MainWindow : Window
         }
     }
 
-    // A troca de idioma reaplica os textos montados pelo code-behind repetindo as leituras locais.
+    // Carregamento inicial dos históricos locais; a troca de idioma usa somente a apresentação em memória.
     private async Task ReloadHistoriesAsync()
     {
         try { await ReloadAsync(); }
@@ -260,10 +261,10 @@ public partial class MainWindow : Window
         catch (Exception error) { ShowGraphicsFailure(Loc.T("Não foi possível recuperar as investigações gráficas"), error); }
 
         try { await ReloadCorrelationAsync(); }
-        catch (Exception error) { ShowCorrelationFailure(Loc.T("Não foi possível recuperar as investigações de correlação"), error); }
+        catch (Exception error) { ShowCorrelationFailure(() => Loc.T("Não foi possível recuperar as investigações de correlação"), error); }
 
         try { await ReloadMonitoringAsync(); }
-        catch (Exception error) { ShowMonitoringFailure(Loc.T("Não foi possível recuperar as sessões de monitoramento"), error); }
+        catch (Exception error) { ShowMonitoringFailure(() => Loc.T("Não foi possível recuperar as sessões de monitoramento"), error); }
 
         // Só o histórico do store; o preflight (volumes, System32) ocorre ao abrir a página Reparos ou em Atualizar.
         try { await ReloadRepairHistoryAsync(); }
@@ -275,15 +276,14 @@ public partial class MainWindow : Window
         if (!IsLoaded || LanguageRow.SelectedIndex < 0) return;
         var language = LanguageRow.SelectedIndex == 1 ? AppLanguage.Portuguese : AppLanguage.English;
         if (language == Localizer.Current) return;
-        Localizer.Change(language);
-        _ = ReloadTextsAsync();
-    }
-
-    private async Task ReloadTextsAsync()
-    {
         using var operation = TryBeginProductOperation();
-        if (operation is null) return;
-        await ReloadHistoriesAsync();
+        if (operation is null)
+        {
+            LanguageRow.SelectedIndex = Localizer.Current == AppLanguage.Portuguese ? 1 : 0;
+            return;
+        }
+        Localizer.Change(language);
+        RefreshLanguagePresentation();
     }
 
     private async Task ReloadAsync(Guid? selectId = null, bool readOnly = false)
@@ -318,11 +318,7 @@ public partial class MainWindow : Window
         var kind = ReferenceEquals(AuditKindCombo.SelectedItem, FullAuditOption) ? AuditKind.Full : AuditKind.Basic;
         if (unsaved is null)
         {
-            var scope = kind == AuditKind.Full
-                ? "A auditoria completa inclui inventário, eventos e WER das últimas 24 h, 30 s de desempenho, " +
-                  "rede sem endereços, gráficos e uma sessão de 5 min de monitoramento local de eventos, CPU/memória, rede e gráficos. " +
-                  "Ao confirmar, você autoriza essa sessão. O monitoramento termina ao final da sessão ou ao cancelar."
-                : "A auditoria básica lê informações do Windows, CPU, memória, placa-mãe, gráficos, discos e volumes.";
+            var scope = AuditScopeText.For(kind);
             if (MessageBox.Show(this, scope + Loc.T("\n\nIniciar a coleta e salvar os resultados neste computador?"),
                     AuditName(kind), MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) != MessageBoxResult.Yes)
                 return;
@@ -482,6 +478,7 @@ public partial class MainWindow : Window
 
     private void DisplayLatest(AuditRecord audit)
     {
+        displayedAudit = audit;
         reportAudit = audit;
         ResultHeading.Text = Loc.F($"{AuditName(audit.Kind)} · {Status(audit.Status)}");
         LastCheck.Text = Loc.F($"{Local(audit.StartedUtc)} a {Local(audit.CompletedUtc)} · {audit.Duration.TotalSeconds:F1} s · ID {audit.Id:D}\n") +

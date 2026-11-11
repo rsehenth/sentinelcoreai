@@ -1,3 +1,4 @@
+using static SentinelCore.App.MonitoringPresentationRows;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -15,6 +16,8 @@ namespace SentinelCore.App;
 
 public partial class MainWindow
 {
+    private readonly LocalizedMessages monitoringMessages = new();
+
     private IReadOnlyList<MonitoringSession> monitoringSessions = [];
     private IReadOnlyList<MonitoringSegment> monitoringSegments = [];
     private MonitoringSession? selectedMonitoring;
@@ -32,6 +35,7 @@ public partial class MainWindow
     {
         monitoringCountdown.Tick += OnMonitoringCountdown;
         updatingMonitoring = true;
+        MonitoringPresetCombo.DisplayMemberPath = "Label";
         MonitoringPresetCombo.ItemsSource = new[]
         {
             new MonitoringPresetRow(MonitoringDurationPreset.Minutes5,
@@ -42,11 +46,13 @@ public partial class MainWindow
                 MonitoringGuidance.DurationName(MonitoringDurationPreset.Minutes30))
         };
         MonitoringPresetCombo.SelectedIndex = 0;
+        MonitoringIncidentCategoryCombo.DisplayMemberPath = "Label";
         MonitoringIncidentCategoryCombo.ItemsSource = Enum.GetValues<MonitoringIncidentCategory>()
             .Select(category => new MonitoringCategoryRow(category,
                 MonitoringGuidance.CategoryName(category)))
             .ToArray();
         MonitoringIncidentCategoryCombo.SelectedIndex = 0;
+        MonitoringIncidentOccurredCombo.DisplayMemberPath = "Label";
         MonitoringIncidentOccurredCombo.ItemsSource = new[]
         {
             new MonitoringOccurrenceRow(null, "Agora (registro)"),
@@ -130,8 +136,8 @@ public partial class MainWindow
         var incidents = session.Incidents;
 
         MonitoringSessionInfo.Text =
-            Loc.F($"{MonitoringGuidance.StatusName(session.Status)} · cobertura ") +
-            Loc.F($"{MonitoringGuidance.CoverageName(session.CoverageStatus)} · ") +
+            Loc.F($"{Loc.T(MonitoringGuidance.StatusName(session.Status))} · cobertura ") +
+            Loc.F($"{Loc.T(MonitoringGuidance.CoverageName(session.CoverageStatus))} · ") +
             Loc.F($"{session.Segments.Count} checkpoint(s) · {incidents.Count} incidente(s) · ID {session.Id:D}") +
             (persisted ? string.Empty : Loc.T(" · não confirmada na memória local"));
 
@@ -170,9 +176,8 @@ public partial class MainWindow
     {
         selectedMonitoring = null;
         MonitoringSessionInfo.Text = Loc.T("Nenhuma sessão de monitoramento realizada.");
-        MonitoringStatusText.Text =
-            Loc.T("Monitoramento desativado. A observação só começa após seleção das fontes, duração e autorização ") +
-            Loc.T("explícita; fechar o aplicativo encerra a sessão.");
+        monitoringMessages.Set(nameof(MonitoringStatusText), () => MonitoringStatusText.Text = Loc.T("Monitoramento desativado. A observação só começa após seleção das fontes, duração e autorização ") +
+            Loc.T("explícita; fechar o aplicativo encerra a sessão."));
         MonitoringProgress.Minimum = 0;
         MonitoringProgress.Maximum = 1;
         MonitoringProgress.Value = 0;
@@ -196,8 +201,8 @@ public partial class MainWindow
     private static string BuildMonitoringSummary(MonitoringSession session)
     {
         var text = new StringBuilder();
-        text.AppendLine(Loc.F($"Sessão {MonitoringGuidance.StatusName(session.Status).ToLowerInvariant()} · ") +
-            Loc.F($"cobertura {MonitoringGuidance.CoverageName(session.CoverageStatus)}"));
+        text.AppendLine(Loc.F($"Sessão {Loc.T(MonitoringGuidance.StatusName(session.Status)).ToLowerInvariant()} · ") +
+            Loc.F($"cobertura {Loc.T(MonitoringGuidance.CoverageName(session.CoverageStatus))}"));
         text.AppendLine(Loc.F($"Duração autorizada: {session.AuthorizedDuration.TotalMinutes:0} min · ") +
             Loc.F($"observada: {session.Duration.TotalSeconds:F1} s"));
         text.AppendLine(session.Recovery.Recovered
@@ -206,8 +211,8 @@ public partial class MainWindow
         text.AppendLine();
         text.AppendLine(Loc.T("Fontes"));
         foreach (var source in session.Sources)
-            text.AppendLine(Loc.F($"• {MonitoringGuidance.SourceName(source.Source)}: ") +
-                Loc.F($"{MonitoringGuidance.SourceStatusName(source.Status)} · {source.CollectedTicks}/") +
+            text.AppendLine(Loc.F($"• {Loc.T(MonitoringGuidance.SourceName(source.Source))}: ") +
+                Loc.F($"{Loc.T(MonitoringGuidance.SourceStatusName(source.Status))} · {source.CollectedTicks}/") +
                 Loc.F($"{source.ExpectedTicks} ciclos · {source.ObservationCount} observação(ões)"));
         if (session.Incidents.Count > 0)
         {
@@ -240,7 +245,7 @@ public partial class MainWindow
         text.AppendLine(Loc.T("Checkpoints"));
         if (session.Segments.Count == 0) text.AppendLine(Loc.T("• Nenhum checkpoint confirmado."));
         foreach (var segment in session.Segments)
-            text.AppendLine(Loc.F($"• {MonitoringGuidance.SourceName(segment.Source)} #{segment.Sequence} · ") +
+            text.AppendLine(Loc.F($"• {Loc.T(MonitoringGuidance.SourceName(segment.Source))} #{segment.Sequence} · ") +
                 Loc.F($"{segment.FromUtc.ToLocalTime():dd/MM HH:mm:ss}–{segment.ToUtc.ToLocalTime():HH:mm:ss} · ") +
                 Loc.F($"{segment.ObservationCount} observação(ões)"));
         text.AppendLine();
@@ -251,11 +256,11 @@ public partial class MainWindow
     private void ShowMonitoringIncident(MonitoringIncident incident, MonitoringSession? session)
     {
         var text = new StringBuilder();
-        text.AppendLine(MonitoringGuidance.CategoryName(incident.Category));
+        text.AppendLine(Loc.T(MonitoringGuidance.CategoryName(incident.Category)));
         text.AppendLine(Loc.F($"Registro manual: {Local(incident.RecordedUtc)}"));
         text.AppendLine(Loc.F($"Ocorrência informada: ") +
             Loc.F($"{(incident.OccurredUtc is { } occurred ? Local(occurred) : "não informada")}"));
-        text.AppendLine(Loc.F($"Precisão: {MonitoringGuidance.PrecisionName(incident.Precision)}"));
+        text.AppendLine(Loc.F($"Precisão: {Loc.T(MonitoringGuidance.PrecisionName(incident.Precision))}"));
         text.AppendLine(Loc.F($"Momento na sessão: {incident.SessionElapsedSeconds:F1} s"));
         if (incident.Description is not null) text.AppendLine(Loc.F($"Descrição: {incident.Description}"));
         text.AppendLine();
@@ -265,7 +270,7 @@ public partial class MainWindow
             text.AppendLine();
             text.AppendLine(Loc.T("Evidências disponíveis até o registro"));
             foreach (var evidence in incident.Evidence)
-                text.AppendLine(Loc.F($"• {MonitoringGuidance.SourceName(evidence.Source)}: {evidence.Reference} — ") +
+                text.AppendLine(Loc.F($"• {Loc.T(MonitoringGuidance.SourceName(evidence.Source))}: {evidence.Reference} — ") +
                     evidence.Detail);
         }
 
@@ -290,18 +295,18 @@ public partial class MainWindow
             monitoringBusy = true;
             monitoringSaving = true;
             UpdateAllBusyButtons();
-            MonitoringStatusText.Text = Loc.T("Tentando salvar novamente a sessão pendente…");
+            monitoringMessages.Set(nameof(MonitoringStatusText), () => MonitoringStatusText.Text = Loc.T("Tentando salvar novamente a sessão pendente…"));
             try
             {
                 var pending = unsavedMonitoring;
                 await monitoringStore.SaveMonitoringSessionAsync(pending, CancellationToken.None);
                 unsavedMonitoring = null;
                 await ReloadMonitoringAsync(pending.Id);
-                MonitoringStatusText.Text = Loc.T("Sessão pendente salva novamente.");
+                monitoringMessages.Set(nameof(MonitoringStatusText), () => MonitoringStatusText.Text = Loc.T("Sessão pendente salva novamente."));
             }
             catch (Exception error)
             {
-                ShowMonitoringFailure(Loc.T("Falha de gravação da sessão. O resultado permanece nesta janela; tente ") +
+                ShowMonitoringFailure(() => Loc.T("Falha de gravação da sessão. O resultado permanece nesta janela; tente ") +
                     Loc.T("salvar novamente"), error);
             }
             finally
@@ -349,24 +354,23 @@ public partial class MainWindow
         var saved = false;
         try
         {
-            MonitoringStatusText.Text = Loc.T("Sessão de monitoramento em andamento. Observação de baixo impacto; ") +
-                Loc.T("nenhuma configuração do Windows é alterada.");
+            monitoringMessages.Set(nameof(MonitoringStatusText), () => MonitoringStatusText.Text = Loc.T("Sessão de monitoramento em andamento. Observação de baixo impacto; ") +
+                Loc.T("nenhuma configuração do Windows é alterada."));
             var progress = new Progress<MonitoringProgress>(OnMonitoringProgress);
             var session = await monitoringRunner.RunAsync(request, progress, monitoringCancellation.Token);
             unsavedMonitoring = session;
             ApplyMonitoringSession(session);
             monitoringSaving = true;
             UpdateAllBusyButtons();
-            MonitoringStatusText.Text = Loc.T("Salvando sessão e relatório na memória local…");
+            monitoringMessages.Set(nameof(MonitoringStatusText), () => MonitoringStatusText.Text = Loc.T("Salvando sessão e relatório na memória local…"));
             await monitoringStore.SaveMonitoringSessionAsync(session, CancellationToken.None);
             saved = true;
             unsavedMonitoring = null;
             await ReloadMonitoringAsync(session.Id);
-            MonitoringStatusText.Text =
-                Loc.F($"Sessão {MonitoringGuidance.StatusName(session.Status).ToLowerInvariant()} salva com cobertura ") +
-                Loc.F($"{MonitoringGuidance.CoverageName(session.CoverageStatus)}. ") +
+            monitoringMessages.Set(nameof(MonitoringStatusText), () => MonitoringStatusText.Text = Loc.F($"Sessão {Loc.T(MonitoringGuidance.StatusName(session.Status)).ToLowerInvariant()} salva com cobertura ") +
+                Loc.F($"{Loc.T(MonitoringGuidance.CoverageName(session.CoverageStatus))}. ") +
                 Loc.F($"{session.Incidents.Count} incidente(s), {session.Segments.Count} checkpoint(s). ") +
-                Loc.T("Causalidade não avaliada.");
+                Loc.T("Causalidade não avaliada."));
         }
         catch (Exception error)
         {
@@ -375,7 +379,7 @@ public partial class MainWindow
                 : saved
                     ? "A sessão foi salva, mas a memória local não pôde ser relida. Reabra o aplicativo"
                     : "A sessão de monitoramento não pôde ser concluída";
-            ShowMonitoringFailure(message, error);
+            ShowMonitoringFailure(() => Loc.T(message), error);
         }
         finally
         {
@@ -400,7 +404,7 @@ public partial class MainWindow
     {
         monitoringCancellation?.Cancel();
         MonitoringStopButton.IsEnabled = false;
-        MonitoringStatusText.Text = Loc.T("Encerramento solicitado. Aguardando o último checkpoint e a gravação segura.");
+        monitoringMessages.Set(nameof(MonitoringStatusText), () => MonitoringStatusText.Text = Loc.T("Encerramento solicitado. Aguardando o último checkpoint e a gravação segura."));
     }
 
     private void OnMonitoringProgress(MonitoringProgress update)
@@ -414,9 +418,9 @@ public partial class MainWindow
         if (monitoringSaving) return;
         MonitoringProgress.Value = Math.Min(update.Elapsed.TotalSeconds,
             Math.Max(1, MonitoringProgress.Maximum));
-        MonitoringStatusText.Text = Loc.F($"{char.ToUpperInvariant(update.Phase[0])}{update.Phase[1..]} · ") +
+        monitoringMessages.Set(nameof(MonitoringStatusText), () => MonitoringStatusText.Text = Loc.F($"{char.ToUpperInvariant(update.Phase[0])}{update.Phase[1..]} · ") +
             Loc.F($"{update.Samples} amostra(s) · {update.Events} evento(s) · {update.Incidents} incidente(s) · ") +
-            (update.BudgetWarning ? Loc.T("orçamento excedido em um ciclo") : Loc.T("dentro do orçamento"));
+            (update.BudgetWarning ? Loc.T("orçamento excedido em um ciclo") : Loc.T("dentro do orçamento")));
         MonitoringSamplesValue.Text = update.Samples.ToString(CultureInfo.CurrentCulture);
         MonitoringEventsValue.Text = update.Events.ToString(CultureInfo.CurrentCulture);
         MonitoringIncidentsValue.Text = update.Incidents.ToString(CultureInfo.CurrentCulture);
@@ -478,13 +482,12 @@ public partial class MainWindow
             RefreshLiveIncidents();
             MonitoringIncidentList.SelectedItem = MonitoringIncidentList.Items.OfType<MonitoringIncidentRow>()
                 .LastOrDefault(item => item.Incident.Id == incident.Id);
-            MonitoringStatusText.Text =
-                Loc.F($"Incidente registrado: {MonitoringGuidance.CategoryName(incident.Category)}. ") +
-                Loc.T("Registro manual do usuário; o horário do clique não comprova o início do problema.");
+            monitoringMessages.Set(nameof(MonitoringStatusText), () => MonitoringStatusText.Text = Loc.F($"Incidente registrado: {Loc.T(MonitoringGuidance.CategoryName(incident.Category))}. ") +
+                Loc.T("Registro manual do usuário; o horário do clique não comprova o início do problema."));
         }
         catch (Exception error)
         {
-            ShowMonitoringFailure(Loc.T("O incidente não pôde ser registrado"), error);
+            ShowMonitoringFailure(() => Loc.T("O incidente não pôde ser registrado"), error);
         }
     }
 
@@ -532,7 +535,7 @@ public partial class MainWindow
         }
         catch (Exception error)
         {
-            ShowMonitoringFailure(Loc.T("Não foi possível abrir a localização do relatório de monitoramento"), error);
+            ShowMonitoringFailure(() => Loc.T("Não foi possível abrir a localização do relatório de monitoramento"), error);
         }
         finally
         {
@@ -573,8 +576,8 @@ public partial class MainWindow
         UpdateAllBusyButtons();
         try
         {
-            MonitoringStatusText.Text = Loc.T("Correlação direcionada em andamento sobre os registros históricos. ") +
-                Loc.T("Nenhuma coleta nova é executada.");
+            monitoringMessages.Set(nameof(MonitoringStatusText), () => MonitoringStatusText.Text = Loc.T("Correlação direcionada em andamento sobre os registros históricos. ") +
+                Loc.T("Nenhuma coleta nova é executada."));
             var request = new CorrelationRequest(EventWindow.Custom, from, to, CorrelationSources.All);
             var investigation = await correlationRunner.RunAsync(request, null, correlationCancellation.Token);
             unsavedCorrelation = investigation;
@@ -583,15 +586,14 @@ public partial class MainWindow
             await correlationStore.SaveCorrelationInvestigationAsync(investigation, CancellationToken.None);
             unsavedCorrelation = null;
             await ReloadCorrelationAsync(investigation.Id);
-            MonitoringStatusText.Text =
-                Loc.F($"Correlação direcionada salva: {investigation.Coverage.DistinctOccurrences} evidência(s), ") +
+            monitoringMessages.Set(nameof(MonitoringStatusText), () => MonitoringStatusText.Text = Loc.F($"Correlação direcionada salva: {investigation.Coverage.DistinctOccurrences} evidência(s), ") +
                 Loc.F($"{investigation.Relations.Count(relation => relation.IsHypothesis)} relação(ões). ") +
-                Loc.T("Causalidade não avaliada.");
+                Loc.T("Causalidade não avaliada."));
             NavList.SelectedIndex = 7;
         }
         catch (Exception error)
         {
-            ShowMonitoringFailure(Loc.T("A correlação direcionada não pôde ser concluída"), error);
+            ShowMonitoringFailure(() => Loc.T("A correlação direcionada não pôde ser concluída"), error);
         }
         finally
         {
@@ -625,58 +627,11 @@ public partial class MainWindow
         MonitoringCorrelateButton.IsEnabled = idle && MonitoringIncidentList.SelectedItem is MonitoringIncidentRow;
     }
 
-    private void ShowMonitoringFailure(string message, Exception error)
+    private void ShowMonitoringFailure(Func<string> message, Exception error)
     {
         logFailure(error);
-        MonitoringStatusText.Text = message + ".";
-        ShowWarning(Loc.F($"{message}. {error.GetType().Name}: {error.Message}"));
+        monitoringMessages.Set(nameof(MonitoringStatusText), () => MonitoringStatusText.Text = message() + ".");
+        ShowWarning(Loc.F($"{message()}. {error.GetType().Name}: {error.Message}"));
     }
 
-    private sealed record MonitoringPresetRow(MonitoringDurationPreset Preset, string Label)
-    {
-        public override string ToString() => Label;
-    }
-
-    private sealed record MonitoringCategoryRow(MonitoringIncidentCategory Category, string Label)
-    {
-        public override string ToString() => Label;
-    }
-
-    private sealed record MonitoringOccurrenceRow(TimeSpan? Offset, string Label)
-    {
-        public override string ToString() => Label;
-    }
-
-    private sealed record MonitoringHistoryRow(MonitoringSession Session)
-    {
-        public string DateText => Session.CompletedUtc.ToLocalTime()
-            .ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.CurrentCulture);
-        public string SummaryText =>
-            $"{MonitoringGuidance.StatusName(Session.Status)} · cobertura " +
-            $"{MonitoringGuidance.CoverageName(Session.CoverageStatus)} · " +
-            $"{Session.Incidents.Count} incidente(s) · {Session.Segments.Count} checkpoint(s)" +
-            (Session.Recovery.Recovered ? " · recuperada" : string.Empty);
-    }
-
-    private sealed record MonitoringIncidentRow(MonitoringIncident Incident, MonitoringSession? Session)
-    {
-        public string Time => Incident.RecordedUtc.ToLocalTime()
-            .ToString("dd/MM HH:mm:ss", CultureInfo.CurrentCulture);
-        public string Category => MonitoringGuidance.CategoryName(Incident.Category);
-        public string Detail => Incident.OccurredUtc is { } occurred
-            ? $"ocorrência ≈ {occurred.ToLocalTime():HH:mm:ss}"
-            : "ocorrência não informada";
-        public string Description => string.IsNullOrWhiteSpace(Incident.Description)
-            ? "—"
-            : Incident.Description;
-    }
-
-    private sealed record MonitoringSegmentRow(MonitoringSegment Segment)
-    {
-        public string Source => MonitoringGuidance.SourceName(Segment.Source);
-        public string Sequence => Segment.Sequence.ToString(CultureInfo.CurrentCulture);
-        public string Range => $"{Segment.FromUtc.ToLocalTime():dd/MM HH:mm:ss}–" +
-            $"{Segment.ToUtc.ToLocalTime():HH:mm:ss}";
-        public string Observations => Segment.ObservationCount.ToString(CultureInfo.CurrentCulture);
-    }
 }

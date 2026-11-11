@@ -17,11 +17,12 @@ public sealed class NetworkSessionRunner
     private readonly NetworkEvidenceAnalyzer analyzer;
     private readonly NetworkLimits limits;
     private readonly TimeProvider clock;
+    private readonly Func<ISelfOverheadMeter> selfMeterFactory;
     private int running;
 
     public NetworkSessionRunner(IEnumerable<INetworkSampleCollector> sampleCollectors,
         IEnumerable<INetworkFactsCollector>? factsCollectors = null, TimeProvider? clock = null,
-        NetworkLimits? limits = null, NetworkRuleOptions? rules = null)
+        NetworkLimits? limits = null, NetworkRuleOptions? rules = null, Func<ISelfOverheadMeter>? selfMeterFactory = null)
     {
         this.sampleCollectors = sampleCollectors.ToArray();
         if (this.sampleCollectors.Count == 0 ||
@@ -36,6 +37,7 @@ public sealed class NetworkSessionRunner
             throw new ArgumentException("Coletores de fatos de rede devem ter identificadores únicos.",
                 nameof(factsCollectors));
         this.clock = clock ?? TimeProvider.System;
+        this.selfMeterFactory = selfMeterFactory ?? (() => new ProcessSelfOverheadMeter());
         this.limits = limits ?? NetworkLimits.Default;
         analyzer = new(rules ?? NetworkRuleOptions.Default);
     }
@@ -64,7 +66,7 @@ public sealed class NetworkSessionRunner
     {
         var id = Guid.NewGuid();
         var started = clock.GetUtcNow();
-        var stopwatch = Stopwatch.StartNew();
+        var stopwatch = new SessionTimer(clock);
         var context = new NetworkCollectionContext(id, limits);
         var expected = request.ExpectedSamples;
         var snapshot = request.Preset == NetworkSessionPreset.Snapshot;
@@ -96,11 +98,9 @@ public sealed class NetworkSessionRunner
         var sampleLimitHit = false;
         var cancelled = false;
         var missed = 0;
-        using var self = Process.GetCurrentProcess();
-        var lastSelfCpu = self.TotalProcessorTime;
-        var lastSelfElapsed = TimeSpan.Zero;
         try
         {
+            using var self = selfMeterFactory();
             var nextDue = TimeSpan.Zero;
             var jitterTolerance = TimeSpan.FromMilliseconds(
                 Math.Min(50, Math.Max(0, request.SampleInterval.TotalMilliseconds * 0.2)));
@@ -153,8 +153,7 @@ public sealed class NetworkSessionRunner
                     reads.SelectMany(reading => reading.Limitations).ToArray(),
                     limits);
                 samples.Add(sample);
-                overhead.Add(MeasureSelf(self, tickElapsed, ref lastSelfCpu, ref lastSelfElapsed,
-                    collection.ElapsedMilliseconds));
+                overhead.Add(self.Measure(tickElapsed, collection.ElapsedMilliseconds));
                 progress?.Report(new NetworkProgress(samples.Count, expected, tickElapsed, request.Duration, sample));
 
                 if (samples.Count >= limits.MaxSamples && index + 1 < expected)
@@ -278,21 +277,6 @@ public sealed class NetworkSessionRunner
             first, last,
             "O sistema registrou eventos Tcpip 4231 e/ou 4266 na investigação associada; a contagem não identifica "
             + "a causa, não comprova esgotamento na janela desta sessão nem atribui causa.");
-    }
-
-    private static SelfOverheadSample MeasureSelf(Process self, TimeSpan wallElapsed,
-        ref TimeSpan lastCpu, ref TimeSpan lastElapsed, long collectionMilliseconds)
-    {
-        self.Refresh();
-        var cpu = self.TotalProcessorTime;
-        var wall = wallElapsed - lastElapsed;
-        var percent = wall <= TimeSpan.Zero ? 0 : Math.Clamp(
-            (cpu - lastCpu).TotalMilliseconds / (wall.TotalMilliseconds * Environment.ProcessorCount) * 100,
-            0, 100);
-        lastCpu = cpu;
-        lastElapsed = wallElapsed;
-        return new(Math.Round(percent, 1), (ulong)Math.Max(0, self.WorkingSet64),
-            (ulong)Math.Max(0, self.PrivateMemorySize64), collectionMilliseconds);
     }
 
     private static SelfOverheadSummary SummarizeSelf(IReadOnlyList<SelfOverheadSample> samples) =>
