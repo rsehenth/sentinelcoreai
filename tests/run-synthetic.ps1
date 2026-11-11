@@ -5,7 +5,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
-$manifest = Get-Content -Raw -LiteralPath (Join-Path $PSScriptRoot 'synthetic-audit.json') | ConvertFrom-Json
+$manifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $PSScriptRoot 'synthetic-audit.json') | ConvertFrom-Json
 $project = Join-Path $PSScriptRoot 'SentinelCore.Tests\SentinelCore.Tests.csproj'
 $dotnet = Join-Path $root 'scripts\dotnet.ps1'
 $runId = [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '-' + [Guid]::NewGuid().ToString('N')
@@ -43,8 +43,9 @@ if (-not $PSBoundParameters.ContainsKey('Cases') -and $manifest.regressionReady 
 }
 $approved = @($manifest.synthetic)
 $selected = if ($PSBoundParameters.ContainsKey('Cases')) { @($Cases) } else { $approved }
-$integration = @($manifest.windowsIntegration)
-$operational = @($manifest.windowsOperational)
+function Get-CaseMethod([string]$name) { ($name -split '\(', 2)[0] }
+$integration = @($manifest.windowsIntegration | ForEach-Object { Get-CaseMethod $_ })
+$operational = @($manifest.windowsOperational | ForEach-Object { Get-CaseMethod $_ })
 if ($approved.Count -eq 0 -or @($approved | Sort-Object -Unique).Count -ne $approved.Count -or
     $selected.Count -eq 0 -or @($selected | Sort-Object -Unique).Count -ne $selected.Count) { throw 'Seleção vazia ou duplicada.' }
 foreach ($name in $selected) {
@@ -52,7 +53,21 @@ foreach ($name in $selected) {
         throw "Seleção inválida: $name"
     }
 }
-New-Item -ItemType Directory -Force -Path $output | Out-Null
+# All test-host temporary files stay below this run, never under an operational data root.
+$temporaryRoot = [IO.Path]::GetFullPath((Join-Path $output 'temporary'))
+$ancestor = $temporaryRoot
+while ($ancestor) {
+    if ((Test-Path -LiteralPath $ancestor) -and
+        ((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw 'Raiz temporária redirecionada; execução recusada.'
+    }
+    $ancestor = Split-Path $ancestor -Parent
+}
+New-Item -ItemType Directory -Force -Path $temporaryRoot | Out-Null
+$settingsPath = Join-Path $output 'isolated.runsettings'
+$escapedRoot = [Security.SecurityElement]::Escape($temporaryRoot)
+"<RunSettings><RunConfiguration><EnvironmentVariables><TEMP>$escapedRoot</TEMP><TMP>$escapedRoot</TMP></EnvironmentVariables></RunConfiguration></RunSettings>" |
+    Set-Content -Encoding UTF8 -LiteralPath $settingsPath
 $common = @($project, '--no-restore', '-c', $Configuration, '-p:SentinelCoreRealTweaks=false', '-p:SentinelCoreRealRepairs=false', '-p:SentinelCoreRealDebloat=false')
 & $dotnet build @common
 if ($LASTEXITCODE -ne 0) { throw 'Build falhou.' }
@@ -68,7 +83,7 @@ foreach ($name in $selected) {
 if ($current.Count -gt 0) { $batches.Add($current.ToArray()) }
 if (($batches | ForEach-Object { $_.Count } | Measure-Object -Sum).Sum -ne $selected.Count) { throw 'Particao em lotes difere da selecao.' }
 function Get-BatchFilter($names) { ($names | ForEach-Object { "FullyQualifiedName=$_" }) -join '|' }
-$all = @(& $dotnet test $project --no-build --no-restore -c $Configuration --list-tests)
+$all = @(& $dotnet test $project --no-build --no-restore -c $Configuration --settings $settingsPath --list-tests)
 if ($LASTEXITCODE -ne 0) { throw 'Descoberta falhou.' }
 $discovered = @($all | Where-Object { $_ -match '^\s+SentinelCore\.Tests\.' } | ForEach-Object { $_.Trim() })
 if ($discovered.Count -eq 0) { throw 'Descoberta vazia; formato não reconhecido.' }
@@ -80,41 +95,48 @@ if ($expectedDiscovery.Count -eq 0 -or
     throw 'Inventário descoberto difere do inventário revisado; execução recusada.'
 }
 $selectedDiscovery = @()
+$batchCases = New-Object System.Collections.Generic.List[object]
 foreach ($batch in $batches) {
-    $listed = @(& $dotnet test $project --no-build --no-restore -c $Configuration --list-tests --filter (Get-BatchFilter $batch))
+    $listed = @(& $dotnet test $project --no-build --no-restore -c $Configuration --settings $settingsPath --list-tests --filter (Get-BatchFilter $batch))
     if ($LASTEXITCODE -ne 0) { throw 'Verificação da seleção falhou.' }
     $batchDiscovery = @($listed | Where-Object { $_ -match '^\s+SentinelCore\.Tests\.' } | ForEach-Object { $_.Trim() })
-    if ($batchDiscovery.Count -ne $batch.Count) { throw 'Descoberta do lote com quantidade divergente.' }
-    if (Compare-Object ($batch | Sort-Object) ($batchDiscovery | Sort-Object)) { throw 'Seleção descoberta difere da lista aprovada.' }
+    # Approve every discovered row of each audited method, including InlineData theories.
+    $expectedCases = @($expectedDiscovery | Where-Object { (Get-CaseMethod $_) -in $batch })
+    if ($expectedCases.Count -eq 0 -or $batchDiscovery.Count -ne $expectedCases.Count) { throw 'Descoberta do lote com quantidade divergente.' }
+    if (Compare-Object ($expectedCases | Sort-Object) ($batchDiscovery | Sort-Object)) { throw 'Seleção descoberta difere da lista aprovada.' }
+    $batchCases.Add($expectedCases)
     $selectedDiscovery += $batchDiscovery
 }
-if (Compare-Object ($selected | Sort-Object) ($selectedDiscovery | Sort-Object)) { throw 'Seleção descoberta difere da lista aprovada.' }
-foreach ($name in $integration) { if ($name -notin $discovered) { throw "Teste de integração ausente: $name" } }
+if (Compare-Object ($selected | Sort-Object) (@($selectedDiscovery | ForEach-Object { Get-CaseMethod $_ } | Sort-Object -Unique))) { throw 'Seleção descoberta difere da lista aprovada.' }
+$discoveredMethods = @($discovered | ForEach-Object { Get-CaseMethod $_ } | Sort-Object -Unique)
+foreach ($name in $integration) { if ($name -notin $discoveredMethods) { throw "Teste de integração ausente: $name" } }
 Assert-AuditedInputs
-$selected | Set-Content -Encoding UTF8 (Join-Path $output 'selected.txt')
-$discovered | Where-Object { $_ -notin $selected } | Set-Content -Encoding UTF8 (Join-Path $output 'not-executed.txt')
+$selected | Set-Content -Encoding UTF8 (Join-Path $output 'selected-methods.txt')
+$selectedDiscovery | Set-Content -Encoding UTF8 (Join-Path $output 'selected.txt')
+$discovered | Where-Object { $_ -notin $selectedDiscovery } | Set-Content -Encoding UTF8 (Join-Path $output 'not-executed.txt')
 $results = @(); $index = 0
 foreach ($batch in $batches) {
+    $expectedCases = $batchCases[$index]
     $index++
     Assert-AuditedInputs # entradas e fontes nao podem ter mudado desde a descoberta ate este lote
     $trxName = if ($batches.Count -eq 1) { 'synthetic.trx' } else { "synthetic-$index.trx" }
-    & $dotnet test $project --no-build --no-restore -c $Configuration --filter (Get-BatchFilter $batch) --logger "trx;LogFileName=$trxName" --results-directory $output
+    & $dotnet test $project --no-build --no-restore -c $Configuration --settings $settingsPath --filter (Get-BatchFilter $batch) --logger "trx;LogFileName=$trxName" --results-directory $output
     if ($LASTEXITCODE -ne 0) { throw "Testes sintéticos falharam (lote $index)." }
     [xml]$trx = Get-Content -Raw -LiteralPath (Join-Path $output $trxName)
     $counters = $trx.TestRun.ResultSummary.Counters
-    if ([int]$counters.total -ne $batch.Count -or [int]$counters.passed -ne $batch.Count -or [int]$counters.failed -ne 0 -or [int]$counters.notExecuted -ne 0) {
+    if ([int]$counters.total -ne $expectedCases.Count -or [int]$counters.passed -ne $expectedCases.Count -or [int]$counters.failed -ne 0 -or [int]$counters.notExecuted -ne 0) {
         throw "TRX não confirma a execução integral do lote $index."
     }
     # Where-Object { $_ }: em PowerShell 5.1 "$null | ForEach-Object" executa uma vez; sem o filtro um TRX vazio contaria como 1 resultado.
     $batchResults = @($trx.TestRun.Results.UnitTestResult | Where-Object { $_ } | ForEach-Object { $_.testName })
-    if ($batchResults.Count -ne $batch.Count) { throw "TRX do lote $index com quantidade de resultados divergente." }
-    if (Compare-Object ($batch | Sort-Object) ($batchResults | Sort-Object)) { throw "Os testes registrados no TRX do lote $index diferem da seleção aprovada." }
+    if ($batchResults.Count -ne $expectedCases.Count) { throw "TRX do lote $index com quantidade de resultados divergente." }
+    if (Compare-Object ($expectedCases | Sort-Object) ($batchResults | Sort-Object)) { throw "Os testes registrados no TRX do lote $index diferem da seleção aprovada." }
     $results += $batchResults
 }
-if ($results.Count -ne $selected.Count -or (Compare-Object ($selected | Sort-Object) ($results | Sort-Object))) {
+if ($results.Count -ne $selectedDiscovery.Count -or (Compare-Object ($selectedDiscovery | Sort-Object) ($results | Sort-Object))) {
     throw 'Os testes registrados nos TRX diferem da seleção aprovada.'
 }
 Assert-AuditedInputs
 'concluido' | Set-Content -Encoding ASCII (Join-Path $output 'completed.txt')
 if ($PSBoundParameters.ContainsKey('Cases')) { Write-Host 'EXECUCAO PARCIAL (subconjunto -Cases); nao representa a regressao integral.' }
-Write-Host "Aprovados: $($selected.Count). Não executados: $($discovered.Count - $selected.Count)."
+Write-Host "Aprovados: $($selectedDiscovery.Count). Não executados: $($discovered.Count - $selectedDiscovery.Count)."

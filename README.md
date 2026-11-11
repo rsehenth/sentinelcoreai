@@ -17,14 +17,14 @@ Local. Offline. Read-only by design.</p>
 
 ---
 
-> **Development status — stage 6 of 7 is complete.** Stages 1 through 6 are implemented and compile; stage 7
-> (final testing and homologation) has not started. The shipped build is **read-only**: Personalization,
+> **Development status — stage 7A is a controlled synthetic audit.** Stages 1 through 6 are implemented
+> and compile; final operational homologation remains pending. The shipped build is **read-only**: Personalization,
 > Debloat and Repairs are implemented in code, but real execution stays behind a closed build gate and is
 > only demonstrated with clearly marked synthetic data. To date this application has never changed a Windows
 > setting, removed an application, or run a repair tool.
 >
-> In short: the product builds, the test suite passes, and the diagnostic pages were validated against real
-> Windows data — the controlled-maintenance side is code-complete but not homologated.
+> The product builds and a positively selected synthetic subset is tested. Historical real-data evidence
+> does not establish homologation of the current integrated journeys or controlled maintenance.
 
 ## Why this exists
 
@@ -90,7 +90,7 @@ Windows APIs · WMI · Event Log · WER
 | **Feature phases 0–5** | Foundation, hardware, events/WER, performance, network, graphics, correlation, monitoring | Delivered, with quality gates and recorded real-run evidence |
 | **Integration stages 1–5** | Evidence-to-origin navigation, diagnostic journey, recovery/tweaks, Appx/MSIX inventory, native repairs | **Implemented in code** |
 | **Integration stage 6** | Whole-product integration: shell, histories, coordinated journeys, isolated broker packaging | **Implemented and compiled** (static close-out, 10 Nov 2026) |
-| **Integration stage 7** | Final testing and homologation: integrated journeys, interruptions, concurrency, reopen, final package | **Not started** |
+| **Integration stage 7** | Controlled synthetic audit (7A); operational homologation and distribution preparation remain separate | **7A only; operational homologation pending** |
 | **Future** | Real validation of tweaks/debloat/repairs, signed distribution, installer, AI assistance | Planned |
 
 Still missing before this leaves preview: functional homologation of the integrated journeys, a single
@@ -104,15 +104,17 @@ Running a published build needs nothing else — it is self-contained. Building 
 (pinned in `global.json`) and NuGet access for the first restore.
 
 ```powershell
-# build and test
+# build with locked dependencies
 dotnet restore SentinelCore.sln --locked-mode
 dotnet build SentinelCore.sln -c Debug --no-restore
 dotnet build SentinelCore.sln -c Release --no-restore
-dotnet test SentinelCore.sln -c Release --no-build
 
 # or use the local-SDK wrapper (no global install, caches kept in .tools)
 .\scripts\dotnet.ps1 restore SentinelCore.sln --locked-mode
-.\scripts\dotnet.ps1 test SentinelCore.sln -c Release --no-build
+
+# tests: only explicitly audited synthetic methods; inspect the current manifest first
+$cases = (Get-Content -Raw -Encoding UTF8 .\tests\synthetic-audit.json | ConvertFrom-Json).synthetic
+.\tests\run-synthetic.ps1 -Configuration Release -Cases $cases
 
 # run from source
 dotnet run --project src/SentinelCore.App
@@ -126,8 +128,10 @@ Ship the whole output folder, including native DLLs. The publish script pins the
 `false` and refuses to overwrite an existing package without `-Force`. There is no MSI, no signing, and no
 service — and trimming must not be used with WPF.
 
-Tests use isolated temporary directories and fictitious data: no test touches production history, the real
-Registry, or starts `sfc.exe`, `dism.exe`, `chkdsk.exe`, or `reagentc.exe`.
+The suite contains both synthetic and Windows-dependent tests. Do not run the whole solution's test suite.
+The audited runner uses a positive method selection, checks source hashes and discovery, and verifies every
+selected result. Test-host temporary directories are isolated per run. Unclassified and Windows-dependent
+cases are excluded; passing synthetic tests does not establish operational homologation.
 
 ## Data and privacy
 
@@ -171,7 +175,7 @@ limits recorded above reflect the same internal evidence.
 
 ## Known limitations
 
-- **Not homologated.** Stage 7 has not started; integrated journeys have not been exercised end to end.
+- **Not homologated.** Stage 7A covers an audited synthetic subset; operational integrated journeys remain unverified.
 - **No real maintenance operations.** Tweaks, app removal, and repair tools are simulated only. No Windows
   setting has been changed and no `sfc`/`dism`/`chkdsk`/`reagentc` has been executed by this build.
 - **Observed state is not a diagnosis.** A reported `OK` or `Healthy` does not prove hardware integrity, and

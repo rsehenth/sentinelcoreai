@@ -4,7 +4,7 @@ using Xunit;
 
 namespace SentinelCore.Tests;
 
-// Authored during Stage 6; deliberately not executed or added to the audited synthetic selection.
+// Authored during Stage 6; classified and executed in the Stage 7A synthetic selection.
 public sealed class ProductIntegrationTests
 {
     [Fact]

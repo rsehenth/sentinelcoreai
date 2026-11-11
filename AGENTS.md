@@ -1,5 +1,18 @@
 # SentinelCore AI — instruções do projeto
 
+## Etapa 7A — auditoria e regressão sintética autorizadas (11/11/2026)
+
+- O pedido explícito da Etapa 7A substitui a suspensão de testes da Etapa 6 somente para casos
+  `SyntheticSafe` inspecionados. Builds Debug/Release com lockfiles também estão autorizados.
+- Classificação atual e evidências: `docs/validation/2026-11-11-stage7a-technical-audit.md` e matriz própria.
+  A seleção histórica de 348 não autoriza automaticamente casos no código atual.
+- `tests/run-synthetic.ps1` mantém hashes, descoberta integral e filtros positivos por método, conferindo
+  todas as linhas de Theory no TRX. `regressionReady=false` exige seleção explícita com `-Cases`.
+  TEMP/TMP do testhost apontam para uma pasta exclusiva da rodada, validada contra redirecionamentos.
+- WindowsReadOnly, WindowsModification e Unclassified não podem ser executados. Não iniciar App, broker,
+  IPC/UAC, coletores, inventário real, manutenção, publish, instalação ou Etapa 7B. Cinco gates/T0 intactos.
+  Sem commit/push automático. O relatório distingue testes sintéticos de homologação operacional.
+
 ## Etapa 6 — integração geral (10/11/2026)
 
 - Fechamento formal: **implementada e compilada, sem homologação funcional**. Requisitos 8.1–8.11

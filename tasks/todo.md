@@ -1,5 +1,20 @@
 # Execução
 
+## Etapa 7A — auditoria e regressão segura (11/11/2026)
+
+- [x] Reconhecer master/HEAD real e árvore limpa, divergência do commit informado e histórico de segurança.
+- [x] Inventariar 1.616 casos: 128 SyntheticSafe, seis WindowsReadOnly, 1.482 Unclassified.
+- [x] Auditar os sete casos da Etapa 6 e dependências da seleção positiva de 100 métodos.
+- [x] Preservar hashes inalterados, registrar 90 divergências e manter regressão ampla bloqueada.
+- [x] Isolar temporários por testhost e conferir todas as linhas Theory nos resultados.
+- [x] Reproduzir e corrigir coordenador preso após dupla exceção; regressão específica verde.
+- [x] Executar seleção final Debug: 128 aprovados, zero falhos/ignorados.
+- [x] Confirmar TRX final Release: 128 aprovados, zero falhos/ignorados; sondas e relatório concluídos.
+- [ ] Etapa 7B: aguardar autorização específica. Sem App/broker/Windows operacional/publish/commit/push.
+
+[Relatório completo e matriz](../docs/validation/2026-11-11-stage7a-technical-audit.md).
+Graphify não atualizado por acesso negado ao cache. Homologação operacional não realizada.
+
 ## Etapa 6 — integração geral (10/11/2026)
 
 - [x] Reconhecer HEAD/branch/árvore, ler a transferência e mapear o código existente com Graphify e fontes.

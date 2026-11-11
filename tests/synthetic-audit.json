@@ -1,65 +1,6 @@
 {
     "synthetic":  [
-                      "SentinelCore.Tests.StartupIsolationTests.ValidDataRootSelectsOnlyTheIntendedRootWithoutCreatingAnything",
-                      "SentinelCore.Tests.StartupIsolationTests.InvalidExplicitDataRootFailsClosedWithoutFallbackOrDirectories",
-                      "SentinelCore.Tests.StartupIsolationTests.MissingDuplicateRootAndForbiddenLocationsFailClosed",
-                      "SentinelCore.Tests.StartupIsolationTests.DataRootCollidingWithAFileOrBelowAFileIsRejected",
-                      "SentinelCore.Tests.StartupIsolationTests.DataRootThatIsOrSitsBelowAReparsePointIsRejected",
-                      "SentinelCore.Tests.StartupIsolationTests.DataRootBehindARealSymbolicLinkIsRejectedWhenTheEnvironmentAllowsCreatingOne",
-                      "SentinelCore.Tests.StartupIsolationTests.ApplicationLogWritesOnlyUnderItsAuthorizedRootAndNothingWithoutOne",
-                      "SentinelCore.Tests.StartupIsolationTests.StartupSourceNeverLogsOrUsesTheDefaultRootWhileDataRootIsUnvalidated",
-                      "SentinelCore.Tests.StartupIsolationTests.CompositionOnlyTouchesTheChosenRootAndSyntheticStartupLoadsStayInsideIt",
-                      "SentinelCore.Tests.StartupIsolationTests.RepairCompositionAndStartupHistoryLoadNeverRunThePreflight",
-                      "SentinelCore.Tests.StartupIsolationTests.StartupLoadsRepairHistoryOnlyAndPreflightWaitsForThePageOrRefresh",
                       "SentinelCore.Tests.StartupIsolationTests.FiveBuildGatesRemainClosed",
-                      "SentinelCore.Tests.U3JourneyTests.FreshStoreOpensEveryHistoryEmptyAndNeverClaimsACompleteRecoveryHistory",
-                      "SentinelCore.Tests.U3JourneyTests.DiagnosticHistoryPersistsAndReopensWithoutInventingMissingEvidence",
-                      "SentinelCore.Tests.U3JourneyTests.InvestigationJourneyCorrelatesPersistedSourcesWithoutAssertingCausality",
-                      "SentinelCore.Tests.U3JourneyTests.CorrelationWithMissingSourcesStatesTheGapInsteadOfCompleteCoverage",
-                      "SentinelCore.Tests.U3JourneyTests.MonitoringJourneyPersistsIncidentCancellationAndForwardsToCorrelationWithoutEvidenceInvention",
-                      "SentinelCore.Tests.U3JourneyTests.MonitoringSessionRefusedWithoutAuthorizationLeavesTheStoreUntouched",
-                      "SentinelCore.Tests.U3JourneyTests.TweakJourneyThroughTheDistributionCompositionNeverReachesAWriteAndFiveGatesStayClosed",
-                      "SentinelCore.Tests.U3JourneyTests.RepairAndRecoveryJourneyKeepsSuccessFailureAndInterruptionDistinct",
-                      "SentinelCore.Tests.U3JourneyTests.BusyStoreIsUnavailableNotEmptyAndRecoversAfterTheLockIsReleased",
-                      "SentinelCore.Tests.U3JourneyTests.CorruptedAndCancelledReadsPreserveWarningsAndNeverFabricateSuccess",
-                      "SentinelCore.Tests.U2VisualContractTests.EmptyListsSayNothingWasLoadedInsteadOfClaimingAbsence",
-                      "SentinelCore.Tests.U2VisualContractTests.ShellKeepsThirteenGroupedPagesWithNamesForTheCollapsedMenu",
-                      "SentinelCore.Tests.U2VisualContractTests.ShellCodeBehindKeepsShortcutsAndLimitsTheSidebarOnNarrowWindows",
-                      "SentinelCore.Tests.U2VisualContractTests.DashboardOffersEachOtherPageExactlyOnceAndKeepsAuditActions",
-                      "SentinelCore.Tests.U2VisualContractTests.StatusBarKeepsTheBlockedExecutionNoticeVisibleOnEveryPage",
-                      "SentinelCore.Tests.U2VisualContractTests.PageHeadersShareTheIconStylesInsteadOfCopiedColors",
-                      "SentinelCore.Tests.U2VisualContractTests.IntegrityWarningsAreSeparatedFromRunWarningsAndNeverReplacedSilently",
-                      "SentinelCore.Tests.U2VisualContractTests.PresentationLabelsCoverEveryEnumValueWithoutChangingPersistedNames",
-                      "SentinelCore.Tests.U2VisualContractTests.ThemeTokensKeepReadableContrastAndInteractiveOutlines",
-                      "SentinelCore.Tests.U2VisualContractTests.InteractiveControlTemplatesKeepAKeyboardFocusState",
-                      "SentinelCore.Tests.U2VisualContractTests.EventSearchIsNotSharingARowWithTheCategoryFilterAndWideRowsWrapInsteadOfClipping",
-                      "SentinelCore.Tests.U2VisualContractTests.FullHeightPagesScrollInsteadOfCrushingTheirListsAndTheMinimumFitsA1080pScreenAt200Percent",
-                      "SentinelCore.Tests.U2VisualContractTests.RecoveryViewKeepsBlockedRecoveryStatesAndTheTextualHistory",
-                      "SentinelCore.Tests.U1NavigationContractTests.EveryNavigationEntryMatchesItsPageAndDashboardTarget",
-                      "SentinelCore.Tests.SafetyPersistenceTests.JournalRoundTripsPlanBackupAndVerification",
-                      "SentinelCore.Tests.SafetyPersistenceTests.SameEventAppendIsIdempotent",
-                      "SentinelCore.Tests.SafetyPersistenceTests.SameSequenceWithDifferentContentIsRejected",
-                      "SentinelCore.Tests.SafetyPersistenceTests.OutOfOrderSequenceIsRejected",
-                      "SentinelCore.Tests.SafetyPersistenceTests.FirstEventMustBePlanned",
-                      "SentinelCore.Tests.SafetyPersistenceTests.CorruptEventIsPreservedAndTransactionExcluded",
-                      "SentinelCore.Tests.SafetyPersistenceTests.UnknownEnumStateIsNotTreatedAsSuccess",
-                      "SentinelCore.Tests.SafetyPersistenceTests.SequenceGapIsExcludedFromValidity",
-                      "SentinelCore.Tests.SafetyPersistenceTests.AppendDoesNotWriteWhenEarlierJournalEventIsMissing",
-                      "SentinelCore.Tests.SafetyPersistenceTests.TransactionIdCollidingWithAuditIsRejected",
-                      "SentinelCore.Tests.SafetyPersistenceTests.EnvelopeChecksumMatchesSqlitePayloadHash",
-                      "SentinelCore.Tests.SafetyPersistenceTests.SqliteIndexIsRebuiltFromMarkdownAfterDeletion",
-                      "SentinelCore.Tests.SafetyPersistenceTests.SchemaTenMigrationPreservesPreviousHistory",
-                      "SentinelCore.Tests.SafetyPersistenceTests.BackupAndEventFilesAreReadOnlyArtifacts",
-                      "SentinelCore.Tests.SafetyPersistenceTests.TamperedPlanContentWithStaleHashIsRejected",
-                      "SentinelCore.Tests.SafetyPersistenceTests.AuditCannotReuseTransactionId",
-                      "SentinelCore.Tests.SafetyPersistenceTests.PersistedAuthorizationIsRecoverable",
-                      "SentinelCore.Tests.SafetyPersistenceTests.TruncatedTrailingJournalIsIndeterminateAndBlocksRetry",
-                      "SentinelCore.Tests.SafetyPersistenceTests.InvalidStateTransitionIsExcludedFromValidity",
-                      "SentinelCore.Tests.SafetyPersistenceTests.ReportSanitizesEnvelopeMarkersInObservedData",
-                      "SentinelCore.Tests.SafetyPersistenceTests.ExecutionCompletedTailTruncationIsIndeterminate",
-                      "SentinelCore.Tests.SafetyPersistenceTests.RecoveryOutcomeIsIndexedInSqlite",
-                      "SentinelCore.Tests.SafetyPersistenceTests.AppendDoesNotWriteWhenEarlierEventHasWrongFileName",
-                      "SentinelCore.Tests.SafetyPersistenceTests.AppendDoesNotWriteWhenEarlierTransitionIsInvalid",
                       "SentinelCore.Tests.SafetyConcurrencyTests.LockFactoryRejectsConcurrentAcquisitionAndAllowsAfterRelease",
                       "SentinelCore.Tests.SafetyConcurrencyTests.TwoEnginesOnSameTargetExecuteOnlyOne",
                       "SentinelCore.Tests.SafetyConcurrencyTests.ConcurrentIdempotentAppendsProduceSingleRecord",
@@ -76,151 +17,8 @@
                       "SentinelCore.Tests.AuditRunnerTests.UnitsPreserveNull",
                       "SentinelCore.Tests.AuditRunnerTests.KiBIsBinary",
                       "SentinelCore.Tests.AuditRunnerTests.OverflowIsNotSilentlyConverted",
-                      "SentinelCore.Tests.FreshnessTests.NoHistory",
-                      "SentinelCore.Tests.FreshnessTests.BasicAtSixDaysIsExpiring",
-                      "SentinelCore.Tests.FreshnessTests.BasicOlderThanSevenDaysIsOutdated",
-                      "SentinelCore.Tests.FreshnessTests.BasicAtSevenDaysIsOutdated",
-                      "SentinelCore.Tests.FreshnessTests.FullOlderThanThirtyDaysIsOutdated",
-                      "SentinelCore.Tests.FreshnessTests.FutureDateIsInvalid",
-                      "SentinelCore.Tests.FreshnessTests.FailedAttemptDoesNotRenewLastSuccess",
-                      "SentinelCore.Tests.FreshnessTests.AuditKindsAreIndependent",
-                      "SentinelCore.Tests.FreshnessTests.RecentSuccessIsCurrent",
-                      "SentinelCore.Tests.SafetyValidationFlowTests.CompleteSyntheticFlowCoversObservationBackupAuthorizationExecutionAndRollback",
-                      "SentinelCore.Tests.SafetyValidationFlowTests.FlowWithJournalFailureBeforeEffectDoesNotChangeTarget",
-                      "SentinelCore.Tests.SafetyValidationFlowTests.FlowWithCorruptedBackupBlocksRecovery",
-                      "SentinelCore.Tests.SafetyValidationFlowTests.FlowWithUnexpectedInterruptionLeavesIndeterminateStateAndBlocksRetry",
-                      "SentinelCore.Tests.SafetyValidationFlowTests.FlowWithConcurrentAlterationDetectsConflictAndPreservesCurrentState",
-                      "SentinelCore.Tests.SafetyCatalogTests.SyntheticCatalogHasVersionHashAndOperations",
-                      "SentinelCore.Tests.SafetyCatalogTests.UnknownOperationIsRejectedBeforeAnyRead",
-                      "SentinelCore.Tests.SafetyCatalogTests.TryGetIsCaseSensitiveAndRejectsUnknown",
-                      "SentinelCore.Tests.SafetyCatalogTests.DuplicateIdsAreRejected",
-                      "SentinelCore.Tests.SafetyCatalogTests.EmptyCatalogIsRejected",
-                      "SentinelCore.Tests.SafetyCatalogTests.TargetOutsideAllowedRootsIsRejected",
-                      "SentinelCore.Tests.SafetyCatalogTests.OperationWithoutBackupIsRejected",
-                      "SentinelCore.Tests.SafetyCatalogTests.NotValidatedEnabledOperationIsRejected",
-                      "SentinelCore.Tests.SafetyCatalogTests.InvalidChangeShapeIsRejected",
-                      "SentinelCore.Tests.SafetyCatalogTests.DuplicateChangeTargetIsRejected",
-                      "SentinelCore.Tests.SafetyCatalogTests.ContentHashIsDeterministicAndSensitiveToContent",
-                      "SentinelCore.Tests.SafetyCatalogTests.HighRiskAndUnvalidatedOperationsArePresentButBlocked",
-                      "SentinelCore.Tests.SafetyCatalogTests.SyntheticCatalogContainsNoRealExecutorIdentifiers",
-                      "SentinelCore.Tests.SafetyPreflightTests.LowRiskPassesAndReadsObservedState",
-                      "SentinelCore.Tests.SafetyPreflightTests.MediumRiskPassesWhenRestorePointIsAvailable",
-                      "SentinelCore.Tests.SafetyPreflightTests.MediumRiskIsBlockedWhenRestorePointIsUnavailable",
-                      "SentinelCore.Tests.SafetyPreflightTests.WindowsTenIsBlocked",
-                      "SentinelCore.Tests.SafetyPreflightTests.BuildBelowMinimumIsBlocked",
-                      "SentinelCore.Tests.SafetyPreflightTests.BuildAboveMaximumIsBlocked",
-                      "SentinelCore.Tests.SafetyPreflightTests.MachineScopeIsBlockedWithoutElevation",
-                      "SentinelCore.Tests.SafetyPreflightTests.DisabledOperationIsBlocked",
-                      "SentinelCore.Tests.SafetyPreflightTests.PolicyBlocksOperationById",
-                      "SentinelCore.Tests.SafetyPreflightTests.PolicyBlocksOperationByCategory",
-                      "SentinelCore.Tests.SafetyPreflightTests.MissingDependencyIsBlocked",
-                      "SentinelCore.Tests.SafetyPreflightTests.SatisfiedDependencyPasses",
-                      "SentinelCore.Tests.SafetyPreflightTests.UnknownStateIsNotTreatedAsNonexistent",
-                      "SentinelCore.Tests.SafetyPreflightTests.ReadFailureIsReportedAsAccessDeniedWithoutThrowing",
-                      "SentinelCore.Tests.SafetyPreflightTests.NonSerializableValueIsBlocked",
-                      "SentinelCore.Tests.SafetyPreflightTests.FullTargetBackupRequirementIsBlockedUntilImplemented",
-                      "SentinelCore.Tests.SafetyPreflightTests.PreflightDoesNotWriteToTarget",
-                      "SentinelCore.Tests.SafetyPreflightTests.ObservedStateHashNormalizesAbsentRepresentation",
-                      "SentinelCore.Tests.SafetyPreflightTests.PlanHashCoversRiskScopeProtectionAndObservedState",
-                      "SentinelCore.Tests.SafetyPreflightTests.ObservedStateHashDistinguishesAbsentEmptyAndValue",
-                      "SentinelCore.Tests.SafetyPreflightTests.ObservedStateHashIgnoresObservationTimestamp",
-                      "SentinelCore.Tests.SafetyExecutionTests.SuccessfulFlowPersistsOrderedJournalAndVerifiedResult",
-                      "SentinelCore.Tests.SafetyExecutionTests.JournalAndReportsAreRecoveredAfterReopen",
-                      "SentinelCore.Tests.SafetyExecutionTests.InitialAbsentValueIsCreated",
-                      "SentinelCore.Tests.SafetyExecutionTests.EmptyInitialValueIsReplaced",
-                      "SentinelCore.Tests.SafetyExecutionTests.DeleteValueRemovesValueAndKeepsTarget",
-                      "SentinelCore.Tests.SafetyExecutionTests.DeleteKeyRemovesTarget",
-                      "SentinelCore.Tests.SafetyExecutionTests.ExpiredAuthorizationIsRejectedWithoutEffect",
-                      "SentinelCore.Tests.SafetyExecutionTests.ReusedAuthorizationIsRejected",
-                      "SentinelCore.Tests.SafetyExecutionTests.ChangedPlanIsRejected",
-                      "SentinelCore.Tests.SafetyExecutionTests.StateChangedAfterSimulationIsRejected",
-                      "SentinelCore.Tests.SafetyExecutionTests.HighRiskCannotBeAuthorizedEvenWithForgedPlan",
-                      "SentinelCore.Tests.SafetyExecutionTests.UnknownPlanOperationIsRejected",
-                      "SentinelCore.Tests.SafetyExecutionTests.CatalogVersionAndContentDivergenceAreRejected",
-                      "SentinelCore.Tests.SafetyExecutionTests.JournalFailureBeforeEffectLeavesTargetUntouched",
-                      "SentinelCore.Tests.SafetyExecutionTests.JournalFailureAfterEffectLeavesIndeterminateState",
-                      "SentinelCore.Tests.SafetyExecutionTests.ForgedPlanWithConsistentHashIsRejectedByCatalogBinding",
-                      "SentinelCore.Tests.SafetyExecutionTests.ExecutorFailureBeforeEffectIsDeterminate",
-                      "SentinelCore.Tests.SafetyExecutionTests.IndeterminateExecutorFailureBlocksFurtherOperations",
-                      "SentinelCore.Tests.SafetyExecutionTests.ExceptionAfterEffectIsMarkedIndeterminate",
-                      "SentinelCore.Tests.SafetyExecutionTests.VerificationMismatchIsNeverSuccess",
-                      "SentinelCore.Tests.SafetyExecutionTests.MutationBetweenRevalidationAndEffectIsRejected",
-                      "SentinelCore.Tests.SafetyExecutionTests.CancellationPropagatesAndDoesNotDeclareSuccess",
-                      "SentinelCore.Tests.SafetyExecutionTests.NullPlanOrTokenIsRejected",
                       "SentinelCore.Tests.SafetyRecoveryTests.RollbackRestoresObservedStateAndVerifies",
-                      "SentinelCore.Tests.SafetyRecoveryTests.RollbackWhenAlreadyRestoredIsIdempotent",
-                      "SentinelCore.Tests.SafetyRecoveryTests.ConflictWhenStateChangedAfterTransactionIsNotOverwritten",
-                      "SentinelCore.Tests.SafetyRecoveryTests.TargetMissingIsAConflict",
-                      "SentinelCore.Tests.SafetyRecoveryTests.KindChangedIsAConflictAndNotConverted",
-                      "SentinelCore.Tests.SafetyRecoveryTests.CorruptBackupBlocksRecovery",
-                      "SentinelCore.Tests.SafetyRecoveryTests.MissingBackupBlocksRecovery",
-                      "SentinelCore.Tests.SafetyRecoveryTests.PartialRecoveryIsPreservedAndNotReportedAsComplete",
-                      "SentinelCore.Tests.SafetyRecoveryTests.InterruptedRecoveryCanBeRetriedAfterReopen",
-                      "SentinelCore.Tests.SafetyRecoveryTests.RecoveryAfterReopenWorks",
-                      "SentinelCore.Tests.SafetyRecoveryTests.BlockedTransactionWithoutEffectNeedsNoRollback",
-                      "SentinelCore.Tests.SafetyRecoveryTests.RecoveryWithoutConfirmationIsBlocked",
-                      "SentinelCore.Tests.SafetyRecoveryTests.RollbackRemovesKeyThatDidNotExistBefore",
-                      "SentinelCore.Tests.SafetyRecoveryTests.RollbackRestoresEmptyValueExactly",
-                      "SentinelCore.Tests.SafetyRecoveryTests.RecoveryRevalidatesBackupAtTheMomentOfUse",
-                      "SentinelCore.Tests.SafetyRecoveryTests.StateChangeBetweenPreviewAndRollbackIsAConflict",
-                      "SentinelCore.Tests.SafetyRecoveryTests.InterruptedBeforeEffectNeedsNoRollback",
-                      "SentinelCore.Tests.SafetyRecoveryTests.PartialRecoveryCanBeCompletedOnRetry",
-                      "SentinelCore.Tests.SafetyRecoveryTests.InterruptedAfterEffectRecoveryClearsIndeterminacy",
-                      "SentinelCore.Tests.SafetyRecoveryTests.RollbackRechecksPostStateImmediatelyBeforeWrite",
-                      "SentinelCore.Tests.SafetyRecoveryTests.RecoveryIsIndexedAndReported",
-                      "SentinelCore.Tests.SafetyBackupTests.ExistingValueIsPreservedWithKindAndData",
-                      "SentinelCore.Tests.SafetyBackupTests.AbsentTargetIsDistinctFromValueAbsent",
-                      "SentinelCore.Tests.SafetyBackupTests.EmptyContentDiffersFromMissingValue",
-                      "SentinelCore.Tests.SafetyBackupTests.DifferentKindsArePreservedWithoutConversion",
-                      "SentinelCore.Tests.SafetyBackupTests.IncompleteBackupIsNotDeclaredRecoverable",
-                      "SentinelCore.Tests.SafetyBackupTests.PersistedBackupRoundTripsAndIsImmutable",
-                      "SentinelCore.Tests.SafetyBackupTests.ConflictingBackupContentForSameSequenceFails",
-                      "SentinelCore.Tests.SafetyBackupTests.CorruptBackupIsDetected",
-                      "SentinelCore.Tests.SafetyBackupTests.HashDivergenceIsDetected",
-                      "SentinelCore.Tests.SafetyBackupTests.EntryChecksumDivergenceIsDetected",
-                      "SentinelCore.Tests.SafetyBackupTests.IdentityMismatchIsDetected",
-                      "SentinelCore.Tests.SafetyBackupTests.TargetExistenceMismatchIsDetected",
-                      "SentinelCore.Tests.SafetyBackupTests.MissingEntriesAreIncompleteNotCorrupt",
-                      "SentinelCore.Tests.SafetyBackupTests.BackupPathOutsideDataRootIsRejected",
-                      "SentinelCore.Tests.SafetyBackupTests.ContentHashIsDeterministic",
-                      "SentinelCore.Tests.RecoveryCenterTests.EmptySourcesAreCompleteButMissingSourceIsUnavailable",
-                      "SentinelCore.Tests.RecoveryCenterTests.FailedReaderNeverBecomesEmptySuccess",
-                      "SentinelCore.Tests.RecoveryCenterTests.CancellationIsNotSwallowed",
-                      "SentinelCore.Tests.RecoveryCenterTests.IdenticalTransactionsCountOnceDivergentDuplicatesAreExcluded",
-                      "SentinelCore.Tests.RecoveryCenterTests.DuplicateSourceNeverCountsTwice",
-                      "SentinelCore.Tests.RecoveryCenterTests.StaleDerivedSuccessIsRebuiltFromPersistedEvents",
-                      "SentinelCore.Tests.RecoveryCenterTests.SyntheticRecoveryReusesOriginalServiceAndRequiresSpecificConfirmation",
-                      "SentinelCore.Tests.RecoveryCenterTests.PartialRecoveryPreservesConflictAndIsNeverIntegral",
-                      "SentinelCore.Tests.RecoveryCenterTests.NoEffectDoesNotFabricateExecutionAndNeedsNoRollback",
-                      "SentinelCore.Tests.RecoveryCenterTests.CentralRefusesServiceWithoutSyntheticBoundary",
-                      "SentinelCore.Tests.RecoveryCenterTests.DebloatSimulationHistoryIncludesIdentityDependenciesAndLimits",
-                      "SentinelCore.Tests.RecoveryCenterTests.FailedAnalysisRevokesPreviouslyActionablePreview",
-                      "SentinelCore.Tests.RecoveryCenterTests.OrderedNewestFirstAndWarningsTravelWithSameLoad",
-                      "SentinelCore.Tests.RecoveryCenterPersistenceTests.UninitializedRootHasFourExplicitSourcesAndCreatesNoArtifacts",
-                      "SentinelCore.Tests.RecoveryCenterPersistenceTests.HealthyTweakHistoryIsReadWithoutChangingAnyArtifact",
-                      "SentinelCore.Tests.RecoveryCenterPersistenceTests.RecoveryWithUnknownOutcomeCannotBePresentedAsValid",
-                      "SentinelCore.Tests.RecoveryCenterPersistenceTests.SameRecoveryIdentityWithDifferentContentIsRejectedAndPreserved",
-                      "SentinelCore.Tests.RecoveryCenterPersistenceTests.CompleteAndAlreadyRestoredRecoveriesRemainValidWithTheirOwnEvidence",
-                      "SentinelCore.Tests.RecoveryCenterPersistenceTests.MissingJournalDirectoryIsNotAnEmptySuccessfulHistory",
-                      "SentinelCore.Tests.RecoveryCenterPersistenceTests.InaccessibleRootAndBusyStoreAreUnavailableRatherThanZero",
-                      "SentinelCore.Tests.RecoveryCenterPersistenceTests.CancellationIsPropagatedWithoutFilesystemSideEffects",
-                      "SentinelCore.Tests.RecoveryCenterPersistenceTests.ReportPathsUseOnlyClosedModulePartitions",
                       "SentinelCore.Tests.DebloatRemovalFlowTests.CancelBeforeStartHasNoEffectOrIntent",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.CancellationAfterDurableStartIntentButBeforeExecutorPreventsEffect",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.CancellationAfterInitiationCannotStopOrFalselyCancelRemoval",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.MissingMetadataSnapshotPreventsEffect",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.JournalFailureAfterEffectLeavesInterventionAndNoSuccess",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.ReturnedCollectionsCannotMutatePrivatelyPreparedPlan",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.ExpiredAuthorizationNeverExecutes",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.AuthorizationIsSingleUseAndCannotCrossPlans",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.UnresolvedEffectsBlockAnotherPlanOnSameTarget",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.IntentAloneReopensAsUnfinishedNeverAsRemoved",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.CorruptionPreservesFileAndExcludesTransaction",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.SqliteRebuildUsesMarkdownAndDoesNotAddDatabaseOrSchema",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.LegacyEventsOmitNewNullFieldForIdempotentCompatibility",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.JournalRejectsReceiptForDifferentPackageWithoutReplacingOriginal",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.UnknownSnapshotVersionIsRejectedBeforeIntentIsWritten",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.PresentationUsesTypedPlanProgressHistoryAndExplicitLimitations",
                       "SentinelCore.Tests.RepairCenterTests.ManagerLoadsFourCategoriesVolumeListAndDocumentedOperations",
                       "SentinelCore.Tests.RepairCenterTests.RealExecutionModeIsRejectedByTheOrchestrator",
                       "SentinelCore.Tests.RepairCenterTests.StateMachineRejectsInvalidTransitionsAndGaps",
@@ -238,22 +36,6 @@
                       "SentinelCore.Tests.RepairResultInterpreterTests.ReagentcReadsEnabledAndDisabledStateFromStructuredMarkers",
                       "SentinelCore.Tests.RepairResultInterpreterTests.AccessDeniedUnsupportedCancelledInterruptedAndTruncatedAreExplicit",
                       "SentinelCore.Tests.RepairResultInterpreterTests.OutputSanitizerRemovesControlsAndRedactsUserProfile",
-                      "SentinelCore.Tests.RepairCatalogTests.CatalogExposesOnlyTheClosedSetOfOfficialToolsAndFixedArguments",
-                      "SentinelCore.Tests.RepairCatalogTests.CatalogRejectsAvailableHighRiskDocumentedLowRiskAndMalformedVolumeOperations",
-                      "SentinelCore.Tests.RepairCatalogTests.ContentHashIsDeterministicAndChangesWithTheCatalog",
-                      "SentinelCore.Tests.T2aCatalogTests.CatalogContainsExactlyTheThreeAuthorizedOperations",
-                      "SentinelCore.Tests.T2aCatalogTests.DarkModePreservesBothValuesSeparately",
-                      "SentinelCore.Tests.T2aCatalogTests.AdapterAllowlistCoversTheExpandedCatalogTargetsExactly",
-                      "SentinelCore.Tests.T2aCatalogTests.UnknownOperationIsRejectedBeforeAnyRead",
-                      "SentinelCore.Tests.T2aCatalogTests.HkcuTargetWithTraversalOrAbsolutePathIsRejected",
-                      "SentinelCore.Tests.T2bCatalogTests.CatalogIsTheSingleExpandedClosedCatalog",
-                      "SentinelCore.Tests.T2bCatalogTests.NewOperationsDeclareTheExactSingleHkcuValue",
-                      "SentinelCore.Tests.T2bCatalogTests.SearchModesMapEachCataloguedValueToOneOperation",
-                      "SentinelCore.Tests.T2bCatalogTests.AdapterAllowlistMatchesTheExpandedClosedCatalogExactly",
-                      "SentinelCore.Tests.T2bCatalogTests.UnknownOperationIsRejectedBeforeAnyRead",
-                      "SentinelCore.Tests.T2bCatalogTests.CatalogRejectsKeyOnlyAndMachineRootTargets",
-                      "SentinelCore.Tests.T2bCatalogTests.CatalogContentHashIsStableAcrossRebuilds",
-                      "SentinelCore.Tests.T2bCatalogTests.AuthorizedHkcuTargetsArePinnedToSevenLiteralIdentities",
                       "SentinelCore.Tests.SafetyAuthorizationTests.IssuedTokenBindsPlanOperationStateAndConfirmation",
                       "SentinelCore.Tests.SafetyAuthorizationTests.ValidateAcceptsMatchingPlanAndState",
                       "SentinelCore.Tests.SafetyAuthorizationTests.ExpiredTokenIsRejected",
@@ -264,33 +46,6 @@
                       "SentinelCore.Tests.SafetyAuthorizationTests.ConfirmationWithJournalMarkersIsRejected",
                       "SentinelCore.Tests.SafetyAuthorizationTests.ForgedTokenNotIssuedByServiceIsRejected",
                       "SentinelCore.Tests.SafetyAuthorizationTests.ConsumeIsAtomicUnderConcurrency",
-                      "SentinelCore.Tests.SafetyPresentationTests.PresentationContractExposesPlanRiskConsequencesAndRecovery",
-                      "SentinelCore.Tests.SafetyPresentationTests.PresentationDoesNotClaimSuccessBeforeExecution",
-                      "SentinelCore.Tests.SafetyArchitectureTests.DiagnosticCollectorsDoNotReferenceModificationAssembly",
-                      "SentinelCore.Tests.SafetyArchitectureTests.ApplicationDoesNotReferenceModificationAssembly",
-                      "SentinelCore.Tests.SafetyArchitectureTests.DiagnosticRunnersDoNotReceiveExecutionPorts",
-                      "SentinelCore.Tests.SafetyArchitectureTests.ModificationAssemblyExposesOnlyControlledAdapters",
-                      "SentinelCore.Tests.SafetyArchitectureTests.ModificationSourceContainsNoScriptExecutionOrAlternateHives",
-                      "SentinelCore.Tests.SafetyArchitectureTests.ModificationAssemblyHasExactlyOneRealExecutorForHkcu",
-                      "SentinelCore.Tests.SafetyArchitectureTests.SafetyEngineIsIndependentOfWpf",
-                      "SentinelCore.Tests.RecoveryCenterUiContractTests.NavigationAndPageRemainInTheSameOrder",
-                      "SentinelCore.Tests.RecoveryCenterUiContractTests.HistoryIsReadOnlyAndFiltersAreExplicit",
-                      "SentinelCore.Tests.RecoveryCenterUiContractTests.ProductionComposesHistoryWithoutRecoveryOrWindowsExecutor",
-                      "SentinelCore.Tests.RecoveryCenterUiContractTests.UnavailableCountsAndFixtureLimitationsAreVisible",
-                      "SentinelCore.Tests.DebloatNativeBoundaryTests.NativeReaderIsStrictlyReadOnlyAndCurrentUserOnly",
-                      "SentinelCore.Tests.DebloatNativeBoundaryTests.NativeProjectTargetsWinRtAndReferencesOnlyDomain",
-                      "SentinelCore.Tests.DebloatNativeBoundaryTests.DistributionAppDoesNotReferenceOrComposeNativeInventory",
-                      "SentinelCore.Tests.DebloatNativeBoundaryTests.TestProjectNeverReferencesOrExecutesNativeAdapter",
-                      "SentinelCore.Tests.DebloatNativeBoundaryTests.SolutionCompilesNativeAdapter",
-                      "SentinelCore.Tests.DebloatNativeBoundaryTests.AllRealExecutionGatesRemainClosed",
-                      "SentinelCore.Tests.DebloatNativeBoundaryTests.NativeInventoryStatusIsVisibleButExposesNoAction",
-                      "SentinelCore.Tests.EnvironmentIsolationTests.ProfileUsesOnlyInjectedProvidersAndPropagatesTheirFailure",
-                      "SentinelCore.Tests.EnvironmentIsolationTests.LimiterUsesExplicitArtificialProfileAndRejectsMissingProfile",
-                      "SentinelCore.Tests.EnvironmentIsolationTests.RepairCenterUsesInjectedProfileAndDoesNotReadItOnEarlyExit",
-                      "SentinelCore.Tests.EnvironmentIsolationTests.RepairCenterDoesNotFallbackWhenInjectedProfileFails",
-                      "SentinelCore.Tests.RecoveryCenterPersistenceTests.AllFourDurableHistoriesRemainDistinctAfterReopening",
-                      "SentinelCore.Tests.RecoveryCenterPersistenceTests.RepairWithoutFinalRecordIsAnUnfinishedIntentAndCorruptionIsPreserved",
-                      "SentinelCore.Tests.RecoveryCenterTests.SyntheticServiceRejectsHkcuBeforeReaderOrExecutor",
                       "SentinelCore.Tests.RepairCenterTests.ChangedVolumeAfterPreparationBlocksExecution",
                       "SentinelCore.Tests.RepairCenterTests.ChkdskGenericFailureDoesNotBecomeAVolumeUnavailableResult",
                       "SentinelCore.Tests.RepairCenterTests.ChkdskPlanUsesTheValidatedVolumeAndNoFreeArgument",
@@ -301,54 +56,51 @@
                       "SentinelCore.Tests.RepairCenterTests.SfcPlanAuthorizesAndExecutesOnlyTheSyntheticFixture",
                       "SentinelCore.Tests.RepairCenterTests.WrongConfirmationAndTamperedPlansAreRejectedBeforeExecution",
                       "SentinelCore.Tests.RepairResultInterpreterTests.OutputLimiterCapsLinesBytesAndLineLengthAndTruncates",
-                      "SentinelCore.Tests.T2aCatalogTests.HighRiskHkcuOperationIsBlockedByTheBackend",
-                      "SentinelCore.Tests.T2aCatalogTests.HkcuTargetOutsideTheFixedPathsIsBlockedByPreflight",
-                      "SentinelCore.Tests.T2aCatalogTests.Windows10BuildIsBlockedBeforeAnyWrite",
-                      "SentinelCore.Tests.T2bCatalogTests.HighRiskVariantOfANewOperationIsBlockedByTheBackend",
-                      "SentinelCore.Tests.T2bCatalogTests.HkcuTargetOutsideTheExpandedAllowlistIsBlockedBeforeRead",
-                      "SentinelCore.Tests.T2bCatalogTests.Windows10BuildBlocksEveryNewOperationBeforeWrite",
-                      "SentinelCore.Tests.MultiprocessJournalTests.IndependentWritersPreserveIdempotencyAndRejectConflicts",
-                      "SentinelCore.Tests.MultiprocessJournalTests.HeldLockRejectsReadersAndWritersUntilOwnerIsTerminated",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.UnverifiedEffectRemainsBlockedAfterSqliteRebuild",
-                      "SentinelCore.Tests.MultiprocessJournalTests.CompetingDifferentEventsCannotBothWin",
-                      "SentinelCore.Tests.MultiprocessJournalTests.TerminationAfterPersistedEventAllowsIdempotentReopen",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.CorruptSqliteRebuildRetainsUnverifiedEffectBlock",
-                      "SentinelCore.Tests.DebloatRemovalFlowTests.CorruptRemovalJournalBlocksTargetAndPreservesEvidence",
-                      "SentinelCore.Tests.SafetyPersistenceTests.ContradictoryVerificationIsRejectedBeforeWriting",
-                      "SentinelCore.Tests.SafetyPersistenceTests.PlanTransactionIdentityMismatchIsRejectedBeforeWriting",
-                      "SentinelCore.Tests.SafetyPersistenceTests.MissingJournalDirectoryIsReportedAsUnavailable",
                       "SentinelCore.Tests.DebloatRemovalFlowTests.TwoReopenedSessionsCannotExecuteBlockedTarget",
-                      "SentinelCore.Tests.MultiprocessJournalTests.TargetLocksExcludeSameIdentityAndPermitDifferentIdentityAcrossProcesses",
-                      "SentinelCore.Tests.SafetyPersistenceTests.ContradictoryFirstEventIsRejectedBeforeWriting",
-                      "SentinelCore.Tests.SafetyPersistenceTests.AtomicWritePublicationFailurePreservesExistingJournalAndCleansTemporary",
-                      "SentinelCore.Tests.MultiprocessJournalTests.InterruptedSyntheticTemporaryIsNotAcceptedAsJournalEvent",
-                      "SentinelCore.Tests.SafetyPersistenceTests.ReopeningContradictoryEventPreservesAndExcludesHistory",
-                      "SentinelCore.Tests.SafetyPersistenceTests.ExistingEmptyJournalWithTemporaryCannotBeReused",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.ProbeSeamIsInternalNullByDefaultAndVisibleOnlyToTestAssemblies",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.InjectedFailureBeforeTemporaryKeepsHistoryAndCleansTemporary",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.InjectedFailureDuringTemporaryWriteKeepsHistoryAndCleansTemporary",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.InjectedFailureBeforePublishKeepsHistoryAndCleansTemporary",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.FailureAfterPublishReportsErrorButEventIsDurableAndRetryIsIdempotent",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.WriterKilledBeforeTemporaryLeavesPriorHistoryIntact",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.WriterKilledDuringTemporaryWriteLeavesPartialTemporaryUnaccepted",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.WriterKilledBeforePublishLeavesCompleteTemporaryUnaccepted",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.WriterKilledAfterPublishBeforeConfirmationReopensWithDurableEventAndIdempotentRetry",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.WriterKilledDuringFirstEventLeavesNoFabricatedHistoryAndFailsClosed",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.ContentionDuringTemporaryWriteIsRejectedThenFullSnapshotAfterRelease",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.ContentionBeforePublishIsRejectedThenFullSnapshotAfterRelease",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.ContentionAfterPublishIsRejectedThenFullSnapshotAfterRelease",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.AttemptsRendezvousAtLockAcquisitionAndNeitherExecutesOnUnverifiedTarget",
-                      "SentinelCore.Tests.T4b2InterruptionAndConcurrencyTests.SecondAttemptIsRejectedWhileFirstHoldsTargetLockInsideExecutorAndEffectRunsOnce",
-                      "SentinelCore.Tests.T4b3DistributionAndProbeTests.ProbeSeamIsInternalAsyncLocalAndEmptyByDefault",
-                      "SentinelCore.Tests.T4b3DistributionAndProbeTests.OnlyTheTestAssemblyAndSyntheticWorkerSeeInternalsOfPersistence",
-                      "SentinelCore.Tests.T4b3DistributionAndProbeTests.ProbeIsScopedToItsAsyncFlowAndDoesNotLeakToOtherFlows",
-                      "SentinelCore.Tests.T4b3DistributionAndProbeTests.NothingOutsideRecordEnvelopeReferencesTheProbeOrItsStages",
-                      "SentinelCore.Tests.T4b3DistributionAndProbeTests.ProductionHasNoEnvironmentArgumentConfigurationOrDynamicLoadingSwitchForTheProbe",
-                      "SentinelCore.Tests.T4b3DistributionAndProbeTests.DistributedProjectGraphExcludesTestHarnessWorkerAndNativeDebloatAssemblies",
-                      "SentinelCore.Tests.T4b3DistributionAndProbeTests.PublishScriptKeepsEveryRealExecutionPropertyDisabled",
-                      "SentinelCore.Tests.T4b3DistributionAndProbeTests.InternalsVisibleToDeclarationsInProductionAreExactlyTheReviewedOnes",
-                      "SentinelCore.Tests.T4b3DistributionAndProbeTests.ProductionProjectsReferenceNoTestPackagesCompileLinksOrExternalReferences"
-                  ],
+                      "SentinelCore.Tests.DebloatBackendTests.DocumentaryCatalogIsClosedAndRealRiskRemainsBlocked",
+                      "SentinelCore.Tests.DebloatBackendTests.FailureScenariosNeverClaimSuccessfulRemoval",
+                      "SentinelCore.Tests.DebloatBackendTests.RealGateCannotBeEnabled",
+                      "SentinelCore.Tests.DebloatBackendTests.SyntheticRemovalRunsThroughSharedSafetyJournalAndMetadataOnly",
+                      "SentinelCore.Tests.DebloatRemovalFlowTests.SyntheticLifecyclePreservesDurableResultsAndReopens",
+                      "SentinelCore.Tests.PersistenceTests.CompletedWithoutCollectorDataIsRejected",
+                      "SentinelCore.Tests.PersistenceTests.CorruptDatabaseIsPreservedAndRebuilt",
+                      "SentinelCore.Tests.PersistenceTests.CorruptMarkdownIsPreservedAndExcluded",
+                      "SentinelCore.Tests.PersistenceTests.CreatesMemoryAndDatabase",
+                      "SentinelCore.Tests.PersistenceTests.FirstRunHasNoInventedHistory",
+                      "SentinelCore.Tests.PersistenceTests.FutureDatabaseSchemaIsPreservedWithoutDowngrade",
+                      "SentinelCore.Tests.PersistenceTests.MissingMarkdownIsReportedAndDoesNotRemainValid",
+                      "SentinelCore.Tests.PersistenceTests.MissingReportIsRecreated",
+                      "SentinelCore.Tests.PersistenceTests.NullSoftwareVersionIsRejectedAtBoundary",
+                      "SentinelCore.Tests.PersistenceTests.OversizedRecordCannotBeAcknowledgedAsSaved",
+                      "SentinelCore.Tests.PersistenceTests.PayloadTamperingIsDetected",
+                      "SentinelCore.Tests.PersistenceTests.RebuildsIndexAfterDatabaseLoss",
+                      "SentinelCore.Tests.PersistenceTests.ReconcilesCommitGapFromMarkdown",
+                      "SentinelCore.Tests.PersistenceTests.ReportWriteFailureRetainsRecordAndAllowsRetry",
+                      "SentinelCore.Tests.PersistenceTests.RetryDoesNotDuplicateOrRewriteHistory",
+                      "SentinelCore.Tests.PersistenceTests.SameIdAcrossKindsIsRejected",
+                      "SentinelCore.Tests.PersistenceTests.SameIdDifferentPayloadIsRejected",
+                      "SentinelCore.Tests.PersistenceTests.SavesAndReopensRealSqliteIndex",
+                      "SentinelCore.Tests.PersistenceTests.TwoAuditsKeepBothHistories",
+                      "SentinelCore.Tests.PersistenceTests.UnsuccessfulAuditIsRetained",
+                      "SentinelCore.Tests.ProductIntegrationTests.AuditReferencesExcludeNonDiagnosticModules",
+                      "SentinelCore.Tests.ProductIntegrationTests.DuplicateDisposalCannotReleaseLaterJourney",
+                      "SentinelCore.Tests.ProductIntegrationTests.FailedReservationDoesNotLeaveCoordinatorBusy",
+                      "SentinelCore.Tests.ProductIntegrationTests.JourneyOwnsReservationUntilExplicitlyDisposed",
+                      "SentinelCore.Tests.ProductIntegrationTests.RecoveryCenterIncludesAuditHistoryWithoutUsingMutableAuditStore",
+                      "SentinelCore.Tests.ProductIntegrationTests.UnavailableAuditsPreventCompleteRecoverySummary",
+                      "SentinelCore.Tests.RepairCenterTests.SyntheticScenariosYieldExplicitStatesAndClassifications",
+                      "SentinelCore.Tests.RepairPreflightTests.VolumeTextIsNeverAcceptedAsAnArgument",
+                      "SentinelCore.Tests.Stage7aIntegrationTests.ActiveAuditIsHiddenUntilLeaseEndsAndThenRecoveredAsInterrupted",
+                      "SentinelCore.Tests.Stage7aIntegrationTests.AuthoritativeAuditReadDoesNotRebuildMissingSqliteOrChangeMarkdown",
+                      "SentinelCore.Tests.Stage7aIntegrationTests.BrokerContractsRejectNonceReplaySequenceAndUnknownJsonFields",
+                      "SentinelCore.Tests.Stage7aIntegrationTests.CancellationAndUninitializedHistoryNeverCreateData",
+                      "SentinelCore.Tests.Stage7aIntegrationTests.CorruptAuditIsPreservedAndMakesRecoverySummaryIncomplete",
+                      "SentinelCore.Tests.Stage7aIntegrationTests.DisconnectedBrokerOutcomeNeverConfirmsAnEffectOrSuccessfulRepair",
+                      "SentinelCore.Tests.Stage7aIntegrationTests.FailedNotificationAndReservationDisposalDoNotStrandCoordinator",
+                      "SentinelCore.Tests.Stage7aIntegrationTests.FinalAuditDominatesCheckpointWithoutInventingAnotherOperation",
+                      "SentinelCore.Tests.Stage7aIntegrationTests.LegacyAndCheckpointAuditVersionsReopenWithSchemaTwelve",
+                      "SentinelCore.Tests.Stage7aIntegrationTests.ProductReservationSerializesIndependentFactoriesOnSameRoot"
+                     ],
     "windowsIntegration":  [
                                "SentinelCore.Tests.PerformanceNormalizerTests.RealCollectorsReturnTicksWithoutThrowing",
                                "SentinelCore.Tests.QualityGateRemediationTests.QG09_ProcessIoCountersDoNotUseProcessHandle",
@@ -358,6 +110,102 @@
                                "SentinelCore.Tests.RepairToolPathTests.PolicyRejectsWrongNameExtensionDirectoryAndScripts"
                            ],
     "inputs":  [
+                   {
+                       "path":  "src/SentinelCore.App/Localization/Localization.cs",
+                       "sha256":  "08780D7D27B5BCBCF1FF103D06F5105A44791F6D67FAB5A3A05FDF644F887A81"
+                   },
+                   {
+                       "path":  "src/SentinelCore.App/Localization/Strings.cs",
+                       "sha256":  "73F635B0B7445223737C35F21B5E37A834788C258689DBC78EA7988698DF41BE"
+                   },
+                   {
+                       "path":  "src/SentinelCore.App/MainWindow.Operations.cs",
+                       "sha256":  "90758727CF1516783B25E4D68411BD00A8C25361C1C2E02746E7B07102BE11C4"
+                   },
+                   {
+                       "path":  "src/SentinelCore.Application/FullAuditDiagnostics.cs",
+                       "sha256":  "140E87F9EBC4D886D9FF70E3DF0F2AA632D54D7A7768CAE7C21799DC9E789A8C"
+                   },
+                   {
+                       "path":  "src/SentinelCore.Application/ProductOperationCoordinator.cs",
+                       "sha256":  "F88C84BA38293356A558BBE7E9D203031A831B046B1FCCF0B2132C123D4A2192"
+                   },
+                   {
+                       "path":  "src/SentinelCore.Infrastructure.Debloat.Native/AppxDependencyReader.cs",
+                       "sha256":  "6CA8E09FB1FD81D0E87AD8E87BFCDCD05F69F8013D7CF3769EB18D619D1CD773"
+                   },
+                   {
+                       "path":  "src/SentinelCore.Infrastructure.Debloat.Native/packages.single-file.lock.json",
+                       "sha256":  "7525EDD021C54B36B1D757619DE8EE163BB76A358805BB567B8239A82CCF11C8"
+                   },
+                   {
+                       "path":  "src/SentinelCore.Persistence/MemoryStore.Audits.cs",
+                       "sha256":  "D6DBB9308F7D57816CD758BB2845D82731DD73C763B08CC67641CE19ED37B06B"
+                   },
+                   {
+                       "path":  "src/SentinelCore.RepairBroker.Client/BrokerImageTrust.cs",
+                       "sha256":  "21F47E4B36751A7CE718DDAD117A86FA5EFCE3CCE2CE27B8C8830CCA14407E05"
+                   },
+                   {
+                       "path":  "src/SentinelCore.RepairBroker.Client/RepairBrokerClient.cs",
+                       "sha256":  "2E8EFA3E274B7361F9CC0F918271D60B27C5C6DBD0F9C9EBBA1BBE9F1436C7A4"
+                   },
+                   {
+                       "path":  "src/SentinelCore.RepairBroker.Client/SentinelCore.RepairBroker.Client.csproj",
+                       "sha256":  "EE6EBA779CC9B59E77EB2B4AE58A05742F603D2071AF8CCFB901B9053A33A47A"
+                   },
+                   {
+                       "path":  "src/SentinelCore.RepairBroker.Client/packages.lock.json",
+                       "sha256":  "D40E917DB58D1AB58D90B6C4DCBDB7D6DD13102A6E98A4929E584323CCAD316A"
+                   },
+                   {
+                       "path":  "src/SentinelCore.RepairBroker/BrokerLease.cs",
+                       "sha256":  "D2D8D0A81C5A7D530FC7D60DB88A560223A77E3758A63EF6E7BCBB4143F0989B"
+                   },
+                   {
+                       "path":  "src/SentinelCore.RepairBroker/BrokerLeaseModels.cs",
+                       "sha256":  "6E12830E0956177C92A26D40BC2F61863ABC438D9FB994E4F055B2FD4713611E"
+                   },
+                   {
+                       "path":  "src/SentinelCore.RepairBroker/BrokerProtocol.cs",
+                       "sha256":  "C44BD8AB7E5F940BBA21627EA0864096E625DC13FDAF1559BDA6F3562DA4AE84"
+                   },
+                   {
+                       "path":  "src/SentinelCore.RepairBroker/BrokerWindows.cs",
+                       "sha256":  "7E48B220BA6C3C36411DE6BE2323943D1FB3D732EB2DE30F07D51F76268B2BDA"
+                   },
+                   {
+                       "path":  "src/SentinelCore.RepairBroker/NativeOutcome.cs",
+                       "sha256":  "7B5DFB8ECD896E3036FDF3FE13BED7D3FD5A9817F7B24711B0361FF9DF645BB6"
+                   },
+                   {
+                       "path":  "src/SentinelCore.RepairBroker/NativeRepairExecutor.cs",
+                       "sha256":  "6DE845937C17FB4DC0F71B766966D08855539BEEEF6EC75BA52960C901556432"
+                   },
+                   {
+                       "path":  "src/SentinelCore.RepairBroker/NativeRepairPreflight.cs",
+                       "sha256":  "30310E0D30026DAE486812C99B95B701D669A1DBAB19D23746B5B59E3732C1BB"
+                   },
+                   {
+                       "path":  "src/SentinelCore.RepairBroker/Program.cs",
+                       "sha256":  "33D3193C9FF2AEEB17D335B594FDCDD2B9957A6132B5164E11B14ACB73C73B6E"
+                   },
+                   {
+                       "path":  "src/SentinelCore.RepairBroker/SentinelCore.RepairBroker.csproj",
+                       "sha256":  "DB885FDF9FD150B5F6FCDB62E95B4D7A80CD30B72439E8A0D8E0AB79F604838F"
+                   },
+                   {
+                       "path":  "src/SentinelCore.RepairBroker/packages.lock.json",
+                       "sha256":  "D40E917DB58D1AB58D90B6C4DCBDB7D6DD13102A6E98A4929E584323CCAD316A"
+                   },
+                   {
+                       "path":  "tests/SentinelCore.Tests/ProductIntegrationTests.cs",
+                       "sha256":  "088C6BE293C23FAA6EC241AD5FED6A4D01D8DCB13682C01DE2E23111B6FF9845"
+                   },
+                   {
+                       "path":  "tests/SentinelCore.Tests/Stage7aIntegrationTests.cs",
+                       "sha256":  "86831204E8106207EC401B9E5B2BD51C7232133FE6CDD3C9FD5387E5397A439A"
+                   },
                    {
                        "path":  "src/SentinelCore.Persistence/ApplicationLog.cs",
                        "sha256":  "C7EF68E6772D4EC248A5B89ED58F360F0EA87A0DD4B1DF3DF4C8CD28BC7645E3"
@@ -380,7 +228,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.App/UiText.cs",
-                       "sha256":  "3E44F1CCA4929A8A286E55AFF3AD169CE754E1478E8464D4EE93FB286079F0C8"
+                       "sha256":  "B39A465F9ED26BCD8B0DF11DCDDB655BC1FA80D4C2A1FDB635A5E4EAE183D0DE"
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/U2VisualContractTests.cs",
@@ -408,7 +256,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.App/App.xaml.cs",
-                       "sha256":  "7DCF2CD8DA69F88BE50DF7E54C57092EEC8549E8CF9F7C7FEFBB0FA0E170201B"
+                       "sha256":  "C683B3CCE598E4D405324654F52B2CBF2119BB9EEE254C355776FE9A771F2851"
                    },
                    {
                        "path":  "src/SentinelCore.App/DebloatRemovalView.xaml.cs",
@@ -416,59 +264,59 @@
                    },
                    {
                        "path":  "src/SentinelCore.App/DebloatView.xaml.cs",
-                       "sha256":  "15C09174A9A75C6A3E7A9483BDAE1BA00C532F258CE2BB77C80DAEC99FB6D539"
+                       "sha256":  "0FFE01FA910F5171117B11B80BDA1CB0FCBD7C6789426AE12C45FB8101C05609"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Correlation.cs",
-                       "sha256":  "8EA16F5F50399D21D766766C6096F1416559B029E42F321AC17B24394901DB65"
+                       "sha256":  "7B1504970632C7DBD80DF75F56F22698D058F3433092DAC01052225E304BA30F"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Events.cs",
-                       "sha256":  "C016B8C8CC0ECE4BD1713EF2F2658F3EBF04333EB7C97B5C23AD887FE979F6A7"
+                       "sha256":  "141A43A50B88B7CD23E20C718A9F790D5B8D82BE04AE223E9D10638B5CB2DA58"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Graphics.cs",
-                       "sha256":  "3D6384915394D939969C15B0B7C2E385298DCB011DEF0B77F294D90FDB803C15"
+                       "sha256":  "345DB57FD25E1B3F870F86A3E48F2C802940D444A310F8BB19D8D424F13E8AD5"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Monitoring.cs",
-                       "sha256":  "8DA55E977EF24F875EF9A20FABA038704D2415E792BB2B429EE754D35A845047"
+                       "sha256":  "F74CCBE1161D6A77211409BF44A5CDF84E638B4A0779CD29405EA258D73CFF96"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Network.cs",
-                       "sha256":  "1E1F2ECF23D4A3807BAFA3A052944F320C9AD1BD4966D2443AB67BD4A7CD7A3F"
+                       "sha256":  "8DCC4AC31C84BF6A46C2712F6C10B52ECBBA0B0A069A0378473E37154FDDA9FD"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Performance.cs",
-                       "sha256":  "42501CDC9B6D617442E5C304B4CE3A12F3374882EC2CC70C131ED5DB55CD9503"
+                       "sha256":  "199C07BE56E2BBDE67A3263A799C6419844A3C20EAB088FC6C49AD3B6D81C7E9"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Repairs.cs",
-                       "sha256":  "BECF1C0CB26C37EE4B69A4100B1653983CED486D6FA59EC17CB6230CBB490693"
+                       "sha256":  "5CF6C8E3CA08EEFA3C5076C9A3311435B8732797DA2423D9508632701751825A"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.Tweaks.cs",
-                       "sha256":  "8A0019E4E8FB712F3326E86270D70373B7B8687652C35FF65BADCF0E360CE64C"
+                       "sha256":  "731C22BA0FE94F0E52C905DE82C9E3C4A6D250B1470F745D1B546AB11FFCDC18"
                    },
                    {
                        "path":  "src/SentinelCore.App/MainWindow.xaml.cs",
-                       "sha256":  "5C98A5C29D914C24CE32998320B3D29882DDCE514DC7204402AAB6F87125F256"
+                       "sha256":  "913A1F29235DBC398C2D2517F78DA0D4A47148A4A20FB1BF68FC3DF214F325DA"
                    },
                    {
                        "path":  "src/SentinelCore.App/packages.lock.json",
-                       "sha256":  "AC58A5A6BF7DEC05570D5738ABB7D5F7277B24348FFF4041924A18D0181659F4"
+                       "sha256":  "4A4CB64D9611D36C5E522E970EE84B869D5EB926D7FED682E6E1DB185361B2D1"
                    },
                    {
                        "path":  "src/SentinelCore.App/packages.single-file.lock.json",
-                       "sha256":  "6EC179343D18392A4F15AD608D5FE36B5D720E167C970584BB63198DD4568BC8"
+                       "sha256":  "2D75F8C1A98758AACE24825DC33DE78B3B5DC9AE6B3FF36CC43F2F65BF71E44B"
                    },
                    {
                        "path":  "src/SentinelCore.App/RecoveryCenterView.xaml.cs",
-                       "sha256":  "9D6F69B399FAE6B2F5DA5DF11DA2857DABEF6EE81339F415C87C4BE3794C88F9"
+                       "sha256":  "C38C57023C557B088290E9C9B7B3A415F4D8AD2AFFBBA878A056AF0FA630C061"
                    },
                    {
                        "path":  "src/SentinelCore.App/SentinelCore.App.csproj",
-                       "sha256":  "24E1CCD2FE25393AD75FE93C25E836952995C920010C40CD1FA60DAB75249283"
+                       "sha256":  "40B172B35707B346C52CD650027A42776FD057FA30D4A891AD45530C4C0CE671"
                    },
                    {
                        "path":  "src/SentinelCore.Application/AssemblyInfo.cs",
@@ -476,7 +324,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.Application/AuditRunner.cs",
-                       "sha256":  "BFEAE9F4EA83FEC7DCF84362C0A6E1B9B1E09A4E444F6F612EDBC5F8B72742FF"
+                       "sha256":  "86A776B8C7A92E830E172A91B8F2278A5E6A69FD0F97E4D17800650C2BB8C8B9"
                    },
                    {
                        "path":  "src/SentinelCore.Application/CorrelationCoverageCalculator.cs",
@@ -488,15 +336,15 @@
                    },
                    {
                        "path":  "src/SentinelCore.Application/CorrelationEvidenceReader.cs",
-                       "sha256":  "C057BA0DBFC3416A4C5F2E5227B53399EA0F4459A976A96BA7B46AA0E7908F0C"
+                       "sha256":  "04524A2F95E300A9384671B3CDAE2B0298AA9FCBF1E61F3A5524948A7A351822"
                    },
                    {
                        "path":  "src/SentinelCore.Application/CorrelationNormalizer.cs",
-                       "sha256":  "ABF2CAD185DF10435057B548C32FC5E31645FDB86E4FC2A73DE75AD1F47F8BB9"
+                       "sha256":  "58728499C261D552A4C83E7A2E6669B56BCCE66410EE51B29EC21646AAA8194A"
                    },
                    {
                        "path":  "src/SentinelCore.Application/CorrelationRunner.cs",
-                       "sha256":  "B6494E8159DF78386CCAA482B4E92C738DA751FEE5C884EF7791F97FDD7B5436"
+                       "sha256":  "8D643A15B6A008AAC1D78245FA943488B46E3AA3E8AAB475202743349A06BE34"
                    },
                    {
                        "path":  "src/SentinelCore.Application/DebloatAssessment.cs",
@@ -516,31 +364,31 @@
                    },
                    {
                        "path":  "src/SentinelCore.Application/DebloatInventoryMatching.cs",
-                       "sha256":  "414A1DD867FAD35730A325CF998B5AF80BBEDB63957DC54ED207107E1FF19827"
+                       "sha256":  "64F820DD37D4CB244A54C08F84CDCC8E544754B3EF558FF2635D664DC1A80AA3"
                    },
                    {
                        "path":  "src/SentinelCore.Application/DebloatInventoryObserver.cs",
-                       "sha256":  "6B88936BAA069A2CF86A29FFED9B30FF570EBE9B22DE58BFCA9B47EE69D93F07"
+                       "sha256":  "5FBEE4A503C3879EF788EE8013DDAEB65215003448E83FE0ABB518AC636F2E3E"
                    },
                    {
                        "path":  "src/SentinelCore.Application/DebloatManager.cs",
-                       "sha256":  "CA403B61A657806EC033D3CFE6A2A913A8B73798BABD06FDDE8C4A87A806C309"
+                       "sha256":  "1F7CDB7E765F6B6AAB4383C7F270DDCD140A0EC05287438496325096E41C0FE2"
                    },
                    {
                        "path":  "src/SentinelCore.Application/DebloatPresentation.cs",
-                       "sha256":  "D8490418763C31C531A336F934632C6BD290C45B45D9413A793C0278BB50DFDE"
+                       "sha256":  "1487CC3E1329EE8414D8E3B1D5F07F4B305053A9EF99D696B65C0622C028C489"
                    },
                    {
                        "path":  "src/SentinelCore.Application/DebloatRemovalManager.cs",
-                       "sha256":  "B01DE4D6F6F5142FE073E46BBE25379887821577A9F9F0C54BF47A38A964C93F"
+                       "sha256":  "30B8155D36456C97A7D20E4AA56E1F323D6D3BD2C29CEB775F3325B91C18027D"
                    },
                    {
                        "path":  "src/SentinelCore.Application/DebloatRemovalPreflight.cs",
-                       "sha256":  "C3661309CB49821E1CAAAC83419984DFD782AB493BF5E9773E69E8BB974C9A90"
+                       "sha256":  "FAE54749F56E72B21C28BADDF3090A70B7A7E07BB8260DEA9DA6DC9232406A41"
                    },
                    {
                        "path":  "src/SentinelCore.Application/DebloatRemovalPresentation.cs",
-                       "sha256":  "89635C4683646222208DC022942ACBF8A65607C244992AA859699CE8859D81EA"
+                       "sha256":  "D4BDA8969F62D071A3F351D45DD5801B2F7B98051939D0415B8A643A51EC7518"
                    },
                    {
                        "path":  "src/SentinelCore.Application/EventCatalog.cs",
@@ -568,7 +416,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.Application/GraphicsInvestigationRunner.cs",
-                       "sha256":  "9A1D35C5679037EDAC323C8479D98BDB7C443628BF92DE3A021075A27F22BEC3"
+                       "sha256":  "F82DC93A63EF7AADA9D1E40D0EA21C1EC99DFD595A0F9CE15B0A1AFBD4555DE3"
                    },
                    {
                        "path":  "src/SentinelCore.Application/HardwareDiffEngine.cs",
@@ -644,15 +492,15 @@
                    },
                    {
                        "path":  "src/SentinelCore.Application/RecoveryCenter.cs",
-                       "sha256":  "E78510C6BE34C5E1C048A9569ABC08EE74A4026E2153F9C13C9B6CDDE52D11C9"
+                       "sha256":  "B559F2B60A9AC196D060D61A23916989FBE11E2C7113FE0671C5543AF00B4784"
                    },
                    {
                        "path":  "src/SentinelCore.Application/RecoveryCenterPresentation.cs",
-                       "sha256":  "3B2BAB2A08ABB6F2EA9A847707500DB3A783F40B7A06DB36DF4D7717541F6DF9"
+                       "sha256":  "432706729A188E1116A7455B7B8CB6407C59A86034D1C9A71C35AF45B5836F2C"
                    },
                    {
                        "path":  "src/SentinelCore.Application/RepairAuthorization.cs",
-                       "sha256":  "09A8CBDC4513E87C94FE89948438A539FA0832D78170204330867AFFD5238D91"
+                       "sha256":  "E3152A9E492782C50326F8572B76007BEC79A1BF6C65C251D6824F375CDFD039"
                    },
                    {
                        "path":  "src/SentinelCore.Application/RepairCatalog.cs",
@@ -660,19 +508,19 @@
                    },
                    {
                        "path":  "src/SentinelCore.Application/RepairCenter.cs",
-                       "sha256":  "78469FCC23F44D5920B1B5A631995803865B1B3F69AB1FD71C0859E8F60D5044"
+                       "sha256":  "00A3B6C90E34C2C7002EAF210D1FE29F0014469B77DF1DFB5F818EB1CF775C22"
                    },
                    {
                        "path":  "src/SentinelCore.Application/RepairPreflight.cs",
-                       "sha256":  "99B39E255A40712DB930127ED1C1F4199F4C34E82F1077AE4B8B23E9236C9E9B"
+                       "sha256":  "9CD853ED05B597785CA11942F0997D56F7938C16321165327D73D90A9A53922D"
                    },
                    {
                        "path":  "src/SentinelCore.Application/RepairPresentation.cs",
-                       "sha256":  "C7EB0C37979129FACD7A04EB11D33321504CF97523F9BBE88B1BFDA35F5DF5A5"
+                       "sha256":  "02C68C85BC42337064FB97D96A3D23CBED2204452E89CB32A845E35E8A78C68A"
                    },
                    {
                        "path":  "src/SentinelCore.Application/RepairResultInterpreter.cs",
-                       "sha256":  "35F5CB0AB71F227CC8AACF7CA2EFAE93972CB28FBDF46158D518BB0F31FC103F"
+                       "sha256":  "D68D28F0E074DB7345EBABC93A9C1D35A10DFDA5C0EF5D76849A28017D8E3291"
                    },
                    {
                        "path":  "src/SentinelCore.Application/SafetyAuthorization.cs",
@@ -688,7 +536,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.Application/SafetyEngine.cs",
-                       "sha256":  "63F252C0239CD683EDC23BBDAA1F3B427CE1B53637F5105CBA3A0F4B51AEA990"
+                       "sha256":  "B0B99966B05F3FC7689F3A5D8D5A1595333E4711EBDD5C26F7F19F96F9D09470"
                    },
                    {
                        "path":  "src/SentinelCore.Application/SafetyPlanValidation.cs",
@@ -704,7 +552,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.Application/SafetyRecovery.cs",
-                       "sha256":  "391B04A5C0F2F9D743736514EB869D239573C119C7FBEF7B6BAF145915006F3A"
+                       "sha256":  "8729FB35F5E2B660B7B7524B90709AEC52E55E19A70E8514046D6635A9016275"
                    },
                    {
                        "path":  "src/SentinelCore.Application/SafetyVerification.cs",
@@ -724,7 +572,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.Application/TweakManager.cs",
-                       "sha256":  "DCD7A7F634D070774126ACF9C3E5DCF1FF234B76A1B867DCC4E9F17F73E77598"
+                       "sha256":  "933C6411570CD8B5E0401B2AF4FE4D6A3B12DFD57D709B67DD71DF46FC53217B"
                    },
                    {
                        "path":  "src/SentinelCore.Application/TweakPresentation.cs",
@@ -736,19 +584,19 @@
                    },
                    {
                        "path":  "src/SentinelCore.Domain/CorrelationModels.cs",
-                       "sha256":  "E85AC7DB1DC28DF588F90B3A9AA8B7442CABD247CDF3395FA41660BA22987BBE"
+                       "sha256":  "61883D5D2CCC732060B44D01F406E9EF595B0A44D118267D6A164AF2FAAA59E6"
                    },
                    {
                        "path":  "src/SentinelCore.Domain/DebloatInventoryContracts.cs",
-                       "sha256":  "974AB934DFA87CDD277713D34DCCBC36DC31AD023D56296C73767305E97A1B54"
+                       "sha256":  "86BFB29869E5737EF72001E0683B0C7A805D8B455CB3AA28B0D6AC1F782F56C1"
                    },
                    {
                        "path":  "src/SentinelCore.Domain/DebloatModels.cs",
-                       "sha256":  "D1E84C77F2E4AE1FA495018D1B4A2475843F808BBC47EE9654F42BF9BD5D0BB2"
+                       "sha256":  "FB3791AA4E8A650843A78C5E223084082221949892CEA6C70EDA5E3FE89455E5"
                    },
                    {
                        "path":  "src/SentinelCore.Domain/DebloatRemovalContracts.cs",
-                       "sha256":  "7D644E6513035B092B7F4E2D68DCB05C3C8B55A2035D577F8E494B6C89D61BBB"
+                       "sha256":  "09977AB83E8C9FB2058D3CA894AF88628450E7EF0EC3340F7D34D20320730075"
                    },
                    {
                        "path":  "src/SentinelCore.Domain/EventModels.cs",
@@ -768,7 +616,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.Domain/Models.cs",
-                       "sha256":  "A9A42A0623E8FF8C105820FED763099BF1CF7F194E6A3D493FA83797443EFEA9"
+                       "sha256":  "6A5EE1F12C31DEC51CAF24CDF66A0F0F23A77C1C4E846B7ED0F52F7019B9090F"
                    },
                    {
                        "path":  "src/SentinelCore.Domain/MonitoringModels.cs",
@@ -796,19 +644,19 @@
                    },
                    {
                        "path":  "src/SentinelCore.Domain/RecoveryCenterModels.cs",
-                       "sha256":  "49040E83DFFF438E7639E3B5E03139F01AEA91C501096A998753862EAA36B374"
+                       "sha256":  "14EC9E94A5715ED2F9AADD281E2C3603E625C0EFC436D2DE222D7406DC5CED8D"
                    },
                    {
                        "path":  "src/SentinelCore.Domain/RepairModels.cs",
-                       "sha256":  "E7A57A14C29DBD9670166497A881CB4A179D2A071E63E29D1257D6A7E068A14C"
+                       "sha256":  "05410A14C04D96F89796A9706D3608B04732E4BBEFA6CC56A1FECC020FC3C0FE"
                    },
                    {
                        "path":  "src/SentinelCore.Domain/SafetyHashing.cs",
-                       "sha256":  "DB2F35F4CD52D4D5C11E06B9D181F735DC213CBB82A96CF59683B4923291C260"
+                       "sha256":  "EA9D2BF416599EE17A2B99325BEBDB195328FC2FD5570FD37CD520A31705C1F2"
                    },
                    {
                        "path":  "src/SentinelCore.Domain/SafetyModels.cs",
-                       "sha256":  "649CF5B7E336BBF60AE2453867A553E366D718F2C7B508C775CE20E6C9488EC5"
+                       "sha256":  "A218197365AA306FD0200B8F4F3A79F6A1E83A25C648649B13BE1604771790B5"
                    },
                    {
                        "path":  "src/SentinelCore.Domain/SentinelCore.Domain.csproj",
@@ -820,7 +668,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.Domain/TransactionModels.cs",
-                       "sha256":  "ECC522F025CEA2C660BAD27DD252AC2B4161ED14060A2044BC47AA0A9CE80E3F"
+                       "sha256":  "9D946DD20F4119523C4D2DF788AA86985D9DDE39378557A67BF2117F172A44AB"
                    },
                    {
                        "path":  "src/SentinelCore.Domain/TweakContracts.cs",
@@ -828,7 +676,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.Infrastructure.Debloat.Native/NativeAppxInventoryReader.cs",
-                       "sha256":  "84DE1688E473984A283C6AAD65A8F2A2C80486B9B00E2DA940556CC052BFDBD9"
+                       "sha256":  "942F7009D1B41BACF56DE4D68DCB048C41D4DA90D5AD9C6B5454F9860FB9F85F"
                    },
                    {
                        "path":  "src/SentinelCore.Infrastructure.Debloat.Native/packages.lock.json",
@@ -836,11 +684,11 @@
                    },
                    {
                        "path":  "src/SentinelCore.Infrastructure.Debloat.Native/SentinelCore.Infrastructure.Debloat.Native.csproj",
-                       "sha256":  "C8B2297F8F0602C1C7BA964D1D57213D7B8A3339BBB50888D8B36D6D58E61320"
+                       "sha256":  "D1CCE7B3AFDE2935223AA80DA19665838DEE5AFE57F25FD0E47700CE2F738A71"
                    },
                    {
                        "path":  "src/SentinelCore.Infrastructure.Debloat.Removal.Native/NativeAppxRemovalExecutor.cs",
-                       "sha256":  "E21CF1A1820A6843F2B3BE8C9559DA09101A29C5A1C28CAA87C3A36148B961CF"
+                       "sha256":  "DECA16AD3988D112C7EDD39B80FB9D270DECD89313EA90F901E05EA7D333A912"
                    },
                    {
                        "path":  "src/SentinelCore.Infrastructure.Debloat.Removal.Native/packages.lock.json",
@@ -876,7 +724,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.Infrastructure.Modifications/HkcuEnvironment.cs",
-                       "sha256":  "BB50DBC82D8002AB5BB4332C989406D5587A29107F8F2A146EAA2A6D317478AE"
+                       "sha256":  "9C88B662571BA32DAAD2EE917F0AAB13A51BFF3F2A5C12783CEC0DE629E5DAB0"
                    },
                    {
                        "path":  "src/SentinelCore.Infrastructure.Modifications/HkcuRegistryAccess.cs",
@@ -1108,7 +956,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.Persistence/CorrelationReport.cs",
-                       "sha256":  "E43541E672AFBBA93A5177B31ECD8EAEEAC7A1D933B51912E173263A7E63B343"
+                       "sha256":  "3B611E400A49FC19E92B9C8DDC812556532E153DC4FF3405EA91EC1993529166"
                    },
                    {
                        "path":  "src/SentinelCore.Persistence/EventReport.cs",
@@ -1128,23 +976,23 @@
                    },
                    {
                        "path":  "src/SentinelCore.Persistence/MarkdownReport.cs",
-                       "sha256":  "C24C5DB9AB2A154701175D924BFAFD050AEC98D113FCC5324FBF90B38B823098"
+                       "sha256":  "AF5C4DB1431877EC9E671EEB4CABD7E4FAEC9E8CD5E4EA28256042E9555B0F82"
                    },
                    {
                        "path":  "src/SentinelCore.Persistence/MemoryStore.cs",
-                       "sha256":  "644A8EA38C5F5009183A162AC7B8C17CF92E4859F16B78A62BF9DA74A91BC3B6"
+                       "sha256":  "9AC30A018F9E4ABD8D4EB93BC127B0D50D7B7126C5AD9C136263986B65BBF77E"
                    },
                    {
                        "path":  "src/SentinelCore.Persistence/MemoryStore.RecoveryCenter.cs",
-                       "sha256":  "2D916C007227C9AEAB31FB82D43D9694D767F1B204C4CB7C9505C1585FA6924C"
+                       "sha256":  "F1A74CA298A5BD0899C7293C421EF28E5424A8F466B46AD7FA60E2F757D74BAD"
                    },
                    {
                        "path":  "src/SentinelCore.Persistence/MemoryStore.Repairs.cs",
-                       "sha256":  "6F0A26F267B49607085716A50A5F6BDC3C6B5A0B0391C6A67F719096F3DC17FF"
+                       "sha256":  "690CC249C2D9643352FF545416C312D73022470CE6341889C1208B2100E49734"
                    },
                    {
                        "path":  "src/SentinelCore.Persistence/MemoryStore.Transactions.cs",
-                       "sha256":  "831FAF64870CDECC1057562011ECBFD0DD34F658E489076005A82B5083DC0E4E"
+                       "sha256":  "084207EB04C0D22AE402E9DCD3162472EA3CBD2B277C4F4D60694DB5FE9A4CAE"
                    },
                    {
                        "path":  "src/SentinelCore.Persistence/MonitoringReport.cs",
@@ -1172,7 +1020,7 @@
                    },
                    {
                        "path":  "src/SentinelCore.Persistence/RepairReport.cs",
-                       "sha256":  "43A6C4CA1A953561D72B8790878FD1F946401621C66C4BFDB5420ADC16D93E50"
+                       "sha256":  "D24A32FF1BEC2AF4DE2062787C6F6C7D602A630A7F42358D35D5B2F75127DB59"
                    },
                    {
                        "path":  "src/SentinelCore.Persistence/SentinelCore.Persistence.csproj",
@@ -1184,7 +1032,7 @@
                    },
                    {
                        "path":  "tests/run-synthetic.ps1",
-                       "sha256":  "919AA82DC20BF31B9A11721FE688A272038FF450FC539B86622C1A73EE8661F4"
+                       "sha256":  "3E94F1EF7DC9B4665E92A73D73476BFBBBB4F080D5429BCABDE9401021BFFA95"
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/AuditRunnerTests.cs",
@@ -1208,7 +1056,7 @@
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/CorrelationSamples.cs",
-                       "sha256":  "88ED279DA76F92F8B78CC56C6B58C232EA3F837321C4C1792563F9AC7B3656BA"
+                       "sha256":  "817FB6BCDDEFABF8BCCA7EC583BC092C1CE91007383BD601D1DD1D6CCC655651"
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/CorrelationUiContractTests.cs",
@@ -1220,11 +1068,11 @@
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/DebloatNativeBoundaryTests.cs",
-                       "sha256":  "0B93ACB7839DEBFE4034AD2F1CB1B63E65872B1229E7802D8297363F4FED9115"
+                       "sha256":  "C80A7B8CEDF2CF43F94B9776E65092CEE283FD97641B0323B4D30E12EED1115E"
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/DebloatNativeInventoryTests.cs",
-                       "sha256":  "6D6EE24D41D9D6F9B6F1078428BFB593830A454F7FAFF25A80554860A206DAFA"
+                       "sha256":  "6282A3D0079A5A17F197D33C365CB7BAEC6E4F2FF9957FC55213DA8E08C7D023"
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/DebloatPersistenceTests.cs",
@@ -1236,7 +1084,7 @@
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/DebloatRemovalBoundaryTests.cs",
-                       "sha256":  "12BCEDE67907429D9C319A6A7A57F409FE9F77D65CADF2DF704263ADE549C986"
+                       "sha256":  "D6957C1BC5665C81B9C0B5EBCFC9E486653BB3AC6F19E370771889DCCEA01237"
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/DebloatRemovalFlowTests.cs",
@@ -1556,7 +1404,7 @@
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/SentinelCore.Tests.csproj",
-                       "sha256":  "9DDF5BEB7853D4EA169CD25180FDA395A29793D7D95792177FF513336741A4CF"
+                       "sha256":  "E0832FDF44A389CCC842292E8FE2A2E2D3AF38255E224F3BE4509D5B2079B9FA"
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/StorageIdentityTests.cs",
@@ -1620,7 +1468,7 @@
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/T4b3DistributionAndProbeTests.cs",
-                       "sha256":  "5F873E63E17787FB0DDB11F8B784FE4B4F3F4ADB529EBB166F36A3A142F175E1"
+                       "sha256":  "682CC4C1EA5B9D5A72FD0D7F3E10B58EE8916E9F693D03AF01BE6C52580CD925"
                    },
                    {
                        "path":  "tests/SentinelCore.Tests/TestRepository.cs",
@@ -1659,42 +1507,42 @@
 
                            ],
     "discoveredCases":  [
-                      "SentinelCore.Tests.StartupIsolationTests.ValidDataRootSelectsOnlyTheIntendedRootWithoutCreatingAnything",
-                      "SentinelCore.Tests.StartupIsolationTests.InvalidExplicitDataRootFailsClosedWithoutFallbackOrDirectories",
-                      "SentinelCore.Tests.StartupIsolationTests.MissingDuplicateRootAndForbiddenLocationsFailClosed",
-                      "SentinelCore.Tests.StartupIsolationTests.DataRootCollidingWithAFileOrBelowAFileIsRejected",
-                      "SentinelCore.Tests.StartupIsolationTests.DataRootThatIsOrSitsBelowAReparsePointIsRejected",
-                      "SentinelCore.Tests.StartupIsolationTests.DataRootBehindARealSymbolicLinkIsRejectedWhenTheEnvironmentAllowsCreatingOne",
-                      "SentinelCore.Tests.StartupIsolationTests.ApplicationLogWritesOnlyUnderItsAuthorizedRootAndNothingWithoutOne",
-                      "SentinelCore.Tests.StartupIsolationTests.StartupSourceNeverLogsOrUsesTheDefaultRootWhileDataRootIsUnvalidated",
-                      "SentinelCore.Tests.StartupIsolationTests.CompositionOnlyTouchesTheChosenRootAndSyntheticStartupLoadsStayInsideIt",
-                      "SentinelCore.Tests.StartupIsolationTests.RepairCompositionAndStartupHistoryLoadNeverRunThePreflight",
-                      "SentinelCore.Tests.StartupIsolationTests.StartupLoadsRepairHistoryOnlyAndPreflightWaitsForThePageOrRefresh",
-                      "SentinelCore.Tests.StartupIsolationTests.FiveBuildGatesRemainClosed",
-                      "SentinelCore.Tests.U3JourneyTests.FreshStoreOpensEveryHistoryEmptyAndNeverClaimsACompleteRecoveryHistory",
-                      "SentinelCore.Tests.U3JourneyTests.DiagnosticHistoryPersistsAndReopensWithoutInventingMissingEvidence",
-                      "SentinelCore.Tests.U3JourneyTests.InvestigationJourneyCorrelatesPersistedSourcesWithoutAssertingCausality",
-                      "SentinelCore.Tests.U3JourneyTests.CorrelationWithMissingSourcesStatesTheGapInsteadOfCompleteCoverage",
-                      "SentinelCore.Tests.U3JourneyTests.MonitoringJourneyPersistsIncidentCancellationAndForwardsToCorrelationWithoutEvidenceInvention",
-                      "SentinelCore.Tests.U3JourneyTests.MonitoringSessionRefusedWithoutAuthorizationLeavesTheStoreUntouched",
-                      "SentinelCore.Tests.U3JourneyTests.TweakJourneyThroughTheDistributionCompositionNeverReachesAWriteAndFiveGatesStayClosed",
-                      "SentinelCore.Tests.U3JourneyTests.RepairAndRecoveryJourneyKeepsSuccessFailureAndInterruptionDistinct",
-                      "SentinelCore.Tests.U3JourneyTests.BusyStoreIsUnavailableNotEmptyAndRecoversAfterTheLockIsReleased",
-                      "SentinelCore.Tests.U3JourneyTests.CorruptedAndCancelledReadsPreserveWarningsAndNeverFabricateSuccess",
-                      "SentinelCore.Tests.U2VisualContractTests.EmptyListsSayNothingWasLoadedInsteadOfClaimingAbsence",
-                      "SentinelCore.Tests.U2VisualContractTests.ShellKeepsThirteenGroupedPagesWithNamesForTheCollapsedMenu",
-                      "SentinelCore.Tests.U2VisualContractTests.ShellCodeBehindKeepsShortcutsAndLimitsTheSidebarOnNarrowWindows",
-                      "SentinelCore.Tests.U2VisualContractTests.DashboardOffersEachOtherPageExactlyOnceAndKeepsAuditActions",
-                      "SentinelCore.Tests.U2VisualContractTests.StatusBarKeepsTheBlockedExecutionNoticeVisibleOnEveryPage",
-                      "SentinelCore.Tests.U2VisualContractTests.PageHeadersShareTheIconStylesInsteadOfCopiedColors",
-                      "SentinelCore.Tests.U2VisualContractTests.IntegrityWarningsAreSeparatedFromRunWarningsAndNeverReplacedSilently",
-                      "SentinelCore.Tests.U2VisualContractTests.PresentationLabelsCoverEveryEnumValueWithoutChangingPersistedNames",
-                      "SentinelCore.Tests.U2VisualContractTests.ThemeTokensKeepReadableContrastAndInteractiveOutlines",
-                      "SentinelCore.Tests.U2VisualContractTests.InteractiveControlTemplatesKeepAKeyboardFocusState",
-                      "SentinelCore.Tests.U2VisualContractTests.EventSearchIsNotSharingARowWithTheCategoryFilterAndWideRowsWrapInsteadOfClipping",
-                      "SentinelCore.Tests.U2VisualContractTests.FullHeightPagesScrollInsteadOfCrushingTheirListsAndTheMinimumFitsA1080pScreenAt200Percent",
-                      "SentinelCore.Tests.U2VisualContractTests.RecoveryViewKeepsBlockedRecoveryStatesAndTheTextualHistory",
-                      "SentinelCore.Tests.U1NavigationContractTests.EveryNavigationEntryMatchesItsPageAndDashboardTarget",
+                            "SentinelCore.Tests.StartupIsolationTests.ValidDataRootSelectsOnlyTheIntendedRootWithoutCreatingAnything",
+                            "SentinelCore.Tests.StartupIsolationTests.InvalidExplicitDataRootFailsClosedWithoutFallbackOrDirectories",
+                            "SentinelCore.Tests.StartupIsolationTests.MissingDuplicateRootAndForbiddenLocationsFailClosed",
+                            "SentinelCore.Tests.StartupIsolationTests.DataRootCollidingWithAFileOrBelowAFileIsRejected",
+                            "SentinelCore.Tests.StartupIsolationTests.DataRootThatIsOrSitsBelowAReparsePointIsRejected",
+                            "SentinelCore.Tests.StartupIsolationTests.DataRootBehindARealSymbolicLinkIsRejectedWhenTheEnvironmentAllowsCreatingOne",
+                            "SentinelCore.Tests.StartupIsolationTests.ApplicationLogWritesOnlyUnderItsAuthorizedRootAndNothingWithoutOne",
+                            "SentinelCore.Tests.StartupIsolationTests.StartupSourceNeverLogsOrUsesTheDefaultRootWhileDataRootIsUnvalidated",
+                            "SentinelCore.Tests.StartupIsolationTests.CompositionOnlyTouchesTheChosenRootAndSyntheticStartupLoadsStayInsideIt",
+                            "SentinelCore.Tests.StartupIsolationTests.RepairCompositionAndStartupHistoryLoadNeverRunThePreflight",
+                            "SentinelCore.Tests.StartupIsolationTests.StartupLoadsRepairHistoryOnlyAndPreflightWaitsForThePageOrRefresh",
+                            "SentinelCore.Tests.StartupIsolationTests.FiveBuildGatesRemainClosed",
+                            "SentinelCore.Tests.U3JourneyTests.FreshStoreOpensEveryHistoryEmptyAndNeverClaimsACompleteRecoveryHistory",
+                            "SentinelCore.Tests.U3JourneyTests.DiagnosticHistoryPersistsAndReopensWithoutInventingMissingEvidence",
+                            "SentinelCore.Tests.U3JourneyTests.InvestigationJourneyCorrelatesPersistedSourcesWithoutAssertingCausality",
+                            "SentinelCore.Tests.U3JourneyTests.CorrelationWithMissingSourcesStatesTheGapInsteadOfCompleteCoverage",
+                            "SentinelCore.Tests.U3JourneyTests.MonitoringJourneyPersistsIncidentCancellationAndForwardsToCorrelationWithoutEvidenceInvention",
+                            "SentinelCore.Tests.U3JourneyTests.MonitoringSessionRefusedWithoutAuthorizationLeavesTheStoreUntouched",
+                            "SentinelCore.Tests.U3JourneyTests.TweakJourneyThroughTheDistributionCompositionNeverReachesAWriteAndFiveGatesStayClosed",
+                            "SentinelCore.Tests.U3JourneyTests.RepairAndRecoveryJourneyKeepsSuccessFailureAndInterruptionDistinct",
+                            "SentinelCore.Tests.U3JourneyTests.BusyStoreIsUnavailableNotEmptyAndRecoversAfterTheLockIsReleased",
+                            "SentinelCore.Tests.U3JourneyTests.CorruptedAndCancelledReadsPreserveWarningsAndNeverFabricateSuccess",
+                            "SentinelCore.Tests.U2VisualContractTests.EmptyListsSayNothingWasLoadedInsteadOfClaimingAbsence",
+                            "SentinelCore.Tests.U2VisualContractTests.ShellKeepsThirteenGroupedPagesWithNamesForTheCollapsedMenu",
+                            "SentinelCore.Tests.U2VisualContractTests.ShellCodeBehindKeepsShortcutsAndLimitsTheSidebarOnNarrowWindows",
+                            "SentinelCore.Tests.U2VisualContractTests.DashboardOffersEachOtherPageExactlyOnceAndKeepsAuditActions",
+                            "SentinelCore.Tests.U2VisualContractTests.StatusBarKeepsTheBlockedExecutionNoticeVisibleOnEveryPage",
+                            "SentinelCore.Tests.U2VisualContractTests.PageHeadersShareTheIconStylesInsteadOfCopiedColors",
+                            "SentinelCore.Tests.U2VisualContractTests.IntegrityWarningsAreSeparatedFromRunWarningsAndNeverReplacedSilently",
+                            "SentinelCore.Tests.U2VisualContractTests.PresentationLabelsCoverEveryEnumValueWithoutChangingPersistedNames",
+                            "SentinelCore.Tests.U2VisualContractTests.ThemeTokensKeepReadableContrastAndInteractiveOutlines",
+                            "SentinelCore.Tests.U2VisualContractTests.InteractiveControlTemplatesKeepAKeyboardFocusState",
+                            "SentinelCore.Tests.U2VisualContractTests.EventSearchIsNotSharingARowWithTheCategoryFilterAndWideRowsWrapInsteadOfClipping",
+                            "SentinelCore.Tests.U2VisualContractTests.FullHeightPagesScrollInsteadOfCrushingTheirListsAndTheMinimumFitsA1080pScreenAt200Percent",
+                            "SentinelCore.Tests.U2VisualContractTests.RecoveryViewKeepsBlockedRecoveryStatesAndTheTextualHistory",
+                            "SentinelCore.Tests.U1NavigationContractTests.EveryNavigationEntryMatchesItsPageAndDashboardTarget",
                             "SentinelCore.Tests.AuditRunnerTests.AllFailedIsFailed",
                             "SentinelCore.Tests.AuditRunnerTests.CancellationDuringCollectionReturnsRecord",
                             "SentinelCore.Tests.AuditRunnerTests.CancelledBeforeStartPreservesEveryCollector",
@@ -1840,14 +1688,11 @@
                             "SentinelCore.Tests.DebloatBackendTests.SyntheticRemovalRunsThroughSharedSafetyJournalAndMetadataOnly",
                             "SentinelCore.Tests.DebloatBackendTests.TokensExpireAndCannotCrossPackagesOrSessions",
                             "SentinelCore.Tests.DebloatNativeBoundaryTests.AllRealExecutionGatesRemainClosed",
-                            "SentinelCore.Tests.DebloatNativeBoundaryTests.DistributionAppDoesNotReferenceOrComposeNativeInventory",
                             "SentinelCore.Tests.DebloatNativeBoundaryTests.NativeActivationGateIsNeverOpen(argument: \"\")",
                             "SentinelCore.Tests.DebloatNativeBoundaryTests.NativeActivationGateIsNeverOpen(argument: \"--enable-native-debloat-inventory\")",
                             "SentinelCore.Tests.DebloatNativeBoundaryTests.NativeActivationGateIsNeverOpen(argument: \"--enable-real-debloat\")",
                             "SentinelCore.Tests.DebloatNativeBoundaryTests.NativeActivationGateIsNeverOpen(argument: \"SentinelCoreRealDebloat=true\")",
-                            "SentinelCore.Tests.DebloatNativeBoundaryTests.NativeInventoryStatusIsVisibleButExposesNoAction",
                             "SentinelCore.Tests.DebloatNativeBoundaryTests.NativeProjectTargetsWinRtAndReferencesOnlyDomain",
-                            "SentinelCore.Tests.DebloatNativeBoundaryTests.NativeReaderIsStrictlyReadOnlyAndCurrentUserOnly",
                             "SentinelCore.Tests.DebloatNativeBoundaryTests.SolutionCompilesNativeAdapter",
                             "SentinelCore.Tests.DebloatNativeBoundaryTests.TestProjectNeverReferencesOrExecutesNativeAdapter",
                             "SentinelCore.Tests.DebloatNativeInventoryTests.CompletedQuerySeparatesObservedPresenceFromConfirmedAbsence",
@@ -2275,9 +2120,9 @@
                             "SentinelCore.Tests.HardwareNormalizerTests.EdidManufacturerDecodesFiveBitLetters(value: 19501, expected: \"SAM\")",
                             "SentinelCore.Tests.HardwareNormalizerTests.EdidManufacturerDecodesFiveBitLetters(value: 4268, expected: \"DEL\")",
                             "SentinelCore.Tests.HardwareNormalizerTests.HardwareIdHandlesMissingValues",
-                            "SentinelCore.Tests.HardwareNormalizerTests.HardwareIdKeepsVendorAndModelWithoutInstanceSuffix(instanceId: \"HID\\\\VID_046D\u0026PID_C52B\u0026MI_01\u0026COL01\\\\7\u00261A2B3C4D\u00260\u00260\"···, expected: \"HID\\\\VID_046D\u0026PID_C52B\u0026MI_01\u0026COL01\")",
-                            "SentinelCore.Tests.HardwareNormalizerTests.HardwareIdKeepsVendorAndModelWithoutInstanceSuffix(instanceId: \"PCI\\\\VEN_10DE\u0026DEV_2482\u0026SUBSYS_88881043\u0026REV_A1\\\\4\u00262\"···, expected: \"PCI\\\\VEN_10DE\u0026DEV_2482\u0026SUBSYS_88881043\u0026REV_A1\")",
-                            "SentinelCore.Tests.HardwareNormalizerTests.HardwareIdKeepsVendorAndModelWithoutInstanceSuffix(instanceId: \"USB\\\\VID_046D\u0026PID_C52B\u0026REV_1201\\\\5\u00262A1B3C4D\u00260\u00261\", expected: \"USB\\\\VID_046D\u0026PID_C52B\u0026REV_1201\")",
+                            "SentinelCore.Tests.HardwareNormalizerTests.HardwareIdKeepsVendorAndModelWithoutInstanceSuffix(instanceId: \"HID\\\\VID_046D&PID_C52B&MI_01&COL01\\\\7&1A2B3C4D&0&0\"···, expected: \"HID\\\\VID_046D&PID_C52B&MI_01&COL01\")",
+                            "SentinelCore.Tests.HardwareNormalizerTests.HardwareIdKeepsVendorAndModelWithoutInstanceSuffix(instanceId: \"PCI\\\\VEN_10DE&DEV_2482&SUBSYS_88881043&REV_A1\\\\4&2\"···, expected: \"PCI\\\\VEN_10DE&DEV_2482&SUBSYS_88881043&REV_A1\")",
+                            "SentinelCore.Tests.HardwareNormalizerTests.HardwareIdKeepsVendorAndModelWithoutInstanceSuffix(instanceId: \"USB\\\\VID_046D&PID_C52B&REV_1201\\\\5&2A1B3C4D&0&1\", expected: \"USB\\\\VID_046D&PID_C52B&REV_1201\")",
                             "SentinelCore.Tests.HardwareNormalizerTests.HealthStatusQualifiesReportedValues(value: 0, expected: \"Healthy (reportado)\")",
                             "SentinelCore.Tests.HardwareNormalizerTests.HealthStatusQualifiesReportedValues(value: 2, expected: \"Unhealthy (reportado)\")",
                             "SentinelCore.Tests.HardwareNormalizerTests.HealthStatusQualifiesReportedValues(value: 5, expected: \"Unknown (reportado)\")",
@@ -2298,19 +2143,19 @@
                             "SentinelCore.Tests.HardwareNormalizerTests.MemoryTypeMapsRawSmbiosCodes(value: 35, expected: \"LPDDR5\")",
                             "SentinelCore.Tests.HardwareNormalizerTests.MemoryTypeMapsRawSmbiosCodes(value: 99, expected: \"Tipo SMBIOS 99\")",
                             "SentinelCore.Tests.HardwareNormalizerTests.MemoryTypeMapsRawSmbiosCodes(value: null, expected: null)",
-                            "SentinelCore.Tests.HardwareNormalizerTests.MonitorInstanceMatchesDisplayConfigDevicePath(devicePath: \"\\\\\\\\?\\\\DISPLAY#GSM5B7F#5\u00262A3B\u00260\u0026UID4352#{e6f07b5f-\"···, instanceName: \"DISPLAY\\\\GSM5B7F\\\\5\u00262A3B\u00260\u0026UID4352_0\", expected: True)",
-                            "SentinelCore.Tests.HardwareNormalizerTests.MonitorInstanceMatchesDisplayConfigDevicePath(devicePath: \"\\\\\\\\?\\\\DISPLAY#GSM5B7F#5\u00262A3B\u00260\u0026UID4352#{e6f07b5f-\"···, instanceName: \"DISPLAY\\\\GSM5B7F\\\\5\u00262A3B\u00260\u0026UID9999_0\", expected: False)",
-                            "SentinelCore.Tests.HardwareNormalizerTests.MonitorInstanceMatchesDisplayConfigDevicePath(devicePath: \"\\\\\\\\?\\\\DISPLAY#GSM5B7F#5\u00262A3B\u00260\u0026UID4352#{guid}\", instanceName: null, expected: False)",
-                            "SentinelCore.Tests.HardwareNormalizerTests.MonitorInstanceMatchesDisplayConfigDevicePath(devicePath: null, instanceName: \"DISPLAY\\\\GSM5B7F\\\\5\u00262A3B\u00260\u0026UID4352_0\", expected: False)",
+                            "SentinelCore.Tests.HardwareNormalizerTests.MonitorInstanceMatchesDisplayConfigDevicePath(devicePath: \"\\\\\\\\?\\\\DISPLAY#GSM5B7F#5&2A3B&0&UID4352#{e6f07b5f-\"···, instanceName: \"DISPLAY\\\\GSM5B7F\\\\5&2A3B&0&UID4352_0\", expected: True)",
+                            "SentinelCore.Tests.HardwareNormalizerTests.MonitorInstanceMatchesDisplayConfigDevicePath(devicePath: \"\\\\\\\\?\\\\DISPLAY#GSM5B7F#5&2A3B&0&UID4352#{e6f07b5f-\"···, instanceName: \"DISPLAY\\\\GSM5B7F\\\\5&2A3B&0&UID9999_0\", expected: False)",
+                            "SentinelCore.Tests.HardwareNormalizerTests.MonitorInstanceMatchesDisplayConfigDevicePath(devicePath: \"\\\\\\\\?\\\\DISPLAY#GSM5B7F#5&2A3B&0&UID4352#{guid}\", instanceName: null, expected: False)",
+                            "SentinelCore.Tests.HardwareNormalizerTests.MonitorInstanceMatchesDisplayConfigDevicePath(devicePath: null, instanceName: \"DISPLAY\\\\GSM5B7F\\\\5&2A3B&0&UID4352_0\", expected: False)",
                             "SentinelCore.Tests.HardwareNormalizerTests.MonitorManufacturerMismatchOnlyWhenBothCodesDiffer(wmiManufacturer: \" \", edidCode: \"LXF\", expected: False)",
                             "SentinelCore.Tests.HardwareNormalizerTests.MonitorManufacturerMismatchOnlyWhenBothCodesDiffer(wmiManufacturer: \"AUS\", edidCode: \"LXF\", expected: True)",
                             "SentinelCore.Tests.HardwareNormalizerTests.MonitorManufacturerMismatchOnlyWhenBothCodesDiffer(wmiManufacturer: \"AUS\", edidCode: null, expected: False)",
                             "SentinelCore.Tests.HardwareNormalizerTests.MonitorManufacturerMismatchOnlyWhenBothCodesDiffer(wmiManufacturer: \"aus\", edidCode: \"AUS\", expected: False)",
                             "SentinelCore.Tests.HardwareNormalizerTests.MonitorManufacturerMismatchOnlyWhenBothCodesDiffer(wmiManufacturer: null, edidCode: \"LXF\", expected: False)",
-                            "SentinelCore.Tests.HardwareNormalizerTests.NetworkKindClassifiesAdapters(name: \"Bluetooth Device (Personal Area Network)\", instanceId: \"USB\\\\VID_8087\u0026PID_0026\", physical: null, adapterType: \"Ethernet 802.3\", expected: \"bluetooth\")",
+                            "SentinelCore.Tests.HardwareNormalizerTests.NetworkKindClassifiesAdapters(name: \"Bluetooth Device (Personal Area Network)\", instanceId: \"USB\\\\VID_8087&PID_0026\", physical: null, adapterType: \"Ethernet 802.3\", expected: \"bluetooth\")",
                             "SentinelCore.Tests.HardwareNormalizerTests.NetworkKindClassifiesAdapters(name: \"Hyper-V Virtual Ethernet Adapter\", instanceId: \"ROOT\\\\VMS_MP\\\\0000\", physical: False, adapterType: \"Ethernet 802.3\", expected: \"virtual\")",
-                            "SentinelCore.Tests.HardwareNormalizerTests.NetworkKindClassifiesAdapters(name: \"Intel(R) Wi-Fi 6E AX211 160MHz\", instanceId: \"PCI\\\\VEN_8086\u0026DEV_51F0\", physical: True, adapterType: \"Wireless LAN\", expected: \"wifi\")",
-                            "SentinelCore.Tests.HardwareNormalizerTests.NetworkKindClassifiesAdapters(name: \"Realtek PCIe GbE Family Controller\", instanceId: \"PCI\\\\VEN_10EC\u0026DEV_8168\", physical: True, adapterType: \"Ethernet 802.3\", expected: \"ethernet\")",
+                            "SentinelCore.Tests.HardwareNormalizerTests.NetworkKindClassifiesAdapters(name: \"Intel(R) Wi-Fi 6E AX211 160MHz\", instanceId: \"PCI\\\\VEN_8086&DEV_51F0\", physical: True, adapterType: \"Wireless LAN\", expected: \"wifi\")",
+                            "SentinelCore.Tests.HardwareNormalizerTests.NetworkKindClassifiesAdapters(name: \"Realtek PCIe GbE Family Controller\", instanceId: \"PCI\\\\VEN_10EC&DEV_8168\", physical: True, adapterType: \"Ethernet 802.3\", expected: \"ethernet\")",
                             "SentinelCore.Tests.HardwareNormalizerTests.NetworkKindClassifiesAdapters(name: \"WAN Miniport (PPTP)\", instanceId: \"ROOT\\\\MS_PPTPMINIPORT\\\\0000\", physical: False, adapterType: \"WAN\", expected: \"vpn\")",
                             "SentinelCore.Tests.HardwareNormalizerTests.NetworkKindClassifiesAdapters(name: \"WireGuard Tunnel\", instanceId: \"ROOT\\\\NET\\\\0001\", physical: False, adapterType: null, expected: \"vpn\")",
                             "SentinelCore.Tests.HardwareNormalizerTests.OperationalStatusMapsNumericArray(raw: \"12\", expected: \"No Contact\")",
@@ -2339,12 +2184,12 @@
                             "SentinelCore.Tests.HardwareNormalizerTests.UsbScopeClassifiesPeripheralClasses(className: \"Printer\", description: \"USB Printing Support\", expected: True, expectedKind: \"usb-device\")",
                             "SentinelCore.Tests.HardwareNormalizerTests.UsbScopeClassifiesPeripheralClasses(className: \"USB\", description: \"USB Root Hub (USB 3.0)\", expected: True, expectedKind: \"usb-hub\")",
                             "SentinelCore.Tests.HardwareNormalizerTests.UsbScopeClassifiesPeripheralClasses(className: \"USB\", description: \"USB xHCI Compliant Host Controller\", expected: True, expectedKind: \"usb-controller\")",
-                            "SentinelCore.Tests.HardwareNormalizerTests.UsbScopeDoesNotClaimCategoriesOwnedByOtherCollectors(className: \"DiskDrive\", instanceId: \"USB\\\\VID_1234\u0026PID_5678\\\\5\u00262\")",
-                            "SentinelCore.Tests.HardwareNormalizerTests.UsbScopeDoesNotClaimCategoriesOwnedByOtherCollectors(className: \"Display\", instanceId: \"USB\\\\VID_1234\u0026PID_5678\\\\5\u00264\")",
-                            "SentinelCore.Tests.HardwareNormalizerTests.UsbScopeDoesNotClaimCategoriesOwnedByOtherCollectors(className: \"MEDIA\", instanceId: \"USB\\\\VID_1234\u0026PID_5678\\\\5\u00261\")",
-                            "SentinelCore.Tests.HardwareNormalizerTests.UsbScopeDoesNotClaimCategoriesOwnedByOtherCollectors(className: \"Net\", instanceId: \"USB\\\\VID_1234\u0026PID_5678\\\\5\u00263\")",
+                            "SentinelCore.Tests.HardwareNormalizerTests.UsbScopeDoesNotClaimCategoriesOwnedByOtherCollectors(className: \"DiskDrive\", instanceId: \"USB\\\\VID_1234&PID_5678\\\\5&2\")",
+                            "SentinelCore.Tests.HardwareNormalizerTests.UsbScopeDoesNotClaimCategoriesOwnedByOtherCollectors(className: \"Display\", instanceId: \"USB\\\\VID_1234&PID_5678\\\\5&4\")",
+                            "SentinelCore.Tests.HardwareNormalizerTests.UsbScopeDoesNotClaimCategoriesOwnedByOtherCollectors(className: \"MEDIA\", instanceId: \"USB\\\\VID_1234&PID_5678\\\\5&1\")",
+                            "SentinelCore.Tests.HardwareNormalizerTests.UsbScopeDoesNotClaimCategoriesOwnedByOtherCollectors(className: \"Net\", instanceId: \"USB\\\\VID_1234&PID_5678\\\\5&3\")",
                             "SentinelCore.Tests.HardwareNormalizerTests.UsbScopeDoesNotClaimCategoriesOwnedByOtherCollectors(className: \"System\", instanceId: \"ACPI\\\\PNP0A08\\\\0\")",
-                            "SentinelCore.Tests.HardwareNormalizerTests.VirtualDetectionUsesInstanceRootAndKnownSoftwareNames(instanceId: \"PCI\\\\VEN_10DE\u0026DEV_2482\", name: null, expected: False)",
+                            "SentinelCore.Tests.HardwareNormalizerTests.VirtualDetectionUsesInstanceRootAndKnownSoftwareNames(instanceId: \"PCI\\\\VEN_10DE&DEV_2482\", name: null, expected: False)",
                             "SentinelCore.Tests.HardwareNormalizerTests.VirtualDetectionUsesInstanceRootAndKnownSoftwareNames(instanceId: \"ROOT\\\\NET\\\\0000\", name: null, expected: True)",
                             "SentinelCore.Tests.HardwareNormalizerTests.VirtualDetectionUsesInstanceRootAndKnownSoftwareNames(instanceId: \"SWD\\\\MMDEVAPI\\\\{00000000-0000-0000-0000-0000000000\"···, name: null, expected: True)",
                             "SentinelCore.Tests.HardwareNormalizerTests.VirtualDetectionUsesInstanceRootAndKnownSoftwareNames(instanceId: null, name: \"Hyper-V Video\", expected: True)",
@@ -2689,8 +2534,8 @@
                             "SentinelCore.Tests.RecoveryCenterPersistenceTests.InaccessibleRootAndBusyStoreAreUnavailableRatherThanZero",
                             "SentinelCore.Tests.RecoveryCenterPersistenceTests.IndexDivergenceIsVisibleAndNeverSilentlyReconciled(sql: \"DELETE FROM Transactions\")",
                             "SentinelCore.Tests.RecoveryCenterPersistenceTests.IndexDivergenceIsVisibleAndNeverSilentlyReconciled(sql: \"PRAGMA user_version=13\")",
-                            "SentinelCore.Tests.RecoveryCenterPersistenceTests.IndexDivergenceIsVisibleAndNeverSilentlyReconciled(sql: \"UPDATE TransactionEvents SET PayloadHash=\u0027invalid\u0027\")",
-                            "SentinelCore.Tests.RecoveryCenterPersistenceTests.IndexDivergenceIsVisibleAndNeverSilentlyReconciled(sql: \"UPDATE Transactions SET State=\u0027Planned\u0027\")",
+                            "SentinelCore.Tests.RecoveryCenterPersistenceTests.IndexDivergenceIsVisibleAndNeverSilentlyReconciled(sql: \"UPDATE TransactionEvents SET PayloadHash='invalid'\")",
+                            "SentinelCore.Tests.RecoveryCenterPersistenceTests.IndexDivergenceIsVisibleAndNeverSilentlyReconciled(sql: \"UPDATE Transactions SET State='Planned'\")",
                             "SentinelCore.Tests.RecoveryCenterPersistenceTests.InvalidJournalsArePreservedExcludedAndWarned(fault: \"corrupt\")",
                             "SentinelCore.Tests.RecoveryCenterPersistenceTests.InvalidJournalsArePreservedExcludedAndWarned(fault: \"duplicate\")",
                             "SentinelCore.Tests.RecoveryCenterPersistenceTests.InvalidJournalsArePreservedExcludedAndWarned(fault: \"gap\")",
@@ -2785,7 +2630,7 @@
                             "SentinelCore.Tests.RepairArchitectureTests.RepairInfrastructureDoesNotReferenceApplicationPersistenceOrWindowsCollectors",
                             "SentinelCore.Tests.RepairArchitectureTests.RepairInfrastructureExposesOnlySyntheticAndReadOnlyAdapters",
                             "SentinelCore.Tests.RepairArchitectureTests.RepairSourceContainsNoProcessExecutionShellOrSystemMutation",
-                            "SentinelCore.Tests.RepairCatalogTests.ArgumentPolicyRejectsAnythingOutsideTheOfficialAllowlist(tool: Chkdsk, argument: \"\u0026 powershell\")",
+                            "SentinelCore.Tests.RepairCatalogTests.ArgumentPolicyRejectsAnythingOutsideTheOfficialAllowlist(tool: Chkdsk, argument: \"& powershell\")",
                             "SentinelCore.Tests.RepairCatalogTests.ArgumentPolicyRejectsAnythingOutsideTheOfficialAllowlist(tool: Chkdsk, argument: \"C:; calc\")",
                             "SentinelCore.Tests.RepairCatalogTests.ArgumentPolicyRejectsAnythingOutsideTheOfficialAllowlist(tool: Chkdsk, argument: \"C:\\\\Windows\")",
                             "SentinelCore.Tests.RepairCatalogTests.ArgumentPolicyRejectsAnythingOutsideTheOfficialAllowlist(tool: Chkdsk, argument: \"cmd.exe\")",
@@ -2796,8 +2641,8 @@
                             "SentinelCore.Tests.RepairCatalogTests.CatalogExposesOnlyTheClosedSetOfOfficialToolsAndFixedArguments",
                             "SentinelCore.Tests.RepairCatalogTests.CatalogRejectsAvailableHighRiskDocumentedLowRiskAndMalformedVolumeOperations",
                             "SentinelCore.Tests.RepairCatalogTests.ContentHashIsDeterministicAndChangesWithTheCatalog",
-                            "SentinelCore.Tests.RepairCatalogTests.OfficialCommandsAreStableAndContainNoFreeFormArguments(id: \"SC-RP-CHK-01\", expected: \"chkdsk.exe \u003cvolume\u003e\")",
-                            "SentinelCore.Tests.RepairCatalogTests.OfficialCommandsAreStableAndContainNoFreeFormArguments(id: \"SC-RP-CHK-02\", expected: \"chkdsk.exe \u003cvolume\u003e /scan\")",
+                            "SentinelCore.Tests.RepairCatalogTests.OfficialCommandsAreStableAndContainNoFreeFormArguments(id: \"SC-RP-CHK-01\", expected: \"chkdsk.exe <volume>\")",
+                            "SentinelCore.Tests.RepairCatalogTests.OfficialCommandsAreStableAndContainNoFreeFormArguments(id: \"SC-RP-CHK-02\", expected: \"chkdsk.exe <volume> /scan\")",
                             "SentinelCore.Tests.RepairCatalogTests.OfficialCommandsAreStableAndContainNoFreeFormArguments(id: \"SC-RP-DISM-01\", expected: \"dism.exe /Online /Cleanup-Image /CheckHealth\")",
                             "SentinelCore.Tests.RepairCatalogTests.OfficialCommandsAreStableAndContainNoFreeFormArguments(id: \"SC-RP-DISM-02\", expected: \"dism.exe /Online /Cleanup-Image /ScanHealth\")",
                             "SentinelCore.Tests.RepairCatalogTests.OfficialCommandsAreStableAndContainNoFreeFormArguments(id: \"SC-RP-DISM-03\", expected: \"dism.exe /Online /Cleanup-Image /RestoreHealth\")",
@@ -3253,10 +3098,31 @@
                             "SentinelCore.Tests.T4b3DistributionAndProbeTests.ProbeIsScopedToItsAsyncFlowAndDoesNotLeakToOtherFlows",
                             "SentinelCore.Tests.T4b3DistributionAndProbeTests.NothingOutsideRecordEnvelopeReferencesTheProbeOrItsStages",
                             "SentinelCore.Tests.T4b3DistributionAndProbeTests.ProductionHasNoEnvironmentArgumentConfigurationOrDynamicLoadingSwitchForTheProbe",
-                            "SentinelCore.Tests.T4b3DistributionAndProbeTests.DistributedProjectGraphExcludesTestHarnessWorkerAndNativeDebloatAssemblies",
                             "SentinelCore.Tests.T4b3DistributionAndProbeTests.PublishScriptKeepsEveryRealExecutionPropertyDisabled",
                             "SentinelCore.Tests.T4b3DistributionAndProbeTests.InternalsVisibleToDeclarationsInProductionAreExactlyTheReviewedOnes",
-                            "SentinelCore.Tests.T4b3DistributionAndProbeTests.ProductionProjectsReferenceNoTestPackagesCompileLinksOrExternalReferences"
-                        ],
-    "regressionReady":  true
+                            "SentinelCore.Tests.T4b3DistributionAndProbeTests.ProductionProjectsReferenceNoTestPackagesCompileLinksOrExternalReferences",
+                            "SentinelCore.Tests.DebloatNativeBoundaryTests.DistributionAppComposesOnlyTheNativeReaderAndDefersQueries",
+                            "SentinelCore.Tests.DebloatNativeBoundaryTests.NativeInventoryExposesReadAndPreviewWithoutMutation",
+                            "SentinelCore.Tests.DebloatNativeBoundaryTests.NativeReaderIsStrictlyReadOnlyWithExplicitScopeQueries",
+                            "SentinelCore.Tests.DebloatNativeInventoryTests.NativePreviewUsesScopeCoverageAndDoesNotTreatMissingDependenciesAsEmpty",
+                            "SentinelCore.Tests.ProductIntegrationTests.AuditReferencesExcludeNonDiagnosticModules(source: Audits)",
+                            "SentinelCore.Tests.ProductIntegrationTests.AuditReferencesExcludeNonDiagnosticModules(source: Tweaks)",
+                            "SentinelCore.Tests.ProductIntegrationTests.DuplicateDisposalCannotReleaseLaterJourney",
+                            "SentinelCore.Tests.ProductIntegrationTests.FailedReservationDoesNotLeaveCoordinatorBusy",
+                            "SentinelCore.Tests.ProductIntegrationTests.JourneyOwnsReservationUntilExplicitlyDisposed",
+                            "SentinelCore.Tests.ProductIntegrationTests.RecoveryCenterIncludesAuditHistoryWithoutUsingMutableAuditStore",
+                            "SentinelCore.Tests.ProductIntegrationTests.UnavailableAuditsPreventCompleteRecoverySummary",
+                            "SentinelCore.Tests.Stage7aIntegrationTests.ActiveAuditIsHiddenUntilLeaseEndsAndThenRecoveredAsInterrupted",
+                            "SentinelCore.Tests.Stage7aIntegrationTests.AuthoritativeAuditReadDoesNotRebuildMissingSqliteOrChangeMarkdown",
+                            "SentinelCore.Tests.Stage7aIntegrationTests.BrokerContractsRejectNonceReplaySequenceAndUnknownJsonFields",
+                            "SentinelCore.Tests.Stage7aIntegrationTests.CancellationAndUninitializedHistoryNeverCreateData",
+                            "SentinelCore.Tests.Stage7aIntegrationTests.CorruptAuditIsPreservedAndMakesRecoverySummaryIncomplete",
+                            "SentinelCore.Tests.Stage7aIntegrationTests.DisconnectedBrokerOutcomeNeverConfirmsAnEffectOrSuccessfulRepair",
+                            "SentinelCore.Tests.Stage7aIntegrationTests.FailedNotificationAndReservationDisposalDoNotStrandCoordinator",
+                            "SentinelCore.Tests.Stage7aIntegrationTests.FinalAuditDominatesCheckpointWithoutInventingAnotherOperation",
+                            "SentinelCore.Tests.Stage7aIntegrationTests.LegacyAndCheckpointAuditVersionsReopenWithSchemaTwelve",
+                            "SentinelCore.Tests.Stage7aIntegrationTests.ProductReservationSerializesIndependentFactoriesOnSameRoot",
+                            "SentinelCore.Tests.T4b3DistributionAndProbeTests.DistributedProjectGraphIncludesReadOnlyInventoryAndExcludesWorkerAndNativeRemoval"
+                           ],
+    "regressionReady":  false
 }

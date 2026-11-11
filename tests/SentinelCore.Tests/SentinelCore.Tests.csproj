@@ -12,4 +12,10 @@
     <ProjectReference Include="../../src/SentinelCore.Infrastructure.Debloat/SentinelCore.Infrastructure.Debloat.csproj" />
     <ProjectReference Include="../SyntheticJournalWorker/SyntheticJournalWorker.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Only pure contracts/JSON helpers are exercised; no broker, pipe or native entry point is started. -->
+    <Compile Include="../../src/SentinelCore.RepairBroker/BrokerProtocol.cs" Link="BrokerProtocol.cs" />
+    <Compile Include="../../src/SentinelCore.RepairBroker/BrokerLeaseModels.cs" Link="BrokerLeaseModels.cs" />
+    <Compile Include="../../src/SentinelCore.RepairBroker/NativeOutcome.cs" Link="NativeOutcome.cs" />
+  </ItemGroup>
 </Project>

@@ -22,8 +22,8 @@ public sealed class ProductOperationCoordinator(IExclusiveLockFactory? locks = n
         }
         catch
         {
-            reservation?.Dispose();
-            Interlocked.Exchange(ref active, 0);
+            try { reservation?.Dispose(); }
+            finally { Interlocked.Exchange(ref active, 0); }
             throw;
         }
     }

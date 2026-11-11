@@ -67,7 +67,7 @@ Probe 'manifesto-invalido' -mutate { param($r, $m, $p) Set-Content $p '{' } -exp
 Probe 'arquivo-novo' -mutate (& $alter 'tests\SentinelCore.Tests\New.cs' '// new') -expect 'Arquivos de entrada divergentes'
 Probe 'dependencia-alterada' -mutate (& $alter 'tests\SentinelCore.Tests\SentinelCore.Tests.csproj' '<Project><Changed/></Project>') -expect 'Entrada alterada ou n.*: tests/SentinelCore\.Tests/SentinelCore\.Tests\.csproj'
 Probe 'configuracao-nova' -mutate (& $alter 'Directory.Build.targets' '<Project/>') -expect 'Arquivos de entrada divergentes'
-Probe 'selecionado-nao-aprovado' -mutate { param($r, $m, $p) $m.synthetic = @($m.synthetic) + 'SentinelCore.Tests.FakeTests.Unknown'; $m | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $p } -expect 'Descoberta do lote com quantidade|Invent.*descoberto difere'
+Probe 'selecionado-nao-aprovado' -mutate { param($r, $m, $p) $m.synthetic = @($m.synthetic) + 'SentinelCore.Tests.FakeTests.Unknown'; $m | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $p } -expect 'Descoberta do lote com quantidade|Invent.*descoberto difere|Sele.*descoberta difere'
 Probe 'integracao-na-selecao' -mutate { param($r, $m, $p) $m.synthetic = @($m.synthetic) + 'SentinelCore.Tests.FakeTests.Integration'; $m | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $p } -expect 'lida: SentinelCore\.Tests\.FakeTests\.Integration'
 Probe 'operacional-na-selecao' -mutate { param($r, $m, $p) $m.windowsOperational = @('SentinelCore.Tests.FakeTests.Safe'); $m | ConvertTo-Json -Depth 5 | Set-Content -Encoding UTF8 $p } -expect 'lida: SentinelCore\.Tests\.FakeTests\.Safe'
 Probe 'metodo-removido' -scenario 'removed' -expect 'Invent.*descoberto difere'
@@ -120,3 +120,4 @@ Probe 'multi-total-divergente' -scenario 'total-mismatch' -mockText $multi -synt
 Probe 'multi-batchchars-invalido' -mockText $multi -synthetic $four -extra @('-BatchChars', '5') -expect 'BatchChars'
 "falhas: $failures"
 if ($failures) { exit 1 }
+exit 0

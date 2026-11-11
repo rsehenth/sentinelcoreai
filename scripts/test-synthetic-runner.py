@@ -39,7 +39,7 @@ exit 0
 '''
 
 
-def run_probe(name, scenario='ok', mutate=None, must_execute=False, expect_pass=False, args=()):
+def run_probe(name, scenario='ok', mutate=None, must_execute=False, expect_pass=False, args=(), mock=MOCK):
     artifacts = ROOT / 'artifacts'
     artifacts.mkdir(exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='runner-probe-', dir=artifacts) as temp:
@@ -47,7 +47,7 @@ def run_probe(name, scenario='ok', mutate=None, must_execute=False, expect_pass=
         for directory in ['scripts', 'tests/SentinelCore.Tests', 'src']:
             (root / directory).mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / 'tests/run-synthetic.ps1', root / 'tests/run-synthetic.ps1')
-        (root / 'scripts/dotnet.ps1').write_text(MOCK, encoding='utf-8')
+        (root / 'scripts/dotnet.ps1').write_text(mock, encoding='utf-8')
         (root / 'tests/SentinelCore.Tests/SentinelCore.Tests.csproj').write_text('<Project/>', encoding='utf-8')
         (root / 'src/Probe.cs').write_text('// synthetic dependency', encoding='utf-8')
         (root / 'Directory.Build.props').write_text('<Project/>', encoding='utf-8')
@@ -103,3 +103,37 @@ if __name__ == '__main__':
     run_probe('falha-build', scenario='build-fail')
     run_probe('trx-inconsistente', scenario='bad-trx', must_execute=True)
     run_probe('interrupcao', scenario='interrupt', must_execute=True)
+    theory_mock = r'''
+$root = Split-Path $PSScriptRoot -Parent
+$marker = Join-Path $root 'calls.txt'
+$rows = @('SentinelCore.Tests.FakeTests.Safe(value: 1)', 'SentinelCore.Tests.FakeTests.Safe(value: 2)')
+if ($args[0] -eq 'build') { Add-Content $marker 'build'; exit 0 }
+if ('--list-tests' -in $args) {
+    Add-Content $marker 'discover'
+    $rows | ForEach-Object { "    $_" }
+    if ('--filter' -notin $args) { '    SentinelCore.Tests.FakeTests.Integration' }
+    if ($env:T4B_PROBE_MODE -eq 'extra-theory-row') { '    SentinelCore.Tests.FakeTests.Safe(value: 3)' }
+    exit 0
+}
+Add-Content $marker 'execute-fake'
+$filter = $args[[array]::IndexOf($args, '--filter') + 1]
+if ($filter -ne 'FullyQualifiedName=SentinelCore.Tests.FakeTests.Safe') { exit 1 }
+$settings = $args[[array]::IndexOf($args, '--settings') + 1]
+[xml]$configuration = Get-Content -Raw -LiteralPath $settings
+$temporary = $configuration.RunSettings.RunConfiguration.EnvironmentVariables.TEMP
+if (-not $temporary.StartsWith($root) -or -not (Test-Path -LiteralPath $temporary)) { exit 1 }
+$dir = $args[[array]::IndexOf($args, '--results-directory') + 1]
+if ($env:T4B_PROBE_MODE -eq 'missing-theory-result') { $rows = @($rows[0]) }
+$xml = ($rows | ForEach-Object { "<UnitTestResult testName=`"$_`" />" }) -join ''
+"<TestRun><Results>$xml</Results><ResultSummary><Counters total=`"2`" passed=`"2`" failed=`"0`" notExecuted=`"0`" /></ResultSummary></TestRun>" | Set-Content -Encoding UTF8 (Join-Path $dir 'synthetic.trx')
+exit 0
+'''
+    approve_theory = update_manifest(lambda m: m.update(discoveredCases=[SAFE + '(value: 1)', SAFE + '(value: 2)', REAL]))
+    run_probe('theory-aprovada-duas-linhas', mock=theory_mock, mutate=approve_theory, must_execute=True, expect_pass=True)
+    run_probe('theory-linha-nova-bloqueada', scenario='extra-theory-row', mock=theory_mock, mutate=approve_theory)
+    run_probe('theory-trx-linha-ausente', scenario='missing-theory-result', mock=theory_mock, mutate=approve_theory, must_execute=True)
+    def theory_integration(manifest):
+        manifest.update(discoveredCases=[SAFE + '(value: 1)', SAFE + '(value: 2)', REAL],
+                        windowsIntegration=[SAFE + '(value: 1)'])
+    run_probe('theory-linha-windows-bloqueia-metodo', mock=theory_mock,
+              mutate=update_manifest(theory_integration))
