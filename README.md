@@ -11,7 +11,7 @@ Local by default. Read-only by design. Honest about what it does not know.
 ![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
 ![C# WPF](https://img.shields.io/badge/C%23-WPF-239120?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue?style=flat-square)
-![Status](https://img.shields.io/badge/status-preview%20%C2%B7%20no%20public%20release-orange?style=flat-square)
+[![Status](https://img.shields.io/badge/status-preview%20%C2%B7%20v0.3.0--preview.8-orange?style=flat-square)](https://github.com/rsehenth/sentinelcoreai/releases/tag/v0.3.0-preview.8)
 
 [Preview](#preview) · [Features](#key-features) · [How it works](#how-it-works) · [Getting started](#getting-started) · [Languages](#languages) · [Limitations](#safety-and-current-limitations) · [License](#license)
 
@@ -23,7 +23,7 @@ Local by default. Read-only by design. Honest about what it does not know.
 > **SentinelCore AI is a preview.** The diagnostic pages are built to read real Windows data and never change it.
 > The maintenance pages (Apps & Startup, Repairs) are implemented in code, but real execution is
 > **closed by build gates** and the app only demonstrates them with clearly marked synthetic data. Real-world
-> validation of those operations has not been done. There is no installer and no public release yet.
+> validation of those operations has not been done. There is no installer; the first [preview release](https://github.com/rsehenth/sentinelcoreai/releases/tag/v0.3.0-preview.8) is a portable, unsigned ZIP.
 
 ## Preview
 
@@ -136,7 +136,9 @@ on your Windows profile permissions, and SHA-256 detects accidental corruption, 
 
 ## Getting Started
 
-**Requirements:** Windows 11 x64 and the .NET SDK pinned in [`global.json`](global.json) (10.0.403). The app runs as
+**Download:** the portable preview (self-contained, no installer, unsigned) is on the [Releases page](https://github.com/rsehenth/sentinelcoreai/releases/tag/v0.3.0-preview.8). Extract the whole ZIP and open `SentinelCoreAI.exe`; check it against `SHA256SUMS.txt`.
+
+**Building from source requires:** Windows 11 x64 and the .NET SDK pinned in [`global.json`](global.json) (10.0.403). The app runs as
 a standard user and never asks for elevation.
 
 Build with locked dependencies:
