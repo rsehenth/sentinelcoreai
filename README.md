@@ -13,7 +13,7 @@ Local by default. Read-only by design. Honest about what it does not know.
 ![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue?style=flat-square)
 ![Status](https://img.shields.io/badge/status-preview%20%C2%B7%20no%20public%20release-orange?style=flat-square)
 
-[Features](#key-features) · [How it works](#how-it-works) · [Getting started](#getting-started) · [Languages](#languages) · [Limitations](#safety-and-current-limitations) · [License](#license)
+[Preview](#preview) · [Features](#key-features) · [How it works](#how-it-works) · [Getting started](#getting-started) · [Languages](#languages) · [Limitations](#safety-and-current-limitations) · [License](#license)
 
 </div>
 
@@ -24,6 +24,14 @@ Local by default. Read-only by design. Honest about what it does not know.
 > The maintenance pages (Apps & Startup, Repairs) are implemented in code, but real execution is
 > **closed by build gates** and the app only demonstrates them with clearly marked synthetic data. Real-world
 > validation of those operations has not been done. There is no installer and no public release yet.
+
+## Preview
+
+<p align="center">
+  <img src="assets/readme/sentinelcore-apps-startup-en.png" alt="SentinelCore AI, Apps and Startup page in English, showing clearly marked demonstration data" width="900">
+</p>
+
+<p align="center"><sub>The Apps and Startup page in English. Every entry shown is synthetic demonstration data, not this computer's apps; no Windows query is made and real actions are disabled.</sub></p>
 
 ## Why SentinelCore AI?
 
