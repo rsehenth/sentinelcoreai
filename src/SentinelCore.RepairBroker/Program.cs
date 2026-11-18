@@ -44,7 +44,8 @@ internal static class Program
             return 0;
         }
         catch (Exception error) when (error is IOException or Win32Exception or OperationCanceledException or
-            UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException)
+            UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException or
+            InvalidDataException)
         {
             return 2;
         }
@@ -65,7 +66,11 @@ internal static class Program
         {
             return NativeOutcome.BeforeStart(RepairBrokerStatus.Conflict, "O broker já está atendendo outro reparo.");
         }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+        catch (Exception error) when (error is InvalidDataException or JsonException)
+        {
+            return NativeOutcome.BeforeStart(RepairBrokerStatus.Refused, "Estado protegido do broker inválido ou ilegível; execução recusada.");
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
             return NativeOutcome.BeforeStart(RepairBrokerStatus.Refused, "Estado protegido do broker indisponível.");
         }
@@ -96,8 +101,14 @@ internal static class Program
 
             if (!callerAlive() || !NativeRepairPreflight.IsBound(catalog, intent, token, operation, DateTimeOffset.UtcNow))
             {
-                lease.ClearActive();
-                return NativeOutcome.BeforeStart(RepairBrokerStatus.Refused, "Solicitante encerrou ou autorização expirou antes do início.");
+                var lockWarning = false;
+                try { lease.ClearActive(); }
+                catch (IOException) { lockWarning = true; }
+                return lockWarning
+                    ? NativeOutcome.BeforeStart(RepairBrokerStatus.Refused,
+                        "Solicitante encerrou ou autorização expirou antes do início; a reserva do broker pode continuar bloqueada e requer revisão.")
+                    : NativeOutcome.BeforeStart(RepairBrokerStatus.Refused,
+                        "Solicitante encerrou ou autorização expirou antes do início.");
             }
 
             var executor = new NativeRepairExecutor(catalog);

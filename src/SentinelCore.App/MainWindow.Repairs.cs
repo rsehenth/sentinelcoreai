@@ -31,40 +31,65 @@ public partial class MainWindow
     private string repairPhase = string.Empty;
     private bool repairCommitted;
     private readonly DispatcherTimer repairElapsedTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly LocalizedMessages repairMessages = new();
 
     private void InitializeRepairs()
     {
         repairElapsedTimer.Tick += (_, _) => UpdateRepairElapsed();
+        repairMessages.Set(nameof(RepairsModeText), RenderRepairsModeText);
+        repairMessages.Set(nameof(RepairsModeDetail), RenderRepairsModeDetail);
+        repairMessages.Set(nameof(RepairsSyntheticBanner), RenderRepairsBanner);
+        repairMessages.Set(nameof(RepairsDocumentedText), () =>
+            RepairsDocumentedText.Text = repairCenterView is { } view
+                ? BuildDocumentedText(view.DocumentedOperations)
+                : string.Empty);
         if (repairs is null)
         {
-            RepairsModeText.Text = Loc.T("Repair Center indisponível nesta composição.");
-            RepairsModeDetail.Text = Loc.T("Nenhum catálogo de reparos foi composto.");
             RepairsRefreshButton.IsEnabled = false;
             RepairsAuthorizeButton.IsEnabled = false;
             return;
         }
 
-        RepairsModeText.Text = RepairGuidance.RealExecutionUnavailable;
-        RepairsModeDetail.Text = Loc.T("Catálogo fechado com executáveis oficiais e argumentos fixos. ") +
-            Loc.T("A execução real não é composta nesta distribuição. Os cartões demonstram o fluxo com fixtures ") +
-            Loc.T("sintéticas explicitamente marcadas; nenhuma elevação é solicitada.");
-        RepairsSyntheticBanner.Text = RepairGuidance.SyntheticDisclaimer;
         RepairsScenarioCombo.ItemsSource = RepairPresentation.Scenarios
-            .Select(option => new RepairScenarioRow(option, option.Label)).ToArray();
+            .Select(option => new RepairScenarioRow(option)).ToArray();
         RepairsScenarioCombo.SelectedIndex = 0;
+        repairMessages.Set(nameof(RepairsVolumeText), () =>
+            RepairsVolumeText.Text = Loc.T("Volumes ainda não lidos; a leitura ocorre ao abrir esta página ou em Atualizar."));
         if (repairs.RealExecutionEnabled)
         {
-            RepairsModeText.Text = Loc.T("Execução pelo broker local");
-            RepairsModeDetail.Text = Loc.T("Selecione uma operação e confirme o plano. O Windows solicita consentimento quando necessário.");
             RepairsScenarioPanel.Visibility = Visibility.Collapsed;
             RepairsSyntheticBanner.Visibility = Visibility.Collapsed;
-            RepairsAuthorizeButton.Content = Loc.T("Autorizar e executar");
+            repairMessages.Set(nameof(RepairsAuthorizeButton), () =>
+                RepairsAuthorizeButton.Content = Loc.T("Autorizar e executar"));
         }
-        RepairsVolumeText.Text = Loc.T("Volumes ainda não lidos; a leitura ocorre ao abrir esta página ou em Atualizar.");
-        RepairsStatusText.Text = Loc.T("Catálogo e volumes ainda não lidos. Nenhuma ferramenta foi executada.");
+        SetRepairsStatus(() => Loc.T("Catálogo e volumes ainda não lidos. Nenhuma ferramenta foi executada."));
         Pages.SelectionChanged += OnRepairsPageSelectionChanged;
         UpdateRepairButtons();
     }
+
+    private void RenderRepairsModeText() =>
+        RepairsModeText.Text = repairs is null
+            ? Loc.T("Repair Center indisponível nesta composição.")
+            : repairCenterView is { } view
+                ? Loc.T(view.ModeText)
+                : repairs.RealExecutionEnabled ? Loc.T("Execução pelo broker local") : Loc.T(RepairGuidance.RealExecutionUnavailable);
+
+    private void RenderRepairsModeDetail() =>
+        RepairsModeDetail.Text = repairs is null
+            ? Loc.T("Nenhum catálogo de reparos foi composto.")
+            : repairCenterView is { } view
+                ? Loc.T(view.ModeDetail)
+                : repairs.RealExecutionEnabled
+                    ? Loc.T("Selecione uma operação e confirme o plano. O Windows solicita consentimento quando necessário.")
+                    : Loc.T("Catálogo fechado com executáveis oficiais e argumentos fixos. ") +
+                      Loc.T("A execução real não é composta nesta distribuição. Os cartões demonstram o fluxo com fixtures ") +
+                      Loc.T("sintéticas explicitamente marcadas; nenhuma elevação é solicitada.");
+
+    private void RenderRepairsBanner() =>
+        RepairsSyntheticBanner.Text = Loc.T(RepairGuidance.SyntheticDisclaimer);
+
+    private void SetRepairsStatus(Func<string> status) =>
+        repairMessages.Set(nameof(RepairsStatusText), () => RepairsStatusText.Text = status());
 
     private void OnRepairsPageSelectionChanged(object sender, SelectionChangedEventArgs e)
     {
@@ -87,7 +112,7 @@ public partial class MainWindow
     private async void OnRepairsRefresh(object sender, RoutedEventArgs e) =>
         await ReloadRepairsAsync(repairSelectedRecord?.Id);
 
-    private async Task ReloadRepairsAsync(Guid? selectRecord = null, string? status = null,
+    private async Task ReloadRepairsAsync(Guid? selectRecord = null, Func<string>? status = null,
         bool ignoreBusy = false)
     {
         if (repairs is null || (repairsBusy && !ignoreBusy)) return;
@@ -95,12 +120,12 @@ public partial class MainWindow
         if (!ignoreBusy && productLease is null) return;
         repairsBusy = true;
         UpdateRepairButtons();
-        RepairsStatusText.Text = Loc.T("Lendo catálogo, volumes e histórico…");
+        SetRepairsStatus(() => Loc.T("Lendo catálogo, volumes e histórico…"));
         try
         {
             repairCenterView = await repairs.LoadAsync();
-            RepairsModeText.Text = repairCenterView.ModeText;
-            RepairsModeDetail.Text = repairCenterView.ModeDetail;
+            repairMessages.Set(nameof(RepairsModeText), RenderRepairsModeText);
+            repairMessages.Set(nameof(RepairsModeDetail), RenderRepairsModeDetail);
             repairViews = repairCenterView.Operations;
             RepairsCardsHost.ItemsSource = RepairPresentation.GroupByCategory(repairViews)
                 .Select(group => new RepairCategoryRow(group.Category,
@@ -114,17 +139,20 @@ public partial class MainWindow
                 ?? volumeRows.FirstOrDefault();
             UpdateRepairVolumeText();
 
-            RepairsDocumentedText.Text = BuildDocumentedText(repairCenterView.DocumentedOperations);
+            repairMessages.Set(nameof(RepairsDocumentedText), () =>
+                RepairsDocumentedText.Text = repairCenterView is { } view
+                    ? BuildDocumentedText(view.DocumentedOperations)
+                    : string.Empty);
             await ReloadRepairHistoryAsync(selectRecord);
             repairsLoaded = true;
-            RepairsStatusText.Text = status ??
-                Loc.T("Catálogo lido. Selecione 'Detalhes' em um cartão para preparar o plano.");
+            SetRepairsStatus(status ?? (() =>
+                Loc.T("Catálogo lido. Selecione 'Detalhes' em um cartão para preparar o plano.")));
             ScrollRepairsToTop();
         }
         catch (Exception error)
         {
             ShowFailure(Loc.T("Não foi possível ler o Repair Center"), error);
-            RepairsStatusText.Text = Loc.T("Falha ao ler o catálogo; nenhuma ferramenta real foi executada.");
+            SetRepairsStatus(() => Loc.T("Falha ao ler o catálogo; nenhuma ferramenta real foi executada."));
         }
         finally
         {
@@ -133,7 +161,7 @@ public partial class MainWindow
         }
     }
 
-    private async Task ReloadRepairHistoryAsync(Guid? selectId = null, string? status = null)
+    private async Task ReloadRepairHistoryAsync(Guid? selectId = null, Func<string>? status = null)
     {
         if (repairs is null) return;
         repairHistory = await repairs.LoadHistoryAsync();
@@ -158,13 +186,15 @@ public partial class MainWindow
         }
         repairsUpdatingHistory = false;
 
-        RepairsUnfinishedText.Text = repairHistory.UnfinishedIntents.Count == 0
-            ? repairHistory.Warnings.Count > 0
-                ? Loc.T("Histórico incompleto: nenhuma intenção válida sem registro final carregada. O total não foi determinado; examine os avisos.")
-                : Loc.T("Nenhuma intenção sem registro final.")
-            : Loc.F($"{repairHistory.UnfinishedIntents.Count} intenção(ões) sem registro final; tratadas como interrompidas.");
+        repairMessages.Set(nameof(RepairsUnfinishedText), () => RepairsUnfinishedText.Text = repairHistory is not { } history
+            ? string.Empty
+            : history.UnfinishedIntents.Count == 0
+                ? history.Warnings.Count > 0
+                    ? Loc.T("Histórico incompleto: nenhuma intenção válida sem registro final carregada. O total não foi determinado; examine os avisos.")
+                    : Loc.T("Nenhuma intenção sem registro final.")
+                : Loc.F($"{history.UnfinishedIntents.Count} intenção(ões) sem registro final; tratadas como interrompidas."));
         SetIntegrity("Reparos", repairHistory.Warnings);
-        if (status is not null) RepairsStatusText.Text = status;
+        if (status is not null) SetRepairsStatus(status);
         UpdateRepairButtons();
     }
 
@@ -173,11 +203,14 @@ public partial class MainWindow
         if (repairsUpdatingHistory) return;
         repairPlan = null;
         repairSelectedView = null;
-        RepairsDetailsTitle.Text = Loc.T("Plano e confirmação");
-        RepairsDetailsMeta.Text = string.Empty;
-        RepairsDetailsText.Text = Loc.T("Selecione 'Detalhes' em um cartão para preparar o plano simulado.");
+        repairMessages.Set(nameof(RepairsDetailsTitle), () => RepairsDetailsTitle.Text = Loc.T("Plano e confirmação"));
+        repairMessages.Set(nameof(RepairsDetailsMeta), () => RepairsDetailsMeta.Text = string.Empty);
+        repairMessages.Set(nameof(RepairsDetailsText), () =>
+            RepairsDetailsText.Text = Loc.T("Selecione 'Detalhes' em um cartão para preparar o plano simulado."));
+        repairMessages.Set(nameof(RepairsOutputText), () => RepairsOutputText.Text = string.Empty);
         RepairsConfirmationText.Text = string.Empty;
-        RepairsConfirmationHint.Text = Loc.T("A execução exige confirmação digitada vinculada ao plano.");
+        repairMessages.Set(nameof(RepairsConfirmationHint), () =>
+            RepairsConfirmationHint.Text = Loc.T("A execução exige confirmação digitada vinculada ao plano."));
         UpdateRepairVolumeText();
         UpdateRepairButtons();
     }
@@ -186,15 +219,19 @@ public partial class MainWindow
     {
         if (RepairsVolumeCombo.SelectedItem is not RepairVolumeRow row)
         {
-            RepairsVolumeText.Text = Loc.T("Nenhum volume local validado foi encontrado. ") +
-                Loc.T("Operações de disco permanecem indisponíveis.");
+            repairMessages.Set(nameof(RepairsVolumeText), () =>
+                RepairsVolumeText.Text = Loc.T("Nenhum volume local validado foi encontrado. ") +
+                    Loc.T("Operações de disco permanecem indisponíveis."));
             return;
         }
         var volume = row.Volume;
-        var scan = volume.SupportsChkdskScan ? "verificação /scan compatível" : "verificação /scan indisponível";
-        RepairsVolumeText.Text = Loc.F($"{volume.Id} · {volume.FileSystem} · ") +
-            Loc.F($"{(volume.IsReady ? "pronto" : "indisponível")} · {scan}") +
-            (volume.Limitations.Count == 0 ? string.Empty : " · " + volume.Limitations[0]);
+        var scan = volume.SupportsChkdskScan
+            ? Loc.T("verificação /scan compatível")
+            : Loc.T("verificação /scan indisponível");
+        repairMessages.Set(nameof(RepairsVolumeText), () => RepairsVolumeText.Text =
+            Loc.F($"{volume.Id} · {volume.FileSystem} · ") +
+            Loc.F($"{(volume.IsReady ? Loc.T("pronto") : Loc.T("indisponível"))} · {scan}") +
+            (volume.Limitations.Count == 0 ? string.Empty : " · " + Loc.T(volume.Limitations[0])));
     }
 
     private async void OnRepairDetails(object sender, RoutedEventArgs e)
@@ -212,7 +249,7 @@ public partial class MainWindow
         if (string.Equals(view.Category, RepairCategories.Volumes, StringComparison.Ordinal) &&
             volumeId is null)
         {
-            RepairsStatusText.Text = Loc.T("Selecione um volume local validado antes de preparar esta operação.");
+            SetRepairsStatus(() => Loc.T("Selecione um volume local validado antes de preparar esta operação."));
             return;
         }
 
@@ -229,7 +266,7 @@ public partial class MainWindow
         catch (Exception error)
         {
             ShowFailure(Loc.T("Não foi possível preparar o plano de reparo"), error);
-            RepairsStatusText.Text = Loc.T("Preparação indisponível; nenhuma ferramenta real foi executada.");
+            SetRepairsStatus(() => Loc.T("Preparação indisponível; nenhuma ferramenta real foi executada."));
         }
         finally
         {
@@ -240,26 +277,30 @@ public partial class MainWindow
 
     private void ShowRepairPlan(RepairOperationView view, RepairPlan plan)
     {
-        RepairsDetailsTitle.Text = plan.DisplayName;
-        RepairsDetailsMeta.Text = Loc.F($"{plan.OperationId} v{plan.OperationVersion} · ") +
-            Loc.F($"{Loc.T(RepairPresentation.KindName(plan.Kind))} · risco {Loc.T(RepairPresentation.RiskName(plan.Risk))} · ") +
-            (plan.Volume is null ? Loc.T("sem volume") : Loc.T("volume ") + plan.Volume.Id);
         var real = repairs?.RealExecutionEnabled == true;
         var canExecute = CanRunRepairPlan(plan);
-        RepairsDetailsText.Text = BuildRepairPlanText(view, plan, real);
+        repairMessages.Set(nameof(RepairsDetailsTitle), () => RepairsDetailsTitle.Text = plan.DisplayName);
+        repairMessages.Set(nameof(RepairsDetailsMeta), () => RepairsDetailsMeta.Text =
+            Loc.F($"{plan.OperationId} v{plan.OperationVersion} · ") +
+            Loc.F($"{Loc.T(RepairPresentation.KindName(plan.Kind))} · risco {Loc.T(RepairPresentation.RiskName(plan.Risk))} · ") +
+            (plan.Volume is null ? Loc.T("sem volume") : Loc.T("volume ") + plan.Volume.Id));
+        repairMessages.Set(nameof(RepairsDetailsText), () =>
+            RepairsDetailsText.Text = BuildRepairPlanText(view, plan, real));
         RepairsConfirmationText.Text = string.Empty;
-        RepairsConfirmationHint.Text = canExecute
+        repairMessages.Set(nameof(RepairsConfirmationHint), () => RepairsConfirmationHint.Text = canExecute
             ? Loc.T("Digite exatamente: ") + RepairManager.BuildConfirmationText(plan)
             : Loc.T("Plano bloqueado no backend: ") + string.Join(", ",
-                (real ? plan.Preflight.Blockers : plan.Preflight.SimulationBlockers).Select(RepairPresentation.BlockerName));
+                (real ? plan.Preflight.Blockers : plan.Preflight.SimulationBlockers).Select(blocker => Loc.T(RepairPresentation.BlockerName(blocker)))));
+        repairMessages.Set(nameof(RepairsOutputText), () => RepairsOutputText.Text = canExecute
+            ? Loc.T("Plano preparado. A saída estará disponível depois de autorizar e iniciar.")
+            : Loc.T("Plano bloqueado; nenhuma execução será iniciada."));
+        SetRepairsStatus(() => !canExecute
+            ? Loc.T("Plano bloqueado no backend; nenhuma ferramenta real será executada.")
+            : real
+                ? Loc.T("Plano preparado. Aguardando confirmação específica.")
+                : Loc.T("Plano simulado preparado."));
         RepairsScenarioCombo.SelectedItem = (RepairsScenarioCombo.ItemsSource as IEnumerable<RepairScenarioRow>)
             ?.FirstOrDefault(row => row.Option.Scenario == DefaultScenario(view));
-        RepairsOutputText.Text = canExecute
-            ? Loc.T("Plano preparado. A saída estará disponível depois de autorizar e iniciar.")
-            : Loc.T("Plano bloqueado; nenhuma execução será iniciada.");
-        RepairsStatusText.Text = canExecute
-            ? real ? Loc.T("Plano preparado. Aguardando confirmação específica.") : "Plano simulado preparado."
-            : Loc.T("Plano bloqueado no backend; nenhuma ferramenta real será executada.");
         UpdateRepairButtons();
     }
 
@@ -282,20 +323,20 @@ public partial class MainWindow
         var plan = repairPlan;
         if (!CanRunRepairPlan(plan))
         {
-            RepairsStatusText.Text = Loc.T("Plano bloqueado no backend; nenhuma execução será aceita.");
+            SetRepairsStatus(() => Loc.T("Plano bloqueado no backend; nenhuma execução será aceita."));
             return;
         }
         var expected = RepairManager.BuildConfirmationText(plan);
         if (!string.Equals(RepairsConfirmationText.Text.Trim(), expected, StringComparison.Ordinal))
         {
-            RepairsStatusText.Text = Loc.T("A confirmação digitada não corresponde à operação e ao plano apresentado.");
+            SetRepairsStatus(() => Loc.T("A confirmação digitada não corresponde à operação e ao plano apresentado."));
             return;
         }
         var real = repairs.RealExecutionEnabled;
         var scenario = (RepairsScenarioCombo.SelectedItem as RepairScenarioRow)?.Option.Scenario;
         if (!real && scenario is null)
         {
-            RepairsStatusText.Text = Loc.T("Selecione um cenário sintético para a demonstração.");
+            SetRepairsStatus(() => Loc.T("Selecione um cenário sintético para a demonstração."));
             return;
         }
 
@@ -331,11 +372,12 @@ public partial class MainWindow
                     {
                         liveOutput.AppendLine(Loc.F($"[{line.Channel}] {text}"));
                         liveLines++;
-                        RepairsOutputText.Text = liveOutput.ToString();
+                        // Registered so a language switch re-renders the live output instead of an older plan text.
+                        repairMessages.Set(nameof(RepairsOutputText), () => RepairsOutputText.Text = liveOutput.ToString());
                     }
                 }
                 if (!real)
-                    RepairsStatusText.Text = Loc.T("Execução sintética em andamento.");
+                    SetRepairsStatus(() => Loc.T("Execução sintética em andamento."));
             });
             var result = await repairs.ExecuteAsync(plan, token, real ? null : scenario, progress,
                 repairCancellation.Token);
@@ -346,23 +388,25 @@ public partial class MainWindow
                 repairPersistenceFailed = !result.Persisted;
                 ShowRepairRecord(record);
             }
-            await ReloadRepairHistoryAsync(result.Record?.Id, result.Summary);
-            var blockers = result.Blockers.Count == 0
-                ? string.Empty
-                : " Bloqueios: " + string.Join(", ", result.Blockers.Select(RepairPresentation.BlockerName));
-            RepairsStatusText.Text = result.Summary + blockers +
-                (result.Record is not null && !result.Persisted ? Loc.T(" A gravação não foi concluída; use a nova tentativa.") : string.Empty);
+            await ReloadRepairHistoryAsync(result.Record?.Id, () => Loc.Text(result.Summary));
+            SetRepairsStatus(() => Loc.Text(result.Summary) +
+                (result.Blockers.Count == 0
+                    ? string.Empty
+                    : " " + Loc.T("Bloqueios:") + " " + string.Join(", ", result.Blockers.Select(blocker => Loc.T(RepairPresentation.BlockerName(blocker))))) +
+                (result.Record is not null && !result.Persisted
+                    ? Loc.T(" A gravação não foi concluída; use a nova tentativa.")
+                    : string.Empty));
         }
         catch (OperationCanceledException)
         {
-            RepairsStatusText.Text = Loc.T("Solicitação cancelada antes de iniciar.");
+            SetRepairsStatus(() => Loc.T("Solicitação cancelada antes de iniciar."));
         }
         catch (Exception error)
         {
             ShowFailure(Loc.T("A execução de reparo não pôde ser acompanhada"), error);
-            RepairsStatusText.Text = real
+            SetRepairsStatus(() => real
                 ? Loc.T("Resultado indisponível. Revise a intenção e o estado do broker antes de uma nova tentativa.")
-                : Loc.T("Falha na execução sintética.");
+                : Loc.T("Falha na execução sintética."));
         }
         finally
         {
@@ -392,9 +436,9 @@ public partial class MainWindow
     {
         repairCancellation?.Cancel();
         RepairsCancelButton.IsEnabled = false;
-        RepairsStatusText.Text = repairCommitted
+        SetRepairsStatus(() => repairCommitted
             ? Loc.T("A autorização já foi enviada. O broker continuará acompanhando a ferramenta até o encerramento.")
-            : Loc.T("Cancelamento solicitado. ") + RepairGuidance.CancellationLimitation;
+            : Loc.T("Cancelamento solicitado. ") + Loc.T(RepairGuidance.CancellationLimitation));
     }
 
     private async void OnRepairRetrySave(object sender, RoutedEventArgs e)
@@ -410,12 +454,12 @@ public partial class MainWindow
             repairPersistenceFailed = false;
             InvalidateMaintenanceHistory();
             ShowRepairRecord(repairRecord);
-            await ReloadRepairHistoryAsync(repairRecord.Id, "Registro de reparo salvo novamente.");
+            await ReloadRepairHistoryAsync(repairRecord.Id, () => Loc.T("Registro de reparo salvo novamente."));
         }
         catch (Exception error)
         {
             ShowFailure(Loc.T("Não foi possível salvar novamente o registro de reparo"), error);
-            RepairsStatusText.Text = Loc.T("A gravação continua pendente; o resultado permanece nesta janela.");
+            SetRepairsStatus(() => Loc.T("A gravação continua pendente; o resultado permanece nesta janela."));
         }
         finally
         {
@@ -435,27 +479,38 @@ public partial class MainWindow
         else if (row.Intent is { } intent)
         {
             repairSelectedRecord = null;
-            RepairsDetailsTitle.Text = intent.DisplayName;
-            RepairsDetailsMeta.Text = Loc.F($"{intent.OperationId} v{intent.OperationVersion} · intenção sem registro final");
-            RepairsDetailsText.Text = BuildRepairIntentText(intent);
-            RepairsOutputText.Text = Loc.T("Nenhuma saída final registrada. A intenção é preservada e tratada como interrompida.");
-            RepairsStatusText.Text = Loc.T("Intenção sem registro final; não há conclusão atribuída.");
+            ShowRepairIntent(intent);
         }
         UpdateRepairButtons();
+    }
+
+    private void ShowRepairIntent(RepairIntent intent)
+    {
+        repairMessages.Set(nameof(RepairsDetailsTitle), () => RepairsDetailsTitle.Text = intent.DisplayName);
+        repairMessages.Set(nameof(RepairsDetailsMeta), () =>
+            RepairsDetailsMeta.Text = Loc.F($"{intent.OperationId} v{intent.OperationVersion} · intenção sem registro final"));
+        repairMessages.Set(nameof(RepairsDetailsText), () =>
+            RepairsDetailsText.Text = BuildRepairIntentText(intent));
+        repairMessages.Set(nameof(RepairsOutputText), () =>
+            RepairsOutputText.Text = Loc.T("Nenhuma saída final registrada. A intenção é preservada e tratada como interrompida."));
+        SetRepairsStatus(() => Loc.T("Intenção sem registro final; não há conclusão atribuída."));
     }
 
     private void ShowRepairRecord(RepairRecord record)
     {
         repairSelectedRecord = record;
-        RepairsDetailsTitle.Text = record.DisplayName;
-        RepairsDetailsMeta.Text = Loc.F($"{record.OperationId} v{record.OperationVersion} · ") +
+        repairMessages.Set(nameof(RepairsDetailsTitle), () => RepairsDetailsTitle.Text = record.DisplayName);
+        repairMessages.Set(nameof(RepairsDetailsMeta), () => RepairsDetailsMeta.Text =
+            Loc.F($"{record.OperationId} v{record.OperationVersion} · ") +
             Loc.F($"{Loc.T(RepairPresentation.StateName(record.State))} · {Loc.T(RepairPresentation.ResultName(record.Result))} · ") +
-            Loc.F($"confiança {Loc.T(RepairPresentation.ConfidenceName(record.Confidence))}");
-        RepairsDetailsText.Text = BuildRepairRecordText(record);
-        RepairsOutputText.Text = BuildRepairOutputText(record);
-        RepairsStatusText.Text = record.IsSynthetic
+            Loc.F($"confiança {Loc.T(RepairPresentation.ConfidenceName(record.Confidence))}"));
+        repairMessages.Set(nameof(RepairsDetailsText), () =>
+            RepairsDetailsText.Text = BuildRepairRecordText(record));
+        repairMessages.Set(nameof(RepairsOutputText), () =>
+            RepairsOutputText.Text = BuildRepairOutputText(record));
+        SetRepairsStatus(() => record.IsSynthetic
             ? Loc.T("Resultado de fixture sintética; não representa o estado do Windows real.")
-            : Loc.T("Resultado registrado; não declara sucesso absoluto.");
+            : Loc.T("Resultado registrado; não declara sucesso absoluto."));
         UpdateRepairButtons();
     }
 
@@ -514,7 +569,7 @@ public partial class MainWindow
         text.AppendLine(real ? Loc.T("Execução pelo broker local") : RepairGuidance.RealExecutionUnavailable);
         text.AppendLine();
         text.AppendLine(Loc.F($"Comando oficial: {plan.Invocation.DisplayCommand}"));
-        text.AppendLine(Loc.F($"Descrição: {view.Description}"));
+        text.AppendLine(Loc.F($"Descrição: {Loc.T(view.Description)}"));
         text.AppendLine(Loc.F($"Tipo: {Loc.T(RepairPresentation.KindName(plan.Kind))} · Risco: {Loc.T(RepairPresentation.RiskName(plan.Risk))}"));
         text.AppendLine(view.RequiresElevation ? Loc.T("Privilégios exigidos: administrador.") : Loc.T("Privilégios exigidos: usuário atual."));
         text.AppendLine(Loc.F($"Processo atual: {(plan.Preflight.Profile.IsElevated ? "elevado" : "sem elevação")}"));
@@ -526,10 +581,10 @@ public partial class MainWindow
             : Loc.F($"Cancelamento seguro: {(view.CanCancelSafely ? "sim" : "não garantido")}"));
         text.AppendLine();
         text.AppendLine(Loc.T("Consequências"));
-        foreach (var consequence in view.Consequences) text.AppendLine(Loc.F($"• {consequence}"));
+        foreach (var consequence in view.Consequences) text.AppendLine(Loc.F($"• {Loc.T(consequence)}"));
         text.AppendLine();
         text.AppendLine(Loc.T("Alterações possíveis"));
-        foreach (var change in view.PossibleChanges) text.AppendLine(Loc.F($"• {change}"));
+        foreach (var change in view.PossibleChanges) text.AppendLine(Loc.F($"• {Loc.T(change)}"));
         text.AppendLine();
         text.AppendLine(Loc.T("Preflight"));
         text.AppendLine(Loc.F($"• Simulação permitida: {(plan.Preflight.SimulationAllowed ? "sim" : "não")}"));
@@ -546,12 +601,12 @@ public partial class MainWindow
         text.AppendLine(Loc.T("Limitações"));
         text.AppendLine("• " + RepairGuidance.NoRollback);
         text.AppendLine("• " + RepairGuidance.LocalOnly);
-        foreach (var limitation in plan.Limitations.Distinct()) text.AppendLine(Loc.F($"• {limitation}"));
+        foreach (var limitation in plan.Limitations.Distinct()) text.AppendLine(Loc.F($"• {Loc.T(limitation)}"));
         text.AppendLine();
         text.AppendLine(Loc.T("Resultado esperado"));
-        text.AppendLine(view.ExpectedResult);
+        text.AppendLine(Loc.T(view.ExpectedResult));
         text.AppendLine();
-        text.AppendLine(Loc.T("Referência: ") + view.DocumentationReference);
+        text.AppendLine(Loc.T("Referência: ") + Loc.T(view.DocumentationReference));
         return text.ToString();
     }
 
@@ -593,10 +648,10 @@ public partial class MainWindow
         text.AppendLine(Loc.T("Passos"));
         foreach (var step in record.Steps.OrderBy(item => item.Sequence))
             text.AppendLine(Loc.F($"• {step.Sequence}. {Loc.T(RepairPresentation.StateName(step.State))} — ") +
-                Loc.F($"{step.AtUtc.ToLocalTime():HH:mm:ss} — {step.Detail}"));
+                Loc.F($"{step.AtUtc.ToLocalTime():HH:mm:ss} — ") + Loc.Text(step.Detail));
         text.AppendLine();
         text.AppendLine(Loc.T("Limitações"));
-        foreach (var limitation in record.Limitations.Distinct()) text.AppendLine(Loc.F($"• {limitation}"));
+        foreach (var limitation in record.Limitations.Distinct()) text.AppendLine(Loc.F($"• {Loc.T(limitation)}"));
         return text.ToString();
     }
 
@@ -604,7 +659,7 @@ public partial class MainWindow
     {
         var text = new StringBuilder();
         if (record.IsSynthetic) text.AppendLine(RepairGuidance.SyntheticDisclaimer);
-        text.AppendLine(record.OutputSummary);
+        text.AppendLine(Loc.Text(record.OutputSummary));
         text.AppendLine();
         if (record.Output.Count == 0)
         {
@@ -619,7 +674,7 @@ public partial class MainWindow
                 text.AppendLine((line.Channel is { } channel ? Loc.F($"[{channel}] ") : string.Empty) + line.Text);
         }
         text.AppendLine();
-        text.AppendLine(Loc.T("Interpretação: ") + record.ResultSummary);
+        text.AppendLine(Loc.T("Interpretação: ") + Loc.Text(record.ResultSummary));
         return text.ToString();
     }
 
@@ -639,7 +694,7 @@ public partial class MainWindow
             text.AppendLine(Loc.T("A ferramenta pode continuar após a desconexão. Investigue o estado antes de preparar novo plano."));
         text.AppendLine();
         text.AppendLine(Loc.T("Limitações"));
-        foreach (var limitation in intent.Limitations.Distinct()) text.AppendLine(Loc.F($"• {limitation}"));
+        foreach (var limitation in intent.Limitations.Distinct()) text.AppendLine(Loc.F($"• {Loc.T(limitation)}"));
         return text.ToString();
     }
 
@@ -651,8 +706,8 @@ public partial class MainWindow
         foreach (var operation in operations)
         {
             text.AppendLine(Loc.F($"• {operation.Id} — {operation.DisplayCommand} — risco {operation.RiskName}"));
-            text.AppendLine(Loc.F($"  {operation.Description}"));
-            text.AppendLine(Loc.F($"  Motivo: {operation.DocumentedOnlyReason}"));
+            text.AppendLine(Loc.F($"  {Loc.T(operation.Description)}"));
+            text.AppendLine(Loc.F($"  Motivo: {Loc.T(operation.DocumentedOnlyReason ?? string.Empty)}"));
         }
         text.AppendLine();
         text.AppendLine(Loc.T("Também fora de escopo nesta fase: alterações de BCD, reinicialização para WinRE, ") +
@@ -663,41 +718,45 @@ public partial class MainWindow
     private static string FormatElapsed(TimeSpan elapsed) =>
         $"{(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
 
-    private sealed record RepairCategoryRow(string Category, IReadOnlyList<RepairCardRow> Cards);
+    private sealed record RepairCategoryRow(string CategoryKey, IReadOnlyList<RepairCardRow> Cards)
+    {
+        public string Category => Loc.T(CategoryKey);
+    }
 
     private sealed record RepairCardRow(RepairOperationView View)
     {
         public string OperationId => View.OperationId;
-        public string DisplayName => View.DisplayName;
-        public string Category => View.Category;
-        public string Description => View.Description;
-        public string KindSummary => "Tipo: " + View.KindName;
-        public string RiskSummary => "Risco: " + View.RiskName;
-        public string Privileges => View.RequiresElevation
+        public string DisplayName => Loc.T(View.DisplayName);
+        public string Category => Loc.T(View.Category);
+        public string Description => Loc.T(View.Description);
+        public string KindSummary => Loc.T("Tipo: ") + Loc.T(View.KindName);
+        public string RiskSummary => Loc.T("Risco: ") + Loc.T(View.RiskName);
+        public string Privileges => Loc.T(View.RequiresElevation
             ? "Privilégios exigidos: administrador"
-            : "Privilégios: usuário atual";
-        public string Command => "Comando: " + View.OfficialCommand;
-        public string RestartSummary => View.RequiresRestart
+            : "Privilégios: usuário atual");
+        public string Command => Loc.T("Comando: ") + View.OfficialCommand;
+        public string RestartSummary => Loc.T(View.RequiresRestart
             ? "Reinicialização: indicada"
-            : "Reinicialização: não indicada";
-        public string Availability => "Disponibilidade: " + View.Availability +
+            : "Reinicialização: não indicada");
+        public string Availability => Loc.T("Disponibilidade: ") + Loc.T(View.Availability) +
             (View.SimulationAllowed
                 ? string.Empty
-                : " · " + string.Join(", ", View.Blockers.Select(RepairPresentation.BlockerName)));
-        public string ConsequencesSummary => "Consequências: " + string.Join(" ", View.Consequences);
+                : " · " + string.Join(", ", View.Blockers.Select(blocker => Loc.T(RepairPresentation.BlockerName(blocker)))));
+        public string ConsequencesSummary => Loc.T("Consequências: ") + string.Join(" ", View.Consequences.Select(Loc.T));
         public string LimitationsSummary => View.Limitations.Count == 0
             ? string.Empty
-            : "Limitações: " + string.Join(" · ", View.Limitations);
+            : Loc.T("Limitações: ") + string.Join(" · ", View.Limitations.Select(Loc.T));
     }
 
     private sealed record RepairVolumeRow(RepairVolume Volume)
     {
-        public string DisplayText => Volume.DisplayName + (Volume.IsReady ? string.Empty : " · indisponível");
+        public string DisplayText => Volume.DisplayName + (Volume.IsReady ? string.Empty : Loc.T(" · indisponível"));
         public override string ToString() => DisplayText;
     }
 
-    private sealed record RepairScenarioRow(RepairScenarioOption Option, string Label)
+    private sealed record RepairScenarioRow(RepairScenarioOption Option)
     {
+        public string Label => Loc.T(Option.Label);
         public override string ToString() => Label;
     }
 
@@ -705,10 +764,10 @@ public partial class MainWindow
     {
         public string DateText => (Record?.CompletedUtc ?? Intent?.CreatedAtUtc ?? DateTimeOffset.MinValue)
             .ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss");
-        public string Title => Record?.DisplayName ?? Intent?.DisplayName ?? "Reparo";
+        public string Title => Record?.DisplayName ?? Intent?.DisplayName ?? Loc.T("Reparo");
         public string SummaryText => Record is { } record
             ? $"{Loc.T(RepairPresentation.StateName(record.State))} · {Loc.T(RepairPresentation.ResultName(record.Result))}" +
               (record.IsSynthetic ? " · fixture" : string.Empty)
-            : "Intenção sem registro final · interrompida";
+            : Loc.T("Intenção sem registro final · interrompida");
     }
 }

@@ -57,6 +57,11 @@ internal static class UiText
         _ => kind.ToString()
     });
 
+    /// <summary>Texto de compatibilidade do catálogo ("Windows 11 · build mínimo N · máximo M"): traduz só os rótulos.</summary>
+    public static string Compatibility(string text) => text
+        .Replace("Windows 11 · build mínimo ", Loc.T("Windows 11 · build mínimo "), StringComparison.Ordinal)
+        .Replace(" · máximo ", Loc.T(" · máximo "), StringComparison.Ordinal);
+
     public static string Scope(OperationScope scope) => Loc.T(scope switch
     {
         OperationScope.CurrentUser => "usuário atual",

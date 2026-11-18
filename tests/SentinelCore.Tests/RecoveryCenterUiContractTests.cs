@@ -15,8 +15,11 @@ public sealed class RecoveryCenterUiContractTests
         var navigation = document.Descendants().Single(e => (string?)e.Attribute(Xaml + "Name") == "NavList");
         var pages = document.Descendants().Single(e => (string?)e.Attribute(Xaml + "Name") == "Pages");
         Assert.Equal(navigation.Elements().Count(), pages.Elements().Count());
-        Assert.Equal("Central de Recuperação", (string?)navigation.Elements().Last().Attribute("Content"));
-        Assert.Equal("Central de Recuperação", (string?)pages.Elements().Last().Attribute("Header"));
+        // Sobre fecha o menu; a Central de Recuperação é o último item de manutenção, na mesma posição da página.
+        Assert.Equal("Central de Recuperação", (string?)navigation.Elements().ElementAt(navigation.Elements().Count() - 2).Attribute("Content"));
+        Assert.Equal("Central de Recuperação", (string?)pages.Elements().ElementAt(pages.Elements().Count() - 2).Attribute("Header"));
+        Assert.Equal("Sobre", (string?)navigation.Elements().Last().Attribute("Content"));
+        Assert.Equal("Sobre", (string?)pages.Elements().Last().Attribute("Header"));
         Assert.Contains("RecoverySection.Initialize(recovery)", Source("MainWindow.xaml.cs"));
     }
 
@@ -30,8 +33,10 @@ public sealed class RecoveryCenterUiContractTests
                      "AvailableCombo", "ConflictCombo", "InterventionCombo", "FromDate", "ToDate", "HistoryGrid",
                      "DetailsText", "TimelineText", "ReportPathText", "AnalyzeButton", "RecoverButton" })
             Assert.Contains(name, names);
+        // O estilo do DataGrid é único e fica em App.xaml (a view não o redefine).
+        var shared = XDocument.Parse(Source("App.xaml"));
         foreach (var property in new[] { "IsReadOnly", "CanUserAddRows", "CanUserDeleteRows" })
-            Assert.Contains(document.Descendants(), e => e.Name.LocalName == "Setter" && (string?)e.Attribute("Property") == property);
+            Assert.Contains(shared.Descendants(), e => e.Name.LocalName == "Setter" && (string?)e.Attribute("Property") == property);
         Assert.Contains("RecoveryCenter.Filter(snapshot, filter)", Source("RecoveryCenterView.xaml.cs"));
     }
 

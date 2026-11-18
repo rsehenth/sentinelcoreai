@@ -120,7 +120,7 @@ internal static class NetworkPresentationRows
 
     public sealed record NetworkObservationRow(NetworkObservation Observation)
     {
-        public string Title => Observation.Title;
+        public string Title => Loc.Text(Observation.Title);
         public string Subtitle =>
             Loc.F($"{KindName(Observation.Kind)} · {Loc.T(EventCatalog.SeverityName(Observation.Severity))} · ") +
             Loc.F($"confiança {Loc.T(EventCatalog.ConfidenceName(Observation.Confidence))} · causalidade não avaliada");

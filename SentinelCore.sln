@@ -1,4 +1,4 @@
-
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
@@ -34,6 +34,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SentinelCore.RepairBroker", "src\SentinelCore.RepairBroker\SentinelCore.RepairBroker.csproj", "{9CB9C5C7-414A-4605-A90F-70FEDA646192}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SentinelCore.RepairBroker.Client", "src\SentinelCore.RepairBroker.Client\SentinelCore.RepairBroker.Client.csproj", "{D017BD97-A96B-42B5-859C-E0E4CB349F05}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SentinelCore.Infrastructure.AppsStartup", "src\SentinelCore.Infrastructure.AppsStartup\SentinelCore.Infrastructure.AppsStartup.csproj", "{5BD4A8F5-6229-471A-8EA7-90004AD2DA60}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SentinelCore.Infrastructure.AppsStartup.Windows", "src\SentinelCore.Infrastructure.AppsStartup.Windows\SentinelCore.Infrastructure.AppsStartup.Windows.csproj", "{B15C3ABC-2902-4F1C-A748-A1DB8593C518}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -213,6 +217,30 @@ Global
 		{D017BD97-A96B-42B5-859C-E0E4CB349F05}.Release|x64.Build.0 = Release|Any CPU
 		{D017BD97-A96B-42B5-859C-E0E4CB349F05}.Release|x86.ActiveCfg = Release|Any CPU
 		{D017BD97-A96B-42B5-859C-E0E4CB349F05}.Release|x86.Build.0 = Release|Any CPU
+		{5BD4A8F5-6229-471A-8EA7-90004AD2DA60}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5BD4A8F5-6229-471A-8EA7-90004AD2DA60}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5BD4A8F5-6229-471A-8EA7-90004AD2DA60}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5BD4A8F5-6229-471A-8EA7-90004AD2DA60}.Debug|x64.Build.0 = Debug|Any CPU
+		{5BD4A8F5-6229-471A-8EA7-90004AD2DA60}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5BD4A8F5-6229-471A-8EA7-90004AD2DA60}.Debug|x86.Build.0 = Debug|Any CPU
+		{5BD4A8F5-6229-471A-8EA7-90004AD2DA60}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5BD4A8F5-6229-471A-8EA7-90004AD2DA60}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5BD4A8F5-6229-471A-8EA7-90004AD2DA60}.Release|x64.ActiveCfg = Release|Any CPU
+		{5BD4A8F5-6229-471A-8EA7-90004AD2DA60}.Release|x64.Build.0 = Release|Any CPU
+		{5BD4A8F5-6229-471A-8EA7-90004AD2DA60}.Release|x86.ActiveCfg = Release|Any CPU
+		{5BD4A8F5-6229-471A-8EA7-90004AD2DA60}.Release|x86.Build.0 = Release|Any CPU
+		{B15C3ABC-2902-4F1C-A748-A1DB8593C518}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B15C3ABC-2902-4F1C-A748-A1DB8593C518}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B15C3ABC-2902-4F1C-A748-A1DB8593C518}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B15C3ABC-2902-4F1C-A748-A1DB8593C518}.Debug|x64.Build.0 = Debug|Any CPU
+		{B15C3ABC-2902-4F1C-A748-A1DB8593C518}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B15C3ABC-2902-4F1C-A748-A1DB8593C518}.Debug|x86.Build.0 = Debug|Any CPU
+		{B15C3ABC-2902-4F1C-A748-A1DB8593C518}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B15C3ABC-2902-4F1C-A748-A1DB8593C518}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B15C3ABC-2902-4F1C-A748-A1DB8593C518}.Release|x64.ActiveCfg = Release|Any CPU
+		{B15C3ABC-2902-4F1C-A748-A1DB8593C518}.Release|x64.Build.0 = Release|Any CPU
+		{B15C3ABC-2902-4F1C-A748-A1DB8593C518}.Release|x86.ActiveCfg = Release|Any CPU
+		{B15C3ABC-2902-4F1C-A748-A1DB8593C518}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -231,5 +259,7 @@ Global
 		{88F96CBB-0F3F-4483-A245-A582C8BA19E1} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{72112C50-6927-4114-B67F-BB83188768EC} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{9CB9C5C7-414A-4605-A90F-70FEDA646192} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{5BD4A8F5-6229-471A-8EA7-90004AD2DA60} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{B15C3ABC-2902-4F1C-A748-A1DB8593C518} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal

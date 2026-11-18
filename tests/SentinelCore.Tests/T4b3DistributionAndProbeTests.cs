@@ -18,7 +18,7 @@ public sealed class T4b3DistributionAndProbeTests
         "SentinelCore.App", "SentinelCore.Application", "SentinelCore.Domain", "SentinelCore.Persistence",
         "SentinelCore.Infrastructure.Windows", "SentinelCore.Infrastructure.Modifications",
         "SentinelCore.Infrastructure.Repairs", "SentinelCore.Infrastructure.Debloat",
-        "SentinelCore.Infrastructure.Debloat.Native"
+        "SentinelCore.Infrastructure.Debloat.Native", "SentinelCore.Infrastructure.AppsStartup"
     ];
 
     private static IEnumerable<string> ProductionSources() =>
@@ -96,7 +96,7 @@ public sealed class T4b3DistributionAndProbeTests
     }
 
     [Fact]
-    public void DistributedProjectGraphIncludesReadOnlyInventoryAndExcludesWorkerAndNativeRemoval()
+    public void DistributedProjectGraphExcludesNativeInventoryWorkerAndNativeRemoval()
     {
         var reachable = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var pending = new Stack<string>();
@@ -109,7 +109,11 @@ public sealed class T4b3DistributionAndProbeTests
                 pending.Push(Path.GetFullPath(Path.Combine(Path.GetDirectoryName(project)!,
                     reference.Attribute("Include")!.Value.Replace('\\', Path.DirectorySeparatorChar))));
         }
-        Assert.Equal(ProductionProjects.OrderBy(n => n, StringComparer.OrdinalIgnoreCase), reachable.OrderBy(n => n, StringComparer.OrdinalIgnoreCase));
+        // 7B.6: the native inventory project stays in the solution for isolated validation but is not distributed.
+        // O projeto sintético legado de Debloat também deixou de ser distribuído (o App usa Aplicativos e Inicialização).
+        var distributed = ProductionProjects.Where(name => name is not ("SentinelCore.Infrastructure.Debloat.Native" or "SentinelCore.Infrastructure.Debloat"));
+        Assert.Equal(distributed.OrderBy(n => n, StringComparer.OrdinalIgnoreCase), reachable.OrderBy(n => n, StringComparer.OrdinalIgnoreCase));
+        Assert.DoesNotContain(reachable, name => name.EndsWith("Debloat.Native", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(reachable, name => name.Contains("Tests", StringComparison.OrdinalIgnoreCase) ||
             name.Contains("Worker", StringComparison.OrdinalIgnoreCase) || name.Contains(".Removal.Native", StringComparison.OrdinalIgnoreCase));
     }

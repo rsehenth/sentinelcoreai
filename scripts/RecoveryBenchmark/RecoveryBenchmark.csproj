@@ -10,5 +10,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/SentinelCore.App/SentinelCore.App.csproj" />
+    <ProjectReference Include="../../src/SentinelCore.Infrastructure.Debloat/SentinelCore.Infrastructure.Debloat.csproj" />
   </ItemGroup>
 </Project>

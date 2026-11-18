@@ -20,7 +20,7 @@ function Assert-AuditedInputs {
     # The manifest cannot hash itself; changes to it still require human review.
     $inputs = @(
         Get-ChildItem -LiteralPath (Join-Path $root 'src'), (Join-Path $root 'tests') -File -Recurse -Force |
-            Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' -and $_.Name -ne 'synthetic-audit.json' -and $_.Extension -in '.cs', '.csproj', '.json', '.props', '.targets', '.ps1', '.runsettings', '.rsp' }
+            Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' -and $_.Name -ne 'synthetic-audit.json' -and $_.Extension -in '.cs', '.csproj', '.json', '.props', '.targets', '.ps1', '.runsettings', '.rsp', '.xaml' }
         Get-ChildItem -LiteralPath $root -File -Force | Where-Object { $_.Name -in 'NuGet.Config', 'global.json', 'Directory.Packages.props', 'MSBuild.rsp' -or $_.Name -like 'Directory.Build.*' }
         Get-Item -LiteralPath $dotnet
     )
@@ -69,7 +69,7 @@ $escapedRoot = [Security.SecurityElement]::Escape($temporaryRoot)
 "<RunSettings><RunConfiguration><EnvironmentVariables><TEMP>$escapedRoot</TEMP><TMP>$escapedRoot</TMP></EnvironmentVariables></RunConfiguration></RunSettings>" |
     Set-Content -Encoding UTF8 -LiteralPath $settingsPath
 $common = @($project, '--no-restore', '-c', $Configuration, '-p:SentinelCoreRealTweaks=false', '-p:SentinelCoreRealRepairs=false', '-p:SentinelCoreRealDebloat=false')
-& $dotnet build @common
+& $dotnet build @common '-m:1'
 if ($LASTEXITCODE -ne 0) { throw 'Build falhou.' }
 Assert-AuditedInputs
 # A linha de comando do Windows aceita no maximo 32.767 caracteres: a selecao e dividida em lotes de filtros positivos exatos.

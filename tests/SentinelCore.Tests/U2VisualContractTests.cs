@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using SentinelCore.App;
+using SentinelCore.App.Localization;
 using SentinelCore.Domain;
 using Xunit;
 
@@ -16,25 +18,31 @@ public sealed class U2VisualContractTests
     private static XDocument Window() => XDocument.Parse(Source("MainWindow.xaml"));
 
     [Fact]
-    public void ShellKeepsThirteenGroupedPagesWithNamesForTheCollapsedMenu()
+    public void ShellKeepsFourteenGroupedPagesWithNamesForTheCollapsedMenu()
     {
         var document = Window();
         var nav = document.Descendants().Single(e => (string?)e.Attribute(Xaml + "Name") == "NavList");
         var items = nav.Elements().ToArray();
-        Assert.Equal(13, items.Length);
+        Assert.Equal(14, items.Length);
         foreach (var item in items)
         {
             // Recolhido, só o ícone aparece: o nome vem do conteúdo (UIA); a dica descreve a mesma área.
             var label = (string)item.Attribute("Content")!;
-            var expectedTip = (string?)item.Attribute(Xaml + "Name") == "TweaksNav"
-                ? "Personalização, inventário Appx/MSIX e simulação Debloat" : label;
+            var expectedTip = (string?)item.Attribute(Xaml + "Name") switch
+            {
+                "AppsStartupNav" => "Inicialização do Windows e aplicativos instalados",
+                _ => label
+            };
             Assert.StartsWith(expectedTip, (string?)item.Attribute("ToolTip"), StringComparison.Ordinal);
             Assert.NotNull(item.Attribute("Tag"));
         }
         var groups = items.Select(i => i.Attributes().FirstOrDefault(a => a.Name.LocalName == "Nav.Group")?.Value).ToArray();
         Assert.False(string.IsNullOrEmpty(groups[0]));
-        Assert.Equal(3, groups.Count(g => !string.IsNullOrEmpty(g)));
-        Assert.Contains("bloqueada", groups.Last(g => !string.IsNullOrEmpty(g)));
+        Assert.Equal(4, groups.Count(g => !string.IsNullOrEmpty(g)));
+        Assert.Contains("bloqueada", groups.Single(g => g is not null && g.Contains("bloqueada")));
+        Assert.Equal("Projeto", groups.Last(g => !string.IsNullOrEmpty(g)));
+        Assert.Equal("About", Strings.English("Sobre"));
+        Assert.Equal("AboutNav", (string?)items[^1].Attribute(Xaml + "Name"));
 
         var toggle = document.Descendants().Single(e => (string?)e.Attribute(Xaml + "Name") == "SidebarToggle");
         Assert.Equal("OnToggleSidebar", (string?)toggle.Attribute("Click"));
@@ -55,17 +63,12 @@ public sealed class U2VisualContractTests
     }
 
     [Fact]
-    public void DashboardOffersEachOtherPageExactlyOnceAndKeepsAuditActions()
+    public void DashboardDoesNotDuplicateTheMenuAndKeepsAuditActions()
     {
         var document = Window();
-        var nav = document.Descendants().Single(e => (string?)e.Attribute(Xaml + "Name") == "NavList");
-        var labels = nav.Elements().Select(e => (string)e.Attribute("Content")!).ToArray();
-        var tiles = document.Descendants().Where(e => (string?)e.Attribute("Click") == "OnNavigate").ToArray();
-        var targets = tiles.Select(t => int.Parse((string)t.Attribute("Tag")!, CultureInfo.InvariantCulture)).OrderBy(i => i).ToArray();
-        Assert.Equal(Enumerable.Range(1, 12), targets);
-        foreach (var tile in tiles)
-            Assert.Equal("Abrir " + labels[int.Parse((string)tile.Attribute("Tag")!, CultureInfo.InvariantCulture)],
-                tile.Attributes().Single(a => a.Name.LocalName == "AutomationProperties.Name").Value);
+        // Redesign: o menu lateral é a única navegação; a Visão geral não repete as outras páginas em atalhos.
+        Assert.DoesNotContain(document.Descendants(), e => (string?)e.Attribute("Click") == "OnNavigate");
+        Assert.DoesNotContain("TileButton", Source("MainWindow.xaml"));
         foreach (var name in new[] { "RunButton", "CancelButton", "ReportButton", "ExecutionStatus", "AuditProgressBar" })
             Assert.Single(document.Descendants(), e => (string?)e.Attribute(Xaml + "Name") == name);
         // O cancelamento e o relatório seguem desabilitados até haver o que cancelar/abrir.
@@ -88,10 +91,23 @@ public sealed class U2VisualContractTests
     [Fact]
     public void PageHeadersShareTheIconStylesInsteadOfCopiedColors()
     {
+        // Nome histórico (selecionado na auditoria): o contrato agora exige cabeçalhos sem ícone e sem cantos > 8 px.
         var xaml = Source("MainWindow.xaml");
         Assert.DoesNotContain("#2F6482", xaml);
-        Assert.True(Regex.Matches(xaml, @"Style=""\{StaticResource PageIcon\}""").Count >= 10);
-        Assert.Contains("PageIcon", Source("RecoveryCenterView.xaml"));
+        // O ícone de cabeçalho foi retirado no redesign; nenhum estilo ou marcação inerte deve voltar.
+        foreach (var file in new[] { "MainWindow.xaml", "RecoveryCenterView.xaml", "App.xaml" })
+            Assert.DoesNotContain("PageIcon", Source(file));
+        // Raio máximo de 8 px em qualquer superfície declarada localmente.
+        // Estados vazios de Resultados e do Centro de Recuperação usam os textos anexados ao final da tabela.
+        var results = File.ReadAllText(AppFile("MainWindow.xaml"));
+        var recovery = File.ReadAllText(AppFile("RecoveryCenterView.xaml"));
+        foreach (var text in new[] { "Nenhum resultado ainda", "Inicie uma auditoria na Visão geral para ver cada coletor com seu estado e suas evidências." })
+            Assert.Contains(UiResourceText.Resource(text), results);
+        foreach (var text in new[] { "Nenhuma operação para mostrar", "Operações de Personalização, Aplicativos e Inicialização, Reparos e recuperações aparecem aqui, com origem, resultado e possibilidade de recuperação." })
+            Assert.Contains(UiResourceText.Resource(text), recovery);
+        foreach (var file in new[] { "MainWindow.xaml", "RecoveryCenterView.xaml", "AppsStartupView.xaml" })
+            foreach (Match radius in Regex.Matches(Source(file), @"CornerRadius=""(\d+)"""))
+                Assert.True(int.Parse(radius.Groups[1].Value, CultureInfo.InvariantCulture) <= 8, file + ": " + radius.Value);
         foreach (var header in new[] { "Desempenho", "Rede", "Gráficos & GPU" })
             Assert.Contains($"<TextBlock Text=\"{header.Replace("&", "&amp;")}\" Style=\"{{StaticResource PageTitle}}\"/>", xaml);
     }
@@ -124,8 +140,6 @@ public sealed class U2VisualContractTests
         foreach (var name in Enum.GetNames<OperationScope>()) Assert.Contains($"OperationScope.{name} =>", ui);
         // Somente a camada App apresenta rótulos: nenhum enum de Domain foi renomeado e o valor desconhecido mantém o nome.
         Assert.Equal(4, Regex.Matches(ui, @"_ => \w+\.ToString\(\)").Count);
-        Assert.Contains("UiText.Risk(View.Risk)", Source("MainWindow.Tweaks.cs"));
-        Assert.DoesNotContain("\"Risco: \" + View.Risk;", Source("MainWindow.Tweaks.cs"));
     }
 
     [Fact]
@@ -184,7 +198,7 @@ public sealed class U2VisualContractTests
         Assert.Equal(2, Regex.Matches(app, @"Trigger Property=""HasItems"" Value=""False""").Count);
         var xaml = Source("MainWindow.xaml");
         foreach (var name in new[] { "HardwareSnapshotList", "HardwareItemList", "EventHistoryList", "PerformanceHistoryList", "NetworkHistoryList",
-                     "GraphicsHistoryList", "CorrelationHistoryList", "HistoryList", "MonitoringHistoryList", "TweakHistoryList", "RepairsHistoryList" })
+                     "GraphicsHistoryList", "CorrelationHistoryList", "HistoryList", "MonitoringHistoryList", "RepairsHistoryList" })
         {
             var tag = Regex.Match(xaml, $@"<ListBox x:Name=""{name}""[^>]*?\sTag=""([^""]+)""");
             Assert.True(tag.Success, name);
@@ -204,7 +218,7 @@ public sealed class U2VisualContractTests
         Assert.Equal("StackPanel", search.Parent!.Parent!.Name.LocalName);
         Assert.Same(search.Parent!.Parent, combo.Parent);
         // Linhas horizontais de ações podiam passar da largura útil e esconder o botão (página rola só na vertical): WrapPanel.
-        foreach (var name in new[] { "TweakRollbackButton", "RepairsRetrySaveButton", "MonitoringIncidentButton" })
+        foreach (var name in new[] { "RepairsRetrySaveButton", "MonitoringIncidentButton" })
             Assert.Equal("WrapPanel", document.Descendants().Single(e => (string?)e.Attribute(Xaml + "Name") == name).Parent!.Name.LocalName);
     }
 
@@ -215,7 +229,7 @@ public sealed class U2VisualContractTests
         Assert.Equal("960", (string?)document.Root!.Attribute("MinWidth"));
         Assert.Equal("520", (string?)document.Root.Attribute("MinHeight")); // 1080p a 200%: ≈ 960×520 DIP úteis
         var pages = document.Descendants(Presentation + "TabItem").Where(t => t.Parent!.Attribute(Xaml + "Name")?.Value == "Pages").ToArray();
-        Assert.Equal(12, pages.Count(p => p.Descendants(Presentation + "ScrollViewer").Any()));
+        Assert.Equal(13, pages.Count(p => p.Descendants(Presentation + "ScrollViewer").Any()));
         foreach (var header in new[] { "Resultados", "Hardware", "Estabilidade e Eventos", "Desempenho", "Rede", "Gráficos & GPU", "Correlação", "Histórico", "Monitoramento" })
         {
             var host = pages.Single(p => (string?)p.Attribute("Header") == header).Elements().Single();
@@ -226,5 +240,38 @@ public sealed class U2VisualContractTests
             Assert.Contains("ViewportHeight", (string)fill.Attribute("Height")!);
         }
         Assert.Contains("SystemParameters.WorkArea", Source("MainWindow.xaml.cs"));
+    }
+    [Fact]
+    public void AboutPageIsBilingualReadsRealVersionMetadataAndOpensLinksOnlyOnClick()
+    {
+        var xaml = File.ReadAllText(AppFile("MainWindow.xaml"));
+        var code = Source("MainWindow.About.cs");
+        // Cada texto da página aponta para o recurso do próprio texto (índices T#### não derivam por acaso).
+        foreach (var text in new[] { AboutText.Title, AboutText.Group, AboutText.NavTooltip, AboutText.Tagline, AboutText.Summary,
+                     AboutText.Version, AboutText.Preview, AboutText.Build, AboutText.Technologies, AboutText.License,
+                     AboutText.Notices, AboutText.NoticesTooltip, AboutText.OpenProject, AboutText.OpenProjectTooltip,
+                     AboutText.Status, AboutText.StatusText, AboutText.Footnote })
+            Assert.Contains("{DynamicResource " + Strings.Key(text) + "}", xaml);
+        foreach (var (pt, en) in AboutText.Entries)
+        {
+            Assert.False(string.IsNullOrWhiteSpace(en), pt);
+            Assert.Equal(en, Strings.English(pt));
+        }
+        Assert.Equal("About", Strings.English(AboutText.Title));
+        // A versão vem dos metadados do assembly (Directory.Build.props); a página não repete literais.
+        Assert.Contains("SoftwareInfo.Version", code);
+        Assert.DoesNotContain(TestRepository.ProductVersion(), xaml);
+        Assert.DoesNotContain(TestRepository.ProductVersion(), code);
+        // Sem consultas de rede ao carregar; o processo externo só existe dentro do manipulador de clique explícito.
+        foreach (var forbidden in new[] { "HttpClient", "WebClient", "WebRequest", "Ping", "Socket" })
+            Assert.DoesNotContain(forbidden, code);
+        Assert.Single(Regex.Matches(code, @"Process\.Start"));
+        Assert.Contains("OpenAboutTarget(AboutText.ProjectUrl)", code);
+        Assert.StartsWith("https://github.com/rsehenth/sentinelcoreai", AboutText.ProjectUrl, StringComparison.Ordinal);
+        // O Sobre não promete operação real nem recurso de IA/nuvem inexistente.
+        var status = Strings.Entries.Single(e => e.Pt == AboutText.StatusText);
+        Assert.Contains("bloqueadas", status.Pt);
+        foreach (var claim in new[] { "nuvem", "cloud", "inteligência artificial", "artificial intelligence", "telemetr" })
+            Assert.DoesNotContain(claim, string.Join(' ', AboutText.Entries.Select(e => e.Pt + " " + e.En)), StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -1,191 +1,253 @@
 <div align="center">
 
-<h1>SentinelCore AI</h1>
+# SentinelCore AI
 
-<p><strong>Evidence-based diagnostics for Windows.</strong><br/>
-Local. Offline. Read-only by design.</p>
+**Evidence-first diagnostics for Windows 11.**<br/>
+Local by default. Read-only by design. Honest about what it does not know.
 
-<p>
-<img src="https://img.shields.io/badge/status-preview-orange" alt="status: preview"/>
-<img src="https://img.shields.io/badge/version-0.3.0--preview.8-blue" alt="version 0.3.0-preview.8"/>
-<img src="https://img.shields.io/badge/.NET-10-512BD4" alt=".NET 10"/>
-<img src="https://img.shields.io/badge/platform-Windows%2011%20x64-0078D4" alt="Windows 11 x64"/>
-<img src="https://img.shields.io/badge/license-MIT-green" alt="license: MIT"/>
-</p>
+<br/>
+
+![Windows 11](https://img.shields.io/badge/Windows%2011-x64-0078D4?style=flat-square)
+![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?style=flat-square)
+![C# WPF](https://img.shields.io/badge/C%23-WPF-239120?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue?style=flat-square)
+![Status](https://img.shields.io/badge/status-preview%20%C2%B7%20no%20public%20release-orange?style=flat-square)
+
+[Features](#key-features) · [How it works](#how-it-works) · [Getting started](#getting-started) · [Languages](#languages) · [Limitations](#safety-and-current-limitations) · [License](#license)
 
 </div>
 
----
+<br/>
 
-> **Development status — stage 7B completed its controlled synthetic regression.** Stages 1 through 6 are implemented
-> and compile; final operational homologation remains pending. The shipped build is **read-only**: Personalization,
-> Debloat and Repairs are implemented in code, but real execution stays behind a closed build gate and is
-> only demonstrated with clearly marked synthetic data. To date this application has never changed a Windows
-> setting, removed an application, or run a repair tool.
->
-> The product builds and a positively selected synthetic subset is tested. Historical real-data evidence
-> does not establish homologation of the current integrated journeys or controlled maintenance.
+> [!IMPORTANT]
+> **SentinelCore AI is a preview.** The diagnostic pages are built to read real Windows data and never change it.
+> The maintenance pages (Apps & Startup, Repairs) are implemented in code, but real execution is
+> **closed by build gates** and the app only demonstrates them with clearly marked synthetic data. Real-world
+> validation of those operations has not been done. There is no installer and no public release yet.
 
-## Why this exists
+## Why SentinelCore AI?
 
-Windows already records almost everything that goes wrong. The hard part is reading it without turning noise
-into conclusions. SentinelCore AI answers questions like *"did this machine log anything relevant in the last
-24 hours?"*, *"what changed since the last hardware snapshot?"*, *"was this session worse than the previous
-one, and on which evidence?"* — and hands you the record behind every answer: source, timestamp, duration,
-coverage, and limitations.
+Windows already records almost everything that goes wrong. The hard part is reading it without turning noise into
+conclusions. SentinelCore AI is built to answer questions like *"did this machine log anything relevant in the last
+day?"*, *"what changed since the last hardware snapshot?"* or *"was this session worse than the previous one, and on
+which evidence?"* and then to show the record behind every answer: its source, timestamp, duration, coverage and
+limitations.
 
-Five principles shape the whole design:
+Four ideas shape the whole product:
 
-| Principle | What it means in practice |
-| --- | --- |
-| **Evidence, not opinion** | Every conclusion traces back to a technical record. Correlation is not causality: shared timing or identity does not prove cause, and the absence of a relation does not prove the absence of a problem. |
-| **Read-only by default** | Diagnostics never repair, optimize, or execute commands. |
-| **Local and offline** | No telemetry, no external API, no data sent anywhere. Inaccessible information becomes a *declared limitation* — never a reason to bypass permissions. |
-| **Durable history** | Immutable Markdown is the source of truth; the SQLite index is rebuildable. Nothing is rewritten or deleted automatically. |
-| **Honest about limits** | Partial coverage, cancellation, and unavailability are explicit. Null means *unavailable*, not zero. |
+- **Evidence, not opinion.** Every conclusion traces back to a technical record. Correlation is not causality, and
+  a missing relation does not prove a missing problem.
+- **Local and transparent.** No telemetry, no external API, no data leaves the machine. Information Windows will not
+  give a standard user becomes a declared limitation, never a reason to bypass permissions.
+- **Durable history.** Immutable Markdown records are the source of truth; the SQLite index can always be rebuilt.
+  Nothing is rewritten or deleted automatically.
+- **Honest about limits.** Partial coverage, cancellation and unavailability are explicit states. A missing value
+  means *unavailable*, never zero, and an indeterminate result is never reported as success.
 
-## What it does
+> The "AI" in the name is a **future** direction, deliberately last in the queue. Today the product contains no LLM
+> call, no AI API and no remote processing.
 
-Thirteen pages. Diagnostic pages read real Windows data; maintenance pages are implemented with real
-execution disabled.
+## Key Features
 
-| Page | What it does | State |
-| --- | --- | --- |
-| **Overview** | Basic and full audits with confirmation, progress, cancellation, and per-type validity | Implemented, validated |
-| **Results** | Evidence by category for the last audit, linked to each module's history | Implemented, validated |
-| **Hardware** | Eleven categories — CPU, memory, motherboard/BIOS, GPU, monitors, storage, network, audio, USB, drivers, other devices — plus snapshot comparison | Implemented, validated |
-| **Stability & Events** | Windows Event Log and Windows Error Reporting metadata, from 24 hours to 30 days | Implemented, validated |
-| **Performance** | Sessions from 30 seconds to 3 minutes: CPU, memory, processes, storage, with execution and coverage tracked separately | Implemented, validated |
-| **Network** | TCP/UDP endpoints and transport statistics, no packet capture, remote IPs omitted by default | Implemented, validated |
-| **Graphics & GPU** | Adapters, monitors, drivers, display events, TDR, and WER metadata | Implemented, validated |
-| **Correlation** | Timeline and deterministic relations across already-persisted history, each with rule and rationale | Implemented, validated |
-| **History** | Audits saved on this machine, reopening previous results | Implemented, validated |
-| **Monitoring** | Authorized 5, 15, or 30-minute sessions with checkpoints and manual incident notes | Implemented, validated |
-| **Personalization & Debloat** | Nine HKCU visual tweaks, plus Appx/MSIX inventory with classification, dependencies, and per-app preview | Implemented, **real execution gated** |
-| **Windows Repairs** | Closed catalog for SFC, DISM, CHKDSK, and WinRE, with an isolated broker and eight operations | Implemented, **real execution gated** |
-| **Recovery Center** | Unified history, integrity checks, conflicts, and lookup of interrupted audits | Implemented, read-only |
+The left menu groups the pages as Diagnostics (Overview to Compare), Records (History, Monitoring), Maintenance
+(Apps & Startup, Repairs, Recovery Center) and Project (About).
 
-> About the "AI" in the name: AI assistance is a **future** capability, deliberately last in the queue. Today
-> there is no LLM call, AI API, or remote processing anywhere in the product.
+**Diagnose**
 
-## How it works
+- **Overview and Results.** Basic and full audits with explicit confirmation, progress, cancellation and per-type
+  validity, plus the evidence of the last audit grouped by category.
+- **Hardware.** Eleven categories from CPU and memory to drivers, with snapshot comparison.
+- **Stability and Events.** Windows Event Log and Windows Error Reporting metadata over 24-hour, 7-day, 30-day or
+  custom windows.
+- **Graphics and GPU.** Adapters, monitors, drivers, display events, TDR and WER metadata.
 
-```text
-Windows APIs · WMI · Event Log · WER
-              │
-              ▼
-        collectors ──► typed contracts (source, time, coverage, limitations)
-              │
-              ▼
-   Markdown records (immutable, SHA-256)  +  SQLite index (rebuildable)
-              │
-              ▼
-       correlation ──► WPF presentation ──► local reports
+**Observe over time**
+
+- **Performance.** Short sessions (30 seconds to 3 minutes) covering CPU, memory, processes and storage, with
+  execution and coverage tracked separately.
+- **Network.** TCP/UDP endpoints and transport statistics. No packet capture, and remote addresses are omitted by
+  default.
+- **Monitoring.** Authorized 5, 15 or 30-minute sessions with checkpoints and manual incident notes.
+
+**Understand**
+
+- **Correlation.** A timeline and deterministic relations across history already on disk, each with its rule and
+  rationale.
+- **History.** Every audit saved on this machine, reopenable at any time.
+
+**Maintain (gated)**
+
+- **Apps & Startup.** Startup entries and installed apps with individual preview and typed confirmation.
+- **Windows Repairs.** A closed catalog around SFC, DISM, CHKDSK and WinRE, built for an isolated privileged broker.
+
+**Recover**
+
+- **Recovery Center.** One view over the history of every operation, with integrity checks, conflict detection and
+  interrupted-operation lookup. It is read-only. Records written by the former Personalization page stay readable
+  here; that page is no longer part of the app.
+
+**About**
+
+- **About.** Version and preview status read from the assembly metadata, build, technologies, the
+  `MIT OR Apache-2.0` license with third-party notices, and the project link. It makes no network request on its
+  own: links open only when you click them.
+
+## How It Works
+
+```mermaid
+flowchart LR
+    W["Windows APIs · WMI<br/>Event Log · WER"] --> C["Collectors"]
+    C --> D["Typed contracts<br/>source · time · coverage · limits"]
+    D --> A["Application<br/>audits · correlation · policy"]
+    A --> P[("Markdown records<br/>+ SQLite index")]
+    P --> U["WPF interface"]
+    A --> U
+    U -.-> G["Closed build gates"]
+    G -.-> S["Synthetic executors only"]
 ```
 
-## Where it stands
+Layers are acyclic. **Domain** defines contracts, **Application** orchestrates and enforces validity,
+**Infrastructure** collects, **Persistence** stores, and **App** only presents. The WPF app never issues a WMI query
+itself.
 
-| Stage | Scope | Status |
-| --- | --- | --- |
-| **Feature phases 0–5** | Foundation, hardware, events/WER, performance, network, graphics, correlation, monitoring | Delivered, with quality gates and recorded real-run evidence |
-| **Integration stages 1–5** | Evidence-to-origin navigation, diagnostic journey, recovery/tweaks, Appx/MSIX inventory, native repairs | **Implemented in code** |
-| **Integration stage 6** | Whole-product integration: shell, histories, coordinated journeys, isolated broker packaging | **Implemented and compiled** (static close-out, 10 Nov 2026) |
-| **Integration stage 7** | Controlled synthetic audit (7A) and progressive functional regression (7B); operational homologation and distribution preparation remain separate | **Synthetic scope only; operational homologation pending** |
-| **Future** | Real validation of tweaks/debloat/repairs, signed distribution, installer, AI assistance | Planned |
+Everything the app stores lives under `%LOCALAPPDATA%\SentinelCoreAI\`: immutable Markdown records with SHA-256,
+human-readable reports, a rebuildable SQLite index (schema 12) and logs. Nothing is encrypted, so protection depends
+on your Windows profile permissions, and SHA-256 detects accidental corruption, not deliberate tampering.
 
-Still missing before this leaves preview: functional homologation of the integrated journeys, a single
-authorized real-world validation pass in an isolated environment (including UAC, broker IPC, and the native
-tools), and distribution packaging/signing.
+## Technology Stack
 
-## Getting started
+| | |
+| --- | --- |
+| **Language and runtime** | C# on .NET 10, Windows x64 |
+| **Interface** | WPF, native, dark blue / graphite / cyan identity, software rendering by default |
+| **Storage** | Immutable Markdown records plus a SQLite index through `Microsoft.Data.Sqlite` |
+| **Windows data** | WMI and the Event Log through `System.Management` and `System.Diagnostics.EventLog` |
+| **Architecture** | Layered projects with explicit contracts and no circular references |
+| **Tests** | xUnit, with an audited selection of synthetic tests |
+| **Build** | Locked NuGet restore (`packages.lock.json`) and a pinned SDK in `global.json` |
 
-**Requirements:** Windows 11 x64; a standard user account (the manifest is `asInvoker`, no elevation prompt).
-Running a published build needs nothing else — it is self-contained. Building requires the .NET 10.0.403 SDK
-(pinned in `global.json`) and NuGet access for the first restore.
+## Getting Started
+
+**Requirements:** Windows 11 x64 and the .NET SDK pinned in [`global.json`](global.json) (10.0.403). The app runs as
+a standard user and never asks for elevation.
+
+Build with locked dependencies:
 
 ```powershell
-# build with locked dependencies
 dotnet restore SentinelCore.sln --locked-mode
 dotnet build SentinelCore.sln -c Debug --no-restore
 dotnet build SentinelCore.sln -c Release --no-restore
-
-# or use the local-SDK wrapper (no global install, caches kept in .tools)
-.\scripts\dotnet.ps1 restore SentinelCore.sln --locked-mode
-
-# tests: only explicitly audited synthetic methods; inspect the current manifest first
-$cases = (Get-Content -Raw -Encoding UTF8 .\tests\synthetic-audit.json | ConvertFrom-Json).synthetic
-.\tests\run-synthetic.ps1 -Configuration Release -Cases $cases
-
-# run from source
-dotnet run --project src/SentinelCore.App
-
-# produce a self-contained package
-.\scripts\publish.ps1
-.\artifacts\publish\0.3.0-preview.8\win-x64\SentinelCoreAI.exe
 ```
 
-Ship the whole output folder, including native DLLs. The publish script pins the real-execution gates to
-`false` and refuses to overwrite an existing package without `-Force`. There is no MSI, no signing, and no
-service — and trimming must not be used with WPF.
+A Release build lands in `src/SentinelCore.App/bin/Release/net10.0-windows10.0.22621.0/` (the app's target framework
+moniker); `SentinelCoreAI.exe` there is a framework-dependent build, not the self-contained package from
+`scripts/publish.ps1`.
 
-The suite contains both synthetic and Windows-dependent tests. Do not run the whole solution's test suite.
-The audited runner uses a positive method selection, checks source hashes and discovery, and verifies every
-selected result. Test-host temporary directories are isolated per run. Unclassified and Windows-dependent
-cases are excluded; passing synthetic tests does not establish operational homologation.
-
-## Data and privacy
-
-Everything lives in `%LOCALAPPDATA%\SentinelCoreAI\`:
-
-```text
-memory/     immutable records (audits, snapshots, investigations, sessions, transactions)
-            as Markdown with SHA-256, plus derived indexes such as MEMORY.md and RECOVERY.md
-reports/    human-readable reports, rebuildable from the records
-data/       sentinelcore.db — SQLite index (schema 12), rebuildable from Markdown
-logs/       application failures and consistency warnings
-```
-
-No passwords, tokens, cookies, documents, browsing data, project contents, or network traffic are collected,
-and nothing is uploaded. Files are not encrypted: protection depends on your Windows profile permissions, and
-SHA-256 detects accidental corruption — not deliberate tampering. To exercise the UI without touching real
-history, point the app at an isolated root:
+Run from source. Maintenance pages show synthetic data only, so this does not change your system:
 
 ```powershell
-SentinelCoreAI.exe --data-root D:\isolated\root
+dotnet run --project src/SentinelCore.App
 ```
 
-## Repository layout
+To keep a session away from your real history, point the app at an isolated data root (an absolute local path):
+
+```powershell
+dotnet run --project src/SentinelCore.App -- --data-root D:\isolated\root
+```
+
+### Tests
+
+The test project mixes synthetic tests with tests that query a real Windows installation, so **do not run the whole
+suite with `dotnet test`**. Use the audited runner, which selects test methods positively, verifies source hashes and
+checks every selected result:
+
+```powershell
+$cases = (Get-Content -Raw -Encoding UTF8 .\tests\synthetic-audit.json | ConvertFrom-Json).synthetic
+.\tests\run-synthetic.ps1 -Configuration Release -Cases $cases
+```
+
+Passing synthetic tests shows that the code behaves as designed. It does not validate real Windows operations.
+
+### Publishing
+
+`scripts/publish.ps1` produces a self-contained `win-x64` folder with every real-execution gate pinned to `false`.
+It refuses to overwrite an existing output without `-Force`. There is no installer, no code signing and no service,
+and trimming must not be used with WPF.
+
+## Languages
+
+The interface ships in **English** (default) and **Português (Brasil)**.
+
+- **Switch** with the language selector at the bottom of the left sidebar. The change applies immediately, without
+  restarting, and does not rerun an audit, prepare a plan or consume an authorization. The page, selection and typed
+  input you were on are preserved.
+- **Remembered** between sessions in a small `ui-language.txt` file inside the data folder.
+- **Coverage is partial.** Menus, pages, buttons, empty states, the About page, the Apps & Startup, Repairs and
+  Recovery Center catalogs, and the conclusions of the Performance, Network and Graphics analyzers and of the repair
+  result interpreter are translated when shown. Some engine text (for example parts of Correlation, Monitoring
+  session notes and hardware collector notes) and anything already written to history stays in Portuguese. Recorded
+  history is never rewritten to match the interface language; only the display is translated.
+- **Adding or fixing a translation:** UI text lives in `src/SentinelCore.App/Localization/`. Entries are pairs of
+  Portuguese source text and English translation in `Strings.cs`, `CatalogText.cs`, `AppsStartupText.cs` and `AboutText.cs`. New
+  entries go at the end of a table, because XAML refers to them by position (`T####`).
+
+## Safety and Current Limitations
+
+- **Preview, not homologated.** The synthetic regression passes on an audited subset. Real-world validation of the
+  integrated journeys has not been done.
+- **Maintenance is demonstrated, not executed.** The app composes synthetic executors only. The build gates for
+  Apps & Startup and Repairs are closed and have no opt-in switch in the shipped build. No Windows
+  setting has been changed, no application removed and no repair tool run by this software.
+- **Windows Repairs** never starts `sfc`, `dism`, `chkdsk` or `reagentc` in this build. The privileged broker exists
+  as code and is not part of the app's composition.
+- **MSI and MSIX** removal paths are implemented behind the same closed gates. MSIX packages whose protection state
+  cannot be established stay read-only.
+- **Nothing dangerous runs on its own.** An audit, a correlation or a monitoring session never triggers a repair or a
+  change.
+- **An observed state is not a diagnosis.** A reported `OK` or `Healthy` does not prove hardware integrity, and
+  coverage can be partial: event and WER reads are bounded by count, size and time.
+- **Windows 11 x64 only.**
+
+## Project Structure
 
 ```text
-src/      12 projects: App (WPF), Application, Domain, Persistence, Windows collectors,
-          modifications, debloat (incl. isolated native adapters), and the repair broker
-tests/    xUnit suite plus an audited selection of synthetic tests
-scripts/  local build, publishing, verification hosts, and utilities
-tasks/    planning and tracking
+src/      App (WPF), Application, Domain, Persistence, Windows collectors,
+          modification and repair adapters, Apps & Startup, and the repair broker
+tests/    xUnit project, a helper process for journal tests, and the audited
+          synthetic selection (synthetic-audit.json, run-synthetic.ps1)
+scripts/  local SDK wrapper, publishing, and helper hosts used for validation
 ```
 
-Layers are acyclic: **Domain** defines contracts, **Application** orchestrates, **Infrastructure** collects,
-**Persistence** stores, and **App** presents — the WPF app never issues WMI queries directly.
+## Contributing
 
-## Documentation
+The project is young and the code base is in a deliberate freeze while real-world validation is pending, so the most
+useful contributions are small and precise:
 
-Long-form documents — architecture, security model, roadmap, validation evidence, and per-delivery reports — are
-maintained privately and are not part of this repository. This README is the public reference; decisions and
-limits recorded above reflect the same internal evidence.
+- Bug reports with the Windows build, the steps and what you expected.
+- Translation fixes (see [Languages](#languages)).
+- Documentation fixes.
 
-## Known limitations
-
-- **Not homologated.** Stage 7A covers an audited synthetic subset; operational integrated journeys remain unverified.
-- **No real maintenance operations.** Tweaks, app removal, and repair tools are simulated only. No Windows
-  setting has been changed and no `sfc`/`dism`/`chkdsk`/`reagentc` has been executed by this build.
-- **Observed state is not a diagnosis.** A reported `OK` or `Healthy` does not prove hardware integrity, and
-  correlation between events does not establish cause.
-- **Coverage can be partial.** Event and WER reads are bounded by count, size, and time; partial results are
-  never presented as totals.
-- **Windows 11 only.** The product targets Windows 11 x64 and does not support other platforms.
+Before opening a pull request, build Debug and Release with `--no-restore` and run the audited synthetic runner. Do
+not add anything that writes to the system, starts a Windows tool, or opens a closed gate. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the checks and for the licensing terms that apply to contributions.
 
 ## License
 
-Released under the [MIT License](LICENSE) — use it, modify it, ship it, as long as the copyright notice and
-the license text stay with it. Third-party references and their licenses are listed in
-[third-party notices](THIRD-PARTY-NOTICES.md).
+Licensed under either of
+
+- **MIT License** ([LICENSE-MIT](LICENSE-MIT))
+- **Apache License, Version 2.0** ([LICENSE-APACHE](LICENSE-APACHE))
+
+at your option. SPDX identifier: `MIT OR Apache-2.0`.
+
+Third-party material keeps its own license and is not relicensed by this choice. In particular, the application
+catalog adapts data from Win11Debloat, which is available only under the MIT License. See
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+## Acknowledgments
+
+- [Raphire/Win11Debloat](https://github.com/Raphire/Win11Debloat) (MIT), reference for the documented catalog
+  definitions. Its scripts are never executed.
+- [.NET](https://dotnet.microsoft.com/), WPF and `Microsoft.Data.Sqlite`, from Microsoft.
+- [SQLite](https://www.sqlite.org/) and [SQLitePCLRaw](https://github.com/ericsink/SQLitePCL.raw).
+- [xUnit.net](https://xunit.net/) for the test framework.

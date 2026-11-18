@@ -7,7 +7,7 @@ $files = Get-ChildItem -LiteralPath $root -Recurse -File
 
 # 1) Nomes de arquivo que não podem constar da distribuição.
 $forbiddenNames = 'SyntheticJournalWorker', 'SentinelCore.Tests', 'run-synthetic', 'synthetic-audit', 'xunit', 'testhost',
-    'Microsoft.NET.Test', 'Microsoft.TestPlatform', 'Microsoft.VisualStudio.TestPlatform', 'Debloat.Removal.Native',
+    'Microsoft.NET.Test', 'Microsoft.TestPlatform', 'Microsoft.VisualStudio.TestPlatform', 'Debloat.Removal.Native', 'Debloat.Native',
     'RecoveryBenchmark', 'RealValidation', 'StoreInspector', 'GraphicsValidation', 'SentinelCore.RepairBroker', '.trx', 'fixture'
 $nameHits = foreach ($file in $files) {
     foreach ($needle in $forbiddenNames) { if ($file.Name.IndexOf($needle, [StringComparison]::OrdinalIgnoreCase) -ge 0) { [pscustomobject]@{ File = $file.Name; Needle = $needle } } }
@@ -29,19 +29,16 @@ $stringHits = foreach ($file in $product) {
     }
 }
 
-# 2b) Linha de base aceita: leitor WinRT, atributos InternalsVisibleTo e seam de teste. Qualquer outro acerto,
+# 2b) Linha de base aceita (7B.6: o leitor WinRT nao faz mais parte do produto), atributos InternalsVisibleTo e seam de teste. Qualquer outro acerto,
 # assembly de produto fora da lista ou nome proibido faz o script terminar com codigo diferente de zero.
-$allowedProducts = 'SentinelCore.Application.dll', 'SentinelCore.Domain.dll', 'SentinelCore.Infrastructure.Debloat.dll',
-    'SentinelCore.Infrastructure.Debloat.Native.dll', 'SentinelCore.Infrastructure.Modifications.dll',
+$allowedProducts = 'SentinelCore.Application.dll', 'SentinelCore.Domain.dll', 'SentinelCore.Infrastructure.AppsStartup.dll',
+    'SentinelCore.Infrastructure.Modifications.dll',
     'SentinelCore.Infrastructure.Repairs.dll', 'SentinelCore.Infrastructure.Windows.dll', 'SentinelCore.Persistence.dll', 'SentinelCoreAI.deps.json',
     'SentinelCoreAI.dll', 'SentinelCoreAI.exe', 'SentinelCoreAI.runtimeconfig.json'
 $baseline = @{
     'SentinelCore.Application.dll' = 'SentinelCore.Tests', 'InternalsVisibleTo'
     # Domain: a string "Windows.Management.Deployment" e so o rotulo descritivo de DebloatInventoryContracts.cs (nome da API de origem); nao ha referencia a assembly WinRT.
     'SentinelCore.Domain.dll' = 'SentinelCore.Tests', 'InternalsVisibleTo', 'Windows.Management.Deployment'
-    'SentinelCore.Infrastructure.Debloat.Native.dll' = 'Debloat.Native', 'Windows.Management.Deployment'
-    'SentinelCoreAI.dll' = 'Debloat.Native'
-    'SentinelCoreAI.deps.json' = 'Debloat.Native'
     'SentinelCore.Infrastructure.Windows.dll' = 'SentinelCore.Tests', 'InternalsVisibleTo'
     'SentinelCore.Persistence.dll' = 'SyntheticJournalWorker', 'SentinelCore.Tests', 'AtomicWriteStage', 'InternalsVisibleTo'
 }

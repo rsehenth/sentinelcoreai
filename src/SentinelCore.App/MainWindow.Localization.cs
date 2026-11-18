@@ -51,8 +51,17 @@ public partial class MainWindow
         correlationMessages.Refresh();
         monitoringMessages.Refresh();
         // These controls keep their current model, preview, typed confirmation, search and filter keys.
-        DebloatSection.RefreshLanguage();
+        AppsStartupSection.RefreshLanguage();
         RecoverySection.RefreshLanguage();
+        // Repairs re-render their messages and list rows from the state already in memory.
+        repairMessages.Refresh();
+        PreservePresentationSelection([RepairsScenarioCombo], () => { });
+        RepairsCardsHost.Items.Refresh();
+        RepairsHistoryList.Items.Refresh();
+        if (recoveredStatus is not null && ExecutionStatus.Text == recoveredStatusText)
+            ExecutionStatus.Text = recoveredStatusText = recoveredStatus();
+        // Integrity warnings are re-joined from memory; no store or history is read again.
+        RenderWarnings();
         UpdateSummary();
         if (displayedAudit is { } audit)
         {

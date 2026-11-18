@@ -66,16 +66,16 @@ public sealed class T2bDistributionGateTests
     }
 
     [Fact]
-    public void SearchModesUseOneControlInsteadOfFourIndependentSwitches()
+    public void PersonalizationPageIsNotPartOfTheActiveShell()
     {
-        var xaml = File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App", "MainWindow.xaml"));
-        var code = File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App", "MainWindow.Tweaks.cs"));
+        var app = TestRepository.Combine("src", "SentinelCore.App");
+        var xaml = File.ReadAllText(Path.Combine(app, "MainWindow.xaml"));
 
-        Assert.Equal(1, CountOccurrences(xaml, "x:Name=\"TweakSearchModeCombo\""));
-        Assert.Equal(1, CountOccurrences(xaml, "x:Name=\"TweakSearchModePrepareButton\""));
-        Assert.Contains("OnTweakSearchModePrepare", xaml, StringComparison.Ordinal);
-        Assert.Contains("TaskbarSearchModeController", code, StringComparison.Ordinal);
-        Assert.DoesNotContain("TweakSearchMode02", xaml, StringComparison.Ordinal);
+        // A página e suas operações saíram do menu; o motor T2A/T2B permanece só para leitura do histórico e recuperação.
+        Assert.False(File.Exists(Path.Combine(app, "MainWindow.Tweaks.cs")));
+        foreach (var removed in new[] { "TweaksNav", "TweaksTab", "TweakSearchModeCombo", "TweakSearchModePrepareButton", "OnTweakSearchModePrepare" })
+            Assert.DoesNotContain(removed, xaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("TweakManager", File.ReadAllText(Path.Combine(app, "MainWindow.xaml.cs")), StringComparison.Ordinal);
     }
 
     [Fact]

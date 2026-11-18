@@ -10,7 +10,6 @@ namespace SentinelCore.Tests;
 /// </summary>
 public sealed class DebloatNativeBoundaryTests
 {
-    private static readonly XNamespace Presentation = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
     private static readonly XNamespace Xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
 
     private static string NativeSource() => string.Join(Environment.NewLine,
@@ -59,16 +58,96 @@ public sealed class DebloatNativeBoundaryTests
     }
 
     [Fact]
-    public void DistributionAppComposesOnlyTheNativeReaderAndDefersQueries()
+    public void DistributionAppDoesNotReferenceOrComposeTheNativeReader()
     {
+        // 7B.6: the previous expectation (App composes NativeAppxInventoryReader) contradicted the closed gate.
         var project = File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App", "SentinelCore.App.csproj"));
-        Assert.Contains("Infrastructure.Debloat.Native", project, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Debloat.Native", project, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Infrastructure.Debloat.Removal.Native", project, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("SentinelCore.Infrastructure.Debloat", project, StringComparison.Ordinal);
+        // Módulo Aplicativos e Inicialização: o App não referencia mais o projeto legado de Debloat.
+        Assert.DoesNotContain("Infrastructure.Debloat", project, StringComparison.Ordinal);
+        Assert.Contains("SentinelCore.Infrastructure.AppsStartup", project, StringComparison.Ordinal);
         var app = File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App", "App.xaml.cs"));
-        Assert.Contains("new DebloatInventoryObserver(debloatCatalog, new NativeAppxInventoryReader())", app, StringComparison.Ordinal);
+        Assert.DoesNotContain("NativeAppxInventoryReader", app, StringComparison.Ordinal);
+        Assert.DoesNotContain("Infrastructure.Debloat.Native", app, StringComparison.Ordinal);
         Assert.DoesNotContain("ObserveAsync(", app, StringComparison.Ordinal);
-        Assert.Contains("SyntheticDebloatInventory", app, StringComparison.Ordinal);
+        Assert.DoesNotContain("Debloat", app, StringComparison.Ordinal);
+        Assert.Contains("new AppsStartupManager(syntheticStartup, syntheticApps, syntheticStartup, syntheticApps,", app, StringComparison.Ordinal);
+        Assert.Contains("operationStore: store);", app, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OnlyTheNativeProjectItselfCanReferenceTheNativeInventoryAssembly()
+    {
+        var offenders = new[] { "src", "tests", "scripts" }
+            .SelectMany(folder => Directory.EnumerateFiles(TestRepository.Combine(folder), "*.*", SearchOption.AllDirectories))
+            .Where(file => file.EndsWith(".csproj", StringComparison.Ordinal) || file.EndsWith(".props", StringComparison.Ordinal) ||
+                           file.EndsWith(".targets", StringComparison.Ordinal))
+            .Where(file => !file.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar) &&
+                           !file.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar))
+            .Where(file => File.ReadAllText(file).Contains("Debloat.Native", StringComparison.OrdinalIgnoreCase) &&
+                           !file.EndsWith("SentinelCore.Infrastructure.Debloat.Native.csproj", StringComparison.Ordinal))
+            .ToArray();
+        Assert.Empty(offenders);
+        foreach (var rootFile in Directory.EnumerateFiles(TestRepository.Combine(), "Directory.Build.*", SearchOption.TopDirectoryOnly))
+            Assert.DoesNotContain("Debloat.Native", File.ReadAllText(rootFile), StringComparison.OrdinalIgnoreCase);
+        // Lock files of the App and of the benchmark hosts (which reference the App) must not list it either.
+        foreach (var lockFile in new[] { new[] { "src", "SentinelCore.App", "packages.lock.json" },
+                     new[] { "src", "SentinelCore.App", "packages.single-file.lock.json" },
+                     new[] { "scripts", "RecoveryBenchmark", "packages.lock.json" } })
+            Assert.DoesNotContain("Debloat.Native", File.ReadAllText(TestRepository.Combine(lockFile)), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void AppSourcesContainNoNativeInventoryTypeOrWinRtDeploymentApi()
+    {
+        var sources = Directory.EnumerateFiles(TestRepository.Combine("src", "SentinelCore.App"), "*.*", SearchOption.AllDirectories)
+            .Where(file => file.EndsWith(".cs", StringComparison.Ordinal) || file.EndsWith(".xaml", StringComparison.Ordinal))
+            .Where(file => !file.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar) &&
+                           !file.Contains(Path.DirectorySeparatorChar + "bin" + Path.DirectorySeparatorChar))
+            .ToArray();
+        Assert.NotEmpty(sources);
+        foreach (var forbidden in new[] { "NativeAppxInventoryReader", "Infrastructure.Debloat.Native", "PackageManager",
+                     "Windows.Management.Deployment", "FindPackages", "FindProvisionedPackages", "FindUsers",
+                     "IDebloatNativeInventoryReader" })
+            Assert.DoesNotContain(sources, file => File.ReadAllText(file).Contains(forbidden, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NativeObservationHasNoCallerInTheApp()
+    {
+        // O painel Debloat foi retirado do produto: ObserveAsync não possui mais nenhum chamador no App.
+        var callers = Directory.EnumerateFiles(TestRepository.Combine("src", "SentinelCore.App"), "*.cs", SearchOption.AllDirectories)
+            .Where(file => !file.Contains(Path.DirectorySeparatorChar + "obj" + Path.DirectorySeparatorChar))
+            .Where(file => File.ReadAllText(file).Contains("ObserveAsync(", StringComparison.Ordinal))
+            .ToArray();
+        Assert.Empty(callers);
+        Assert.False(File.Exists(TestRepository.Combine("src", "SentinelCore.App", "DebloatView.xaml.cs")));
+    }
+
+    [Fact]
+    public void DisabledNativeInventoryMessageIsClearInBothLanguages()
+    {
+        const string message = "Inventário nativo Appx/MSIX desabilitado nesta distribuição; nenhuma consulta ao Windows é feita.";
+        var english = SentinelCore.App.Localization.Strings.English(message);
+        Assert.NotEqual(message, english);
+        Assert.Contains("disabled", english, StringComparison.Ordinal);
+        Assert.Contains("no Windows query", english, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NativeGateAndAllOtherRealGatesRemainClosedAndT0IsUntouched()
+    {
+        Assert.False(NativeDebloatInventoryGate.Operational);
+        Assert.False(NativeDebloatInventoryGate.AllowsActivation());
+        Assert.False(RealDebloatBuildGate.AllowsRealExecution());
+        Assert.False(DebloatRemovalBuildGate.AllowsRealExecution());
+        Assert.False(RealRepairBuildGate.AllowsRealExecution(["--enable-real-repairs"]));
+        var app = File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App", "App.xaml.cs"));
+        Assert.Contains("new SyntheticRepairExecutor()", app, StringComparison.Ordinal);
+        Assert.Contains("153 NÃO VALIDADOS / 9 ALTO",
+            File.ReadAllText(TestRepository.Combine("src", "SentinelCore.Application", "DebloatRemovalPresentation.cs")),
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -116,24 +195,13 @@ public sealed class DebloatNativeBoundaryTests
     }
 
     [Fact]
-    public void NativeInventoryExposesReadAndPreviewWithoutMutation()
+    public void DebloatInterfaceIsRemovedFromTheApp()
     {
-        var document = XDocument.Parse(File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App",
-            "DebloatView.xaml")));
-        var status = document.Descendants(Presentation + "TextBlock")
-            .Single(item => (string?)item.Attribute("AutomationProperties.AutomationId") == "DebloatNativeInventoryStatus");
-        var statusText = UiResourceText.ResolveAttribute(status, "Text");
-        Assert.Contains("Consulta ainda não executada", statusText, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("somente leitura", statusText, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains(document.Descendants(Presentation + "TextBlock"), item =>
-            (string?)item.Attribute("AutomationProperties.AutomationId") == "DebloatNativeInventoryStates");
-        Assert.Contains(document.Descendants(Presentation + "TextBlock"), item =>
-            UiResourceText.ResolveAttribute(item, "Text") == DebloatLimits.SyntheticWarning);
-        var buttons = document.Descendants(Presentation + "Button")
-            .Select(item => UiResourceText.ResolveAttribute(item, "Content")).ToArray();
-        Assert.Contains("Consultar inventário", buttons);
-        Assert.Contains("Ver prévia de remoção", buttons);
-        Assert.DoesNotContain(buttons, label => label.Contains("remover", StringComparison.OrdinalIgnoreCase) ||
-            label.Contains("desprovisionar", StringComparison.OrdinalIgnoreCase));
+        foreach (var removed in new[] { "DebloatView.xaml", "DebloatView.xaml.cs", "DebloatRemovalView.xaml",
+                     "DebloatRemovalView.xaml.cs", "DebloatFilters.cs" })
+            Assert.False(File.Exists(TestRepository.Combine("src", "SentinelCore.App", removed)), removed);
+        var shell = File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App", "MainWindow.xaml"));
+        Assert.DoesNotContain("Debloat", shell, StringComparison.Ordinal);
+        Assert.Contains("AppsStartupSection", shell, StringComparison.Ordinal);
     }
 }

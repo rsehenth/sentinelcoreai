@@ -6,14 +6,17 @@ namespace SentinelCore.Application;
 public sealed record DebloatRemovalPresentation(string Plan, string Dependencies, string Risks,
     string Authorization, string Progress, string Result, string History, string Limitations, string Reinstallation)
 {
-    public static DebloatRemovalPresentation Unavailable() => new(DebloatRemovalMessages.NativeBlocked,
-        "Dependências diretas, reversas, compartilhadas e efeitos indiretos exigem observação completa.",
-        "153 NÃO VALIDADOS / 9 ALTO. Nenhum aplicativo autorizado para remoção real.",
-        "Autorização específica exige plano simulado, hash, SID, identidade completa e revalidação.",
-        "Não iniciado. Sem percentual informado.", "Nenhuma execução T3C iniciada.",
-        "Registros T3C usam o journal Debloat existente.", string.Join("\n", DebloatRemovalMessages.Limitations),
-        "Informação documental; reinstalação não garante recuperação de dados.");
+    public static DebloatRemovalPresentation Unavailable(Func<string, string>? translate = null) => new(
+        T(translate, DebloatRemovalMessages.NativeBlocked),
+        T(translate, "Dependências diretas, reversas, compartilhadas e efeitos indiretos exigem observação completa."),
+        T(translate, "153 NÃO VALIDADOS / 9 ALTO. Nenhum aplicativo autorizado para remoção real."),
+        T(translate, "Autorização específica exige plano simulado, hash, SID, identidade completa e revalidação."),
+        T(translate, "Não iniciado. Sem percentual informado."), T(translate, "Nenhuma execução T3C iniciada."),
+        T(translate, "Registros T3C usam o journal Debloat existente."),
+        string.Join("\n", DebloatRemovalMessages.Limitations.Select(value => T(translate, value))),
+        T(translate, "Informação documental; reinstalação não garante recuperação de dados."));
 
+    /// <summary>Evidence text persisted with the historical record; identifiers and original wording are never translated.</summary>
     public static string HistoricalEvidence(DebloatRemovalSnapshot snapshot, DebloatRemovalReceipt? receipt,
         TransactionRecord record)
     {
@@ -39,46 +42,71 @@ public sealed record DebloatRemovalPresentation(string Plan, string Dependencies
 
     public static DebloatRemovalPresentation From(DebloatRemovalPlan plan,
         DebloatRemovalProgress? progress = null, DebloatRemovalResult? result = null,
-        DebloatRemovalHistory? history = null)
+        DebloatRemovalHistory? history = null, Func<string, string>? translate = null)
     {
         var o = plan.Snapshot.Observation;
         var d = o.Dependencies;
-        static string Names(IReadOnlyList<DebloatRemovalIdentity> items) => items.Count == 0
-            ? "Nenhuma na observação SINTÉTICA completa" : string.Join("; ", items.Select(p => p.PackageFullName));
+        string T(string value) => translate?.Invoke(value) ?? value;
+        // Only format literals are translated; plan identifiers, hashes, PFNs and confirmations are never passed to T.
+        string F(FormattableString value)
+        {
+            var parts = System.Text.RegularExpressions.Regex.Split(value.Format,
+                @"(\{[0-9]+(?:,-?[0-9]+)?(?::[^{}]*)?\})");
+            for (var index = 0; index < parts.Length; index += 2) parts[index] = T(parts[index]);
+            return string.Format(System.Globalization.CultureInfo.CurrentCulture, string.Concat(parts), value.GetArguments());
+        }
+        string Names(IReadOnlyList<DebloatRemovalIdentity> items) => items.Count == 0
+            ? T("Nenhuma na observação SINTÉTICA completa") : string.Join("; ", items.Select(p => p.PackageFullName));
         return new(
-            $"{DebloatLimits.SyntheticWarning}\nPlano: {plan.Id}\nHash: {plan.Hash}\n" +
-            $"Pacote: {o.SelectedPackage.PackageFullName}\nPublisher: {o.SelectedPackage.Publisher}\n" +
-            $"Versão: {o.SelectedPackage.Version}; arquitetura: {o.SelectedPackage.Architecture}\n" +
-            $"SID sintético: {o.CurrentUserSecurityId}\nInventário: {o.InventoryRevision}\n" +
-            "Consequências:\n" + string.Join("\n", o.Consequences),
-            $"Completude: {d.Completeness}\nDiretas: {Names(d.Direct)}\nReversas: {Names(d.Reverse)}\n" +
-            $"Compartilhadas: {Names(d.Shared)}\nPotencialmente afetados: {Names(d.PotentiallyAffected)}\n" +
-            "Aplicativos que poderão ser encerrados: " + string.Join("; ", d.ApplicationsMayClose) +
-            "\nConsequências desconhecidas: " + string.Join("; ", d.UnknownConsequences) +
-            "\n" + DebloatRemovalMessages.IndirectEffects,
-            $"Risco real: {plan.Preflight.RealRisk}. Execução real bloqueada.\n" + string.Join("\n", plan.Preflight.RealBlockers),
-            "Somente simulação: " + plan.Confirmation + "\nExpiração: 2 minutos; uso único; mudanças exigem novo plano.",
-            progress is null ? "Não iniciado. Sem percentual informado." :
-                $"{progress.Phase}; " + (progress.ReportedPercentage is null ? "sem percentual informado" :
-                    $"percentual informado pelo provedor: {progress.ReportedPercentage}%") + "\n" + DebloatRemovalMessages.Cancellation,
-            result is null ? "Sem resultado de execução." :
-                $"SINTÉTICO — {result.State}; sucesso verificado: {result.Succeeded}; intervenção: {result.RequiresIntervention}\n" +
-                $"HRESULT: {result.Receipt?.HResult?.ToString() ?? "indisponível"}; erro: {result.Receipt?.ErrorText ?? "não informado"}\n" +
-                $"Pós-verificação: {result.PostVerification?.Information ?? "não disponível"}",
-            history is null ? "Histórico não carregado neste componente." : string.Join("\n", history.Items.Select(item =>
-                $"{item.Transaction.UpdatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss} — {item.Id} — SINTÉTICO {item.Transaction.State}")) +
+            F($"{T(DebloatLimits.SyntheticWarning)}\nPlano: {plan.Id}\nHash: {plan.Hash}\n") +
+            F($"Pacote: {o.SelectedPackage.PackageFullName}\nPublisher: {o.SelectedPackage.Publisher}\n") +
+            F($"Versão: {o.SelectedPackage.Version}; arquitetura: {o.SelectedPackage.Architecture}\n") +
+            F($"SID sintético: {o.CurrentUserSecurityId}\nInventário: {o.InventoryRevision}\n") +
+            T("Consequências:\n") + string.Join("\n", o.Consequences),
+            F($"Completude: {d.Completeness}\nDiretas: {Names(d.Direct)}\nReversas: {Names(d.Reverse)}\n") +
+            F($"Compartilhadas: {Names(d.Shared)}\nPotencialmente afetados: {Names(d.PotentiallyAffected)}\n") +
+            T("Aplicativos que poderão ser encerrados: ") + string.Join("; ", d.ApplicationsMayClose) +
+            T("\nConsequências desconhecidas: ") + string.Join("; ", d.UnknownConsequences) +
+            "\n" + T(DebloatRemovalMessages.IndirectEffects),
+            F($"Risco real: {plan.Preflight.RealRisk}. ") + T("Execução real bloqueada.\n") +
+            string.Join("\n", plan.Preflight.RealBlockers),
+            T("Somente simulação: ") + plan.Confirmation +
+            T("\nExpiração: 2 minutos; uso único; mudanças exigem novo plano."),
+            progress is null ? T("Não iniciado. Sem percentual informado.") :
+                F($"{progress.Phase}; ") + (progress.ReportedPercentage is null ? T("sem percentual informado") :
+                    F($"percentual informado pelo provedor: {progress.ReportedPercentage}%")) + "\n" + T(DebloatRemovalMessages.Cancellation),
+            result is null ? T("Sem resultado de execução.") :
+                F($"SINTÉTICO — {result.State}; sucesso verificado: {result.Succeeded}; intervenção: {result.RequiresIntervention}\n") +
+                F($"HRESULT: {result.Receipt?.HResult?.ToString() ?? T("indisponível")}; erro: {result.Receipt?.ErrorText ?? T("não informado")}\n") +
+                F($"Pós-verificação: {result.PostVerification?.Information ?? T("não disponível")}"),
+            history is null ? T("Histórico não carregado neste componente.") : string.Join("\n", history.Items.Select(item =>
+                F($"{item.Transaction.UpdatedAtUtc.ToLocalTime():dd/MM/yyyy HH:mm:ss} — {item.Id} — SINTÉTICO {item.Transaction.State}"))) +
                 "\n" + string.Join("\n", history.Warnings),
-            string.Join("\n", DebloatRemovalMessages.Limitations), o.ReinstallInformation + "\n" + DebloatLimits.RecoveryWarning);
+            string.Join("\n", DebloatRemovalMessages.Limitations.Select(T)), o.ReinstallInformation + "\n" + T(DebloatLimits.RecoveryWarning));
     }
 
     /// <summary>The existing T3 UI can preview the new safety requirements without inventing a T3C authorization.</summary>
-    public static DebloatRemovalPresentation FromLegacySynthetic(DebloatPreparedPlan plan) => Unavailable() with
+    public static DebloatRemovalPresentation FromLegacySynthetic(DebloatPreparedPlan plan,
+        Func<string, string>? translate = null)
     {
-        Plan = $"Prévia da fixture T3: {plan.Package.PackageFullName}\nPlano T3: {plan.Id}; hash: {plan.PlanHash}\n" +
-            "Este plano não é autorização T3C ou autorização real.\n" + string.Join("\n", plan.Consequences),
-        Dependencies = $"Dependências informadas pela fixture T3: {plan.Package.DependencyStatus}\n" +
-            "Observações diretas, reversas, compartilhadas e efeitos indiretos T3C não foram executados nesta prévia.\n" +
-            DebloatRemovalMessages.IndirectEffects,
-        Reinstallation = plan.CatalogEntry.ReinstallInformation + "\n" + DebloatLimits.RecoveryWarning
-    };
+        string T(string value) => translate?.Invoke(value) ?? value;
+        string F(FormattableString value)
+        {
+            var parts = System.Text.RegularExpressions.Regex.Split(value.Format,
+                @"(\{[0-9]+(?:,-?[0-9]+)?(?::[^{}]*)?\})");
+            for (var index = 0; index < parts.Length; index += 2) parts[index] = T(parts[index]);
+            return string.Format(System.Globalization.CultureInfo.CurrentCulture, string.Concat(parts), value.GetArguments());
+        }
+        return Unavailable(translate) with
+        {
+            Plan = F($"Prévia da fixture T3: {plan.Package.PackageFullName}\nPlano T3: {plan.Id}; hash: {plan.PlanHash}\n") +
+                T("Este plano não é autorização T3C ou autorização real.\n") + string.Join("\n", plan.Consequences),
+            Dependencies = F($"Dependências informadas pela fixture T3: {plan.Package.DependencyStatus}\n") +
+                T("Observações diretas, reversas, compartilhadas e efeitos indiretos T3C não foram executados nesta prévia.\n") +
+                T(DebloatRemovalMessages.IndirectEffects),
+            Reinstallation = plan.CatalogEntry.ReinstallInformation + "\n" + T(DebloatLimits.RecoveryWarning)
+        };
+    }
+
+    private static string T(Func<string, string>? translate, string value) => translate?.Invoke(value) ?? value;
 }

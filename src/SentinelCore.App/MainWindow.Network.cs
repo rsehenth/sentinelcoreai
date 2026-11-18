@@ -185,7 +185,7 @@ public partial class MainWindow
         if (NetworkQualityCatalog.Evaluate(session) is { } quality)
         {
             text.AppendLine();
-            text.AppendLine(quality.Summary);
+            text.AppendLine(Loc.Text(quality.Summary));
         }
 
         if (session.AnalysisNotes.Count > 0)
@@ -193,7 +193,7 @@ public partial class MainWindow
             text.AppendLine();
             text.AppendLine(Loc.T("Regras avaliadas"));
             foreach (var note in session.AnalysisNotes)
-                text.AppendLine(Loc.F($"• {note.RuleId}: {note.Detail}"));
+                text.AppendLine(Loc.F($"• {note.RuleId}: ") + Loc.Text(note.Detail));
         }
 
         if (session.Limitations.Count > 0)
@@ -201,7 +201,7 @@ public partial class MainWindow
             text.AppendLine();
             text.AppendLine(Loc.T("Limitações"));
             foreach (var limitation in session.Limitations)
-                text.AppendLine(Loc.F($"• {limitation}"));
+                text.AppendLine("• " + Loc.Text(limitation));
         }
 
         return text.ToString();
@@ -355,7 +355,7 @@ public partial class MainWindow
         if (updatingNetwork) return;
         if (NetworkAddressCheck.IsChecked == true)
         {
-            ShowWarning(Loc.T("Endereços local e remoto passarão a ser gravados no histórico local desta sessão. ") +
+            ShowWarning(() => Loc.T("Endereços local e remoto passarão a ser gravados no histórico local desta sessão. ") +
                 Loc.T("Eles podem identificar dispositivos da sua rede; desative a opção se não precisar desse dado."));
         }
     }
@@ -406,12 +406,12 @@ public partial class MainWindow
 
         var observation = row.Observation;
         var text = new StringBuilder();
-        text.AppendLine(observation.Title);
+        text.AppendLine(Loc.Text(observation.Title));
         text.AppendLine(Loc.F($"Regra: {observation.RuleId} {observation.RuleVersion} · tipo: {NetworkPresentationRows.KindName(observation.Kind)}"));
         text.AppendLine(Loc.F($"Severidade: {Loc.T(EventCatalog.SeverityName(observation.Severity))} · ") +
             Loc.F($"confiança: {Loc.T(EventCatalog.ConfidenceName(observation.Confidence))} · causalidade: não avaliada"));
         text.AppendLine();
-        text.AppendLine(observation.Statement);
+        text.AppendLine(Loc.Text(observation.Statement));
         text.AppendLine();
         text.AppendLine(Loc.F($"Métrica: {observation.Metric} ({observation.Unit})") +
             (observation.Threshold is { } threshold
@@ -432,7 +432,7 @@ public partial class MainWindow
             text.AppendLine();
             text.AppendLine(Loc.T("Limitações"));
             foreach (var limitation in observation.Limitations)
-                text.AppendLine(Loc.F($"• {limitation}"));
+                text.AppendLine("• " + Loc.Text(limitation));
         }
 
         NetworkObservationDetail.Text = text.ToString();
@@ -457,7 +457,7 @@ public partial class MainWindow
     {
         logFailure(error);
         NetworkStatusText.Text = message + ".";
-        ShowWarning(Loc.F($"{message}. {error.GetType().Name}: {error.Message}"));
+        ShowWarning(() => Loc.F($"{message}. {error.GetType().Name}: {error.Message}"));
     }
 
 }

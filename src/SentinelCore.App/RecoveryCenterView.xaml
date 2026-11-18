@@ -14,60 +14,20 @@
             <Setter Property="Padding" Value="12"/>
         </Style>
         <Style x:Key="RecoveryCell" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-            <Setter Property="TextWrapping" Value="Wrap"/>
-            <Setter Property="ToolTip" Value="{Binding RelativeSource={RelativeSource Self}, Path=Text}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/><!-- a célula quebra linha: o texto completo já está visível, sem dica repetida -->
         </Style>
         <Style x:Key="RecoveryFilter" TargetType="StackPanel">
             <Setter Property="Width" Value="180"/>
             <Setter Property="Margin" Value="0,0,12,12"/>
         </Style>
-        <Style TargetType="DataGrid">
-            <Setter Property="Background" Value="{DynamicResource Surface}"/>
-            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
-            <Setter Property="RowBackground" Value="{DynamicResource Surface}"/>
-            <Setter Property="AlternatingRowBackground" Value="{DynamicResource Sidebar}"/>
-            <Setter Property="HorizontalGridLinesBrush" Value="{DynamicResource Line}"/>
-            <Setter Property="GridLinesVisibility" Value="Horizontal"/>
-            <Setter Property="HeadersVisibility" Value="Column"/>
-            <Setter Property="AutoGenerateColumns" Value="False"/>
-            <Setter Property="IsReadOnly" Value="True"/>
-            <Setter Property="CanUserAddRows" Value="False"/>
-            <Setter Property="CanUserDeleteRows" Value="False"/>
-            <Setter Property="SelectionMode" Value="Single"/>
-            <Setter Property="SelectionUnit" Value="FullRow"/>
-            <Setter Property="RowHeaderWidth" Value="0"/>
-            <Setter Property="FontSize" Value="12.5"/>
-        </Style>
-        <Style TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="{DynamicResource SurfaceRaised}"/>
-            <Setter Property="Foreground" Value="{DynamicResource Muted}"/>
-            <Setter Property="Padding" Value="10,9"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource Line}"/>
-            <Setter Property="BorderThickness" Value="0,0,1,1"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-        </Style>
-        <Style TargetType="DataGridCell">
-            <Setter Property="Foreground" Value="{DynamicResource Text}"/>
-            <Setter Property="Padding" Value="9,8"/>
-            <Setter Property="BorderBrush" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell">
-                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border>
-            </ControlTemplate></Setter.Value></Setter>
-            <Style.Triggers>
-                <Trigger Property="IsSelected" Value="True"><Setter Property="Background" Value="{DynamicResource AccentSoft}"/></Trigger>
-                <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource Accent}"/></Trigger>
-            </Style.Triggers>
-        </Style>
+        <!-- DataGrid, cabeçalho, linha e célula: estilo único em App.xaml. -->
     </UserControl.Resources>
     <ScrollViewer x:Name="RecoveryScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
-        <StackPanel Margin="32,28,32,24">
+        <StackPanel Margin="40,32,40,24">
             <Grid>
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                    <Border Style="{DynamicResource PageIcon}"><Viewbox Width="23" Height="23"><Canvas Width="24" Height="24"><Path Data="{DynamicResource IconHistory}" Stroke="{DynamicResource Accent}" StrokeThickness="1.9" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Canvas></Viewbox></Border>
                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
                         <TextBlock Text="{DynamicResource T93}" Style="{DynamicResource PageTitle}"/>
                         <TextBlock Text="{DynamicResource T250}" Style="{DynamicResource PageSubtitle}"/>
@@ -75,7 +35,7 @@
                 </Grid>
                 <Button x:Name="RefreshButton" Grid.Column="1" Content="{DynamicResource T46}" Tag="{DynamicResource IconRefresh}" Click="OnRefresh" Margin="16,0,0,0" VerticalAlignment="Top" AutomationProperties.AutomationId="RecoveryRefresh"/>
             </Grid>
-            <Border Style="{DynamicResource Card}" Padding="16" Margin="0,18,0,0">
+            <Border Style="{DynamicResource Card}" Padding="16,14" Margin="0,24,0,0">
                 <StackPanel>
                     <TextBlock x:Name="ModeText" Text="{DynamicResource T114}" FontWeight="SemiBold" Foreground="{DynamicResource Accent}"/>
                     <TextBlock Text="{DynamicResource T215}" Style="{DynamicResource Caption}" Margin="0,6,0,0"/>
@@ -83,7 +43,7 @@
                 </StackPanel>
             </Border>
 
-            <TextBlock x:Name="SummaryText" Text="{DynamicResource T251}" Margin="0,16,0,8" Foreground="{DynamicResource Muted}" AutomationProperties.AutomationId="RecoverySummary" AutomationProperties.LiveSetting="Polite"/>
+            <TextBlock x:Name="SummaryText" Text="{DynamicResource T251}" Margin="0,20,0,12" Foreground="{DynamicResource Muted}" AutomationProperties.AutomationId="RecoverySummary" AutomationProperties.LiveSetting="Polite"/>
             <Expander x:Name="AuditInterruptionsPanel" Header="{DynamicResource T55}" Visibility="Collapsed" Margin="0,0,0,12">
                 <StackPanel Margin="12,8">
                     <TextBlock x:Name="AuditInterruptionsSummary" Style="{DynamicResource Caption}" TextWrapping="Wrap"/>
@@ -101,23 +61,22 @@
             <ItemsControl x:Name="SummaryCards" AutomationProperties.AutomationId="RecoveryCounters">
                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="4"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate><DataTemplate>
-                    <Border Style="{DynamicResource Card}" Padding="14,10" Margin="0,0,10,10">
-                        <StackPanel>
-                            <TextBlock Text="{Binding Title}" Style="{DynamicResource Caption}"/>
-                            <TextBlock Text="{Binding Value}" FontSize="18" FontWeight="SemiBold" Margin="0,4,0,0"/>
-                            <TextBlock Text="{Binding Detail}" Style="{DynamicResource Caption}" FontSize="12" Margin="0,4,0,0"/>
-                        </StackPanel>
-                    </Border>
+                    <Border Style="{DynamicResource Card}" Padding="16,12" Margin="0,0,12,12" ToolTip="{Binding Detail}">
+<StackPanel>
+<TextBlock Text="{Binding Title}" Style="{DynamicResource Caption}"/>
+<TextBlock Text="{Binding Value}" FontSize="20" FontWeight="SemiBold" Margin="0,2,0,0"/>
+</StackPanel>
+</Border>
                 </DataTemplate></ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <Border x:Name="WarningsPanel" Visibility="Collapsed" Background="{DynamicResource WarnSoft}" BorderBrush="{DynamicResource WarnLine}" BorderThickness="1" CornerRadius="12" Padding="16" Margin="0,4,0,16">
+            <Border x:Name="WarningsPanel" Visibility="Collapsed" Background="{DynamicResource WarnSoft}" BorderBrush="{DynamicResource WarnLine}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,4,0,16">
                 <StackPanel>
                     <TextBlock Text="{DynamicResource T245}" Foreground="{DynamicResource Warn}" FontWeight="SemiBold"/>
                     <TextBox x:Name="WarningsText" AutomationProperties.Name="{DynamicResource T64}" Style="{StaticResource RecoveryReadout}" MaxHeight="180" Margin="0,8,0,0" AutomationProperties.AutomationId="RecoveryWarnings"/>
                 </StackPanel>
             </Border>
-            <TextBlock Text="{DynamicResource T297}" Style="{DynamicResource PaneTitle}" Margin="0,8,0,8"/>
+            <TextBlock Text="{DynamicResource T297}" Style="{DynamicResource PaneTitle}" Margin="0,24,0,10"/>
             <TextBox x:Name="SearchText" Style="{DynamicResource SearchBox}" TextChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T76}" AutomationProperties.AutomationId="RecoverySearch" ToolTip="{DynamicResource T67}"/>
             <WrapPanel Margin="0,12,0,0">
                 <StackPanel Style="{StaticResource RecoveryFilter}"><TextBlock Text="{DynamicResource T309}" Style="{DynamicResource Caption}" Margin="0,0,0,5"/><ComboBox x:Name="ModuleCombo" DisplayMemberPath="Label" SelectionChanged="OnFilterChanged" AutomationProperties.Name="{DynamicResource T309}"/></StackPanel>
@@ -138,8 +97,25 @@
                 </WrapPanel>
             </Expander>
             <Button x:Name="ClearFiltersButton" Content="{DynamicResource T292}" Click="OnClearFilters" HorizontalAlignment="Left" Style="{DynamicResource GhostButton}" Margin="0,0,0,10"/>
-            <TextBlock x:Name="HistorySummary" Text="{DynamicResource T323}" Style="{DynamicResource Caption}" Margin="0,0,0,8" AutomationProperties.AutomationId="RecoveryHistorySummary"/>
-            <DataGrid x:Name="HistoryGrid" Height="300" HorizontalScrollBarVisibility="Auto" SelectionChanged="OnSelectionChanged" AutomationProperties.AutomationId="RecoveryHistory" AutomationProperties.Name="{DynamicResource T248}">
+            <TextBlock x:Name="HistorySummary" Text="{DynamicResource T323}" Margin="0,0,0,8" AutomationProperties.AutomationId="RecoveryHistorySummary">
+                <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource Caption}">
+                    <Style.Triggers><DataTrigger Binding="{Binding HasItems, ElementName=HistoryGrid}" Value="False"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers>
+                </Style></TextBlock.Style>
+            </TextBlock>
+            <!-- Estado vazio: o texto de estado (sem registro, filtro sem resultado, leitura incompleta) vem de HistorySummary. -->
+            <StackPanel HorizontalAlignment="Center" MaxWidth="440" Margin="0,32,0,16">
+                <StackPanel.Style><Style TargetType="StackPanel"><Setter Property="Visibility" Value="Collapsed"/>
+                    <Style.Triggers><DataTrigger Binding="{Binding HasItems, ElementName=HistoryGrid}" Value="False"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
+                </Style></StackPanel.Style>
+                <Viewbox Width="28" Height="28" HorizontalAlignment="Center"><Canvas Width="24" Height="24"><Path Data="{DynamicResource IconHistory}" Stroke="{DynamicResource Subtle}" StrokeThickness="1.6" StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/></Canvas></Viewbox>
+                <TextBlock Text="{DynamicResource T2160}" Style="{DynamicResource PaneTitle}" HorizontalAlignment="Center" Margin="0,12,0,0"/>
+                <TextBlock Text="{Binding Text, ElementName=HistorySummary}" Style="{DynamicResource Caption}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,6,0,0" AutomationProperties.LiveSetting="Polite"/>
+                <TextBlock Text="{DynamicResource T2161}" Style="{DynamicResource Caption}" TextWrapping="Wrap" TextAlignment="Center" Margin="0,6,0,0"/>
+            </StackPanel>
+            <DataGrid x:Name="HistoryGrid" Height="340" HorizontalScrollBarVisibility="Auto" SelectionChanged="OnSelectionChanged" AutomationProperties.AutomationId="RecoveryHistory" AutomationProperties.Name="{DynamicResource T248}">
+                <DataGrid.Style><Style TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+                    <Style.Triggers><Trigger Property="HasItems" Value="False"><Setter Property="Visibility" Value="Collapsed"/></Trigger></Style.Triggers>
+                </Style></DataGrid.Style>
                 <DataGrid.Columns>
                     <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="{DynamicResource T129}" Binding="{Binding LocalDate}" SortMemberPath="Operation.AtUtc" Width="1.1*" MinWidth="84"/>
                     <DataGridTextColumn ElementStyle="{StaticResource RecoveryCell}" Header="{DynamicResource T309}" Binding="{Binding Module}" Width="1*" MinWidth="84"/>
@@ -152,9 +128,12 @@
                 </DataGrid.Columns>
             </DataGrid>
 
-            <Border Style="{DynamicResource Card}" Padding="18" Margin="0,18,0,0">
+            <Border Padding="20" Margin="0,24,0,0">
+                <Border.Style><Style TargetType="Border" BasedOn="{StaticResource Card}">
+                    <Style.Triggers><DataTrigger Binding="{Binding HasItems, ElementName=HistoryGrid}" Value="False"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers>
+                </Style></Border.Style>
                 <StackPanel>
-                    <TextBlock x:Name="DetailsTitle" Text="{DynamicResource T145}" FontSize="17" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="DetailsTitle" Text="{DynamicResource T145}" FontSize="15" FontWeight="SemiBold"/>
                     <TextBlock Text="{DynamicResource T255}" Style="{DynamicResource Caption}" Margin="0,5,0,10"/>
                     <Grid>
                         <Grid.ColumnDefinitions><ColumnDefinition Width="3*"/><ColumnDefinition Width="16"/><ColumnDefinition Width="2*"/></Grid.ColumnDefinitions>
@@ -169,7 +148,7 @@
                     <TextBox x:Name="ReportPathText" Style="{StaticResource RecoveryReadout}" AutomationProperties.Name="{DynamicResource T296}"/>
                 </StackPanel>
             </Border>
-            <Border Style="{DynamicResource Card}" Padding="18" Margin="0,14,0,0">
+            <Border Style="{DynamicResource Card}" Padding="20" Margin="0,16,0,0">
                 <StackPanel>
                     <TextBlock Text="{DynamicResource T384}" FontSize="15" FontWeight="SemiBold"/>
                     <TextBlock x:Name="RecoveryPolicyText" Text="{DynamicResource T201}" Style="{DynamicResource Caption}" Margin="0,6,0,0"/>

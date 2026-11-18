@@ -6,21 +6,14 @@ namespace SentinelCore.Tests;
 public sealed class U1NavigationContractTests
 {
     [Fact]
-    public void EveryNavigationEntryMatchesItsPageAndDashboardTarget()
+    public void EveryNavigationEntryMatchesItsPage()
     {
         var document = XDocument.Parse(TestRepository.AppSource("MainWindow.xaml"));
         XNamespace xaml = "http://schemas.microsoft.com/winfx/2006/xaml";
         var navigation = document.Descendants().Single(e => (string?)e.Attribute(xaml + "Name") == "NavList");
         var pages = document.Descendants().Single(e => (string?)e.Attribute(xaml + "Name") == "Pages");
         var labels = navigation.Elements().Select(e => (string?)e.Attribute("Content")).ToArray();
-        Assert.Equal(13, labels.Length);
+        Assert.Equal(14, labels.Length);
         Assert.Equal(labels, pages.Elements().Select(e => (string?)e.Attribute("Header")));
-        foreach (var button in document.Descendants().Where(e => (string?)e.Attribute("Click") == "OnNavigate"))
-        {
-            var target = int.Parse(button.Attribute("Tag")!.Value);
-            Assert.InRange(target, 0, labels.Length - 1);
-            Assert.Equal("Abrir " + labels[target], (string?)button.Attribute("{http://schemas.microsoft.com/winfx/2006/xaml/presentation}AutomationProperties.Name")
-                ?? (string?)button.Attribute("AutomationProperties.Name"));
-        }
     }
 }

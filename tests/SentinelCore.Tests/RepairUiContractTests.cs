@@ -15,15 +15,15 @@ public sealed class RepairUiContractTests
         File.ReadAllText(TestRepository.Combine("src", "SentinelCore.App", fileName));
 
     [Fact]
-    public void NavigationAndTabExposeTheWindowsRepairCenterAfterPersonalization()
+    public void NavigationAndTabExposeTheWindowsRepairCenterAfterAppsAndStartup()
     {
         var xaml = AppSource("MainWindow.xaml");
         var repairsKey = UiResourceText.Resource("Reparos do Windows");
         Assert.Contains($"Content=\"{repairsKey}\"", xaml);
         Assert.Contains($"<TabItem x:Name=\"RepairsTab\" Header=\"{repairsKey}\">", xaml);
-        var personalization = xaml.IndexOf($"Content=\"{UiResourceText.Resource("Personalização & Debloat")}\"", StringComparison.Ordinal);
+        var apps = xaml.IndexOf("x:Name=\"AppsStartupNav\"", StringComparison.Ordinal);
         var repairs = xaml.IndexOf($"Content=\"{repairsKey}\"", StringComparison.Ordinal);
-        Assert.True(personalization >= 0 && repairs > personalization);
+        Assert.True(apps >= 0 && repairs > apps);
     }
 
     [Fact]
@@ -48,7 +48,8 @@ public sealed class RepairUiContractTests
         Assert.Contains("RepairPlan", xaml);
         Assert.Contains("RepairOutput", xaml);
         Assert.Contains("RepairDocumented", xaml);
-        Assert.Contains($"Text=\"{UiResourceText.Resource("Operações documentadas, indisponíveis")}\"", xaml);
+        // Redesign: as operações documentadas ficam em uma seção recolhível (divulgação progressiva).
+        Assert.Contains($"Header=\"{UiResourceText.Resource("Operações documentadas, indisponíveis")}\"", xaml);
         Assert.Contains($"Text=\"{UiResourceText.Resource("Volumes locais validados")}\"", xaml);
         Assert.Contains($"Text=\"{UiResourceText.Resource("Demonstração sintética")}\"", xaml);
         Assert.Contains($"Text=\"{UiResourceText.Resource("Saída e interpretação")}\"", xaml);

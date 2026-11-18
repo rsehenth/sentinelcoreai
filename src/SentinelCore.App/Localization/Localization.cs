@@ -76,6 +76,10 @@ public static class Loc
     public static string T(string portuguese) => Localizer.T(portuguese);
 
     public static string F(LocString handler) => handler.ToString();
+
+    /// <summary>Texto de motor com valores interpolados, traduzido só na exibição; o registro permanece como gravado.</summary>
+    public static string Text(string portuguese) =>
+        Localizer.Current == AppLanguage.Portuguese ? portuguese : EngineText.Translate(portuguese);
 }
 
 /// <summary>Interpolação que traduz cada fragmento literal e mantém os valores formatados.</summary>

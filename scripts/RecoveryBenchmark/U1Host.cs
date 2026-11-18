@@ -102,20 +102,18 @@ internal sealed class U1Host
         var engine = new SafetyEngine(catalog, new SyntheticSystemProfileReader(SyntheticSystemProfileReader.Default(DateTimeOffset.UtcNow)),
             targets, new SyntheticProtectionProvider(), store, executor, locks);
         var recovery = new RecoveryService(store, targets, executor, locks, catalog: catalog, syntheticOnly: true);
-        var tweaks = new TweakManager(catalog, engine, recovery, store, TweakExecutionMode.RealDisabled);
         var repairCatalog = RepairCatalog.CreateDefault();
         var volumes = new FixtureVolumes();
         var repairs = new RepairManager(repairCatalog, new RepairCenter(repairCatalog,
             new RepairPreflightEngine(repairCatalog, new FixtureProfile(), volumes, new FixtureTools()),
             new SyntheticRepairExecutor(), store, () => @"C:\U1-FIXTURE"), volumes);
-        var debloatCatalog = DebloatCatalog.CreateDefault();
-        var inventory = SyntheticDebloatInventory.Create(debloatCatalog.All);
-        var debloat = new DebloatManager(debloatCatalog, inventory, new SyntheticDebloatRuntimeFactory(inventory), store.CreateDebloatJournal(), locks);
+        var startup = SentinelCore.Infrastructure.AppsStartup.SyntheticStartupStore.CreateDefault();
+        var apps = SentinelCore.Infrastructure.AppsStartup.SyntheticApplicationStore.CreateDefault();
         var startupReader = new RecordingReader(store);
         // Null runners are deliberate: collection actions are never invoked by this host.
-        var shell = new MainWindow(null!, null!, null!, null!, null!, null!, null!, null!, tweaks, repairs,
-            store, store, store, store, store, store, store, store, debloat, new RecoveryCenter(startupReader),
-            error => Check("unexpected-shell-error", false, error.ToString()))
+        var shell = new MainWindow(HostAuditFixture.CreateRunner(), null!, null!, null!, null!, null!, null!, null!, repairs,
+            store, store, store, store, store, store, store, store, new RecoveryCenter(startupReader),
+            error => Check("unexpected-shell-error", false, error.ToString()), appsStartup: new(startup, apps, startup, apps))
         { Left = -12000, ShowInTaskbar = false };
         var loadedEvents = 0;
         shell.Loaded += (_, _) => loadedEvents++;
@@ -133,29 +131,20 @@ internal sealed class U1Host
         for (var i = 0; i < nav.Items.Count; i++)
         {
             nav.SelectedIndex = i; await Idle();
-            if (i == 10)
-            {
-                await Wait(() => C<Button>(shell, "TweaksRefreshButton").IsEnabled);
-                var debloatView = C<DebloatView>(shell, "DebloatSection");
-                await Wait(() => !debloatView.IsBusy);
-            }
+            if (i == 10) await Wait(() => !C<AppsStartupView>(shell, "AppsStartupSection").IsBusy);
             if (i == 11) await Wait(() => C<Button>(shell, "RepairsRefreshButton").IsEnabled);
             if (i == 12) await Wait(() => C<Button>(C<RecoveryCenterView>(shell, "RecoverySection"), "RefreshButton").IsEnabled);
             Check($"nav-{i}", pages.SelectedIndex == i &&
                 ((TabItem)pages.SelectedItem).Header.ToString() == ((ListBoxItem)nav.Items[i]).Content.ToString());
         }
-        await Wait(() => C<Button>(shell, "RepairsRefreshButton").IsEnabled && C<Button>(shell, "TweaksRefreshButton").IsEnabled);
+        await Wait(() => C<Button>(shell, "RepairsRefreshButton").IsEnabled);
         Check("event-path-injected", C<TextBlock>(shell, "EventStorageIdentityText").Text.Contains(shellRoot));
-        var debloatSection = C<DebloatView>(shell, "DebloatSection");
-        Check("debloat-partial-not-empty", C<TextBlock>(debloatSection, "HistorySummary").Text.Contains("incompleto") &&
-            !string.IsNullOrEmpty(C<TextBlock>(debloatSection, "HistoryWarnings").Text));
+        Check("apps-startup-present", C<AppsStartupView>(shell, "AppsStartupSection") is not null);
         Check("repair-partial-not-empty", C<TextBlock>(shell, "RepairsUnfinishedText").Text.Contains("incompleto"));
         Check("monitoring-requires-consent", !C<Button>(shell, "MonitoringStartButton").IsEnabled);
-        Check("real-tweak-disabled", !C<Button>(shell, "TweakAuthorizeButton").IsEnabled);
         // Raised SelectionChanged follows the same bubbling route as a nested combo/grid change.
         foreach (var (page, child, scroll, handler) in new[]
         {
-            (10, "TweakSearchModeCombo", "TweaksScroll", "OnTweaksPageSelectionChanged"),
             (11, "RepairsScenarioCombo", "RepairsScroll", "OnRepairsPageSelectionChanged")
         })
         {
@@ -168,7 +157,7 @@ internal sealed class U1Host
             Check($"nested-selection-{page}", Math.Abs(viewer.VerticalOffset - before) < 1, $"offset {before:F0} -> {viewer.VerticalOffset:F0}");
         }
         shell.Width = 1120; shell.Height = 720; nav.SelectedIndex = 0; await Task.Delay(300); Capture(shell, "dashboard-min");
-        nav.SelectedIndex = 10; await Task.Delay(300); Capture(shell, "tweaks-min");
+        nav.SelectedIndex = 13; await Task.Delay(300); Capture(shell, "about-min");
         nav.SelectedIndex = 11; await Task.Delay(300); Capture(shell, "repairs-min");
         nav.SelectedIndex = 12; await Task.Delay(300); Capture(shell, "recovery-min");
         await Wait(() => C<Button>(C<RecoveryCenterView>(shell, "RecoverySection"), "RefreshButton").IsEnabled);

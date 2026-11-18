@@ -110,23 +110,21 @@ internal sealed class U3Host
         var engine = new SafetyEngine(catalog, new SyntheticSystemProfileReader(SyntheticSystemProfileReader.Default(DateTimeOffset.UtcNow)),
             targets, new SyntheticProtectionProvider(), store, executor, locks);
         var recovery = new RecoveryService(store, targets, executor, locks, catalog: catalog, syntheticOnly: true);
-        var tweaks = new TweakManager(catalog, engine, recovery, store, TweakExecutionMode.RealDisabled);
         var repairCatalog = RepairCatalog.CreateDefault();
         var center = counters is null ? RepairParts(store, repairCatalog, out _) :
             new RepairCenter(repairCatalog, new RepairPreflightEngine(repairCatalog, counters, counters, counters),
                 new SyntheticRepairExecutor(), store, () => @"C:\U3-FIXTURE");
         var repairs = new RepairManager(repairCatalog, center, counters ?? (IRepairVolumeProvider)new FixtureVolumes());
-        var debloatCatalog = DebloatCatalog.CreateDefault();
-        var inventory = SyntheticDebloatInventory.Create(debloatCatalog.All);
-        var debloat = new DebloatManager(debloatCatalog, inventory, new SyntheticDebloatRuntimeFactory(inventory), store.CreateDebloatJournal(), locks);
+        var startup = SentinelCore.Infrastructure.AppsStartup.SyntheticStartupStore.CreateDefault();
+        var apps = SentinelCore.Infrastructure.AppsStartup.SyntheticApplicationStore.CreateDefault();
         var correlation = new EvidenceCorrelationRunner(new CorrelationEvidenceReader(store, store, store, store, store, store, monitoring: store));
         var monitor = syntheticMonitor
             ? new MonitoringSessionRunner([new SyntheticMonitor()], store, TimeProvider.System, FastLimits())
             : null!;
         // Null diagnostic runners are deliberate: collection actions are never invoked by this host.
-        return new MainWindow(null!, null!, null!, null!, null!, null!, correlation, monitor, tweaks, repairs,
-            store, store, store, store, store, store, store, store, debloat, new RecoveryCenter(reader ?? store),
-            error => Check("unexpected-shell-error", false, error.ToString())) { Left = -12000, ShowInTaskbar = false };
+        return new MainWindow(HostAuditFixture.CreateRunner(), null!, null!, null!, null!, null!, correlation, monitor, repairs,
+            store, store, store, store, store, store, store, store, new RecoveryCenter(reader ?? store),
+            error => Check("unexpected-shell-error", false, error.ToString()), appsStartup: new(startup, apps, startup, apps)) { Left = -12000, ShowInTaskbar = false };
     }
     private static RepairCenter RepairParts(IRepairRecordStore store, RepairCatalog catalog, out FixtureVolumes volumes)
     {
@@ -174,11 +172,7 @@ internal sealed class U3Host
     private static async Task GoTo(MainWindow shell, int page)
     {
         C<ListBox>(shell, "NavList").SelectedIndex = page; await Idle();
-        if (page == 10)
-        {
-            await Wait(() => C<Button>(shell, "TweaksRefreshButton").IsEnabled, "Tweaks");
-            await Wait(() => !C<DebloatView>(shell, "DebloatSection").IsBusy, "Debloat");
-        }
+        if (page == 10) await Wait(() => !C<AppsStartupView>(shell, "AppsStartupSection").IsBusy, "Aplicativos");
         if (page == 11) await Wait(() => C<Button>(shell, "RepairsRefreshButton").IsEnabled, "Reparos");
         if (page == 12) await Wait(() => C<Button>(C<RecoveryCenterView>(shell, "RecoverySection"), "RefreshButton").IsEnabled, "Recuperação");
     }
@@ -237,7 +231,7 @@ internal sealed class U3Host
                 ((TabItem)pages.SelectedItem).Header.ToString() == ((ListBoxItem)nav.Items[i]).Content.ToString());
         }
         foreach (var list in new[] { "HistoryList", "HardwareSnapshotList", "EventHistoryList", "PerformanceHistoryList",
-                     "NetworkHistoryList", "GraphicsHistoryList", "CorrelationHistoryList", "MonitoringHistoryList", "TweakHistoryList", "RepairsHistoryList" })
+                     "NetworkHistoryList", "GraphicsHistoryList", "CorrelationHistoryList", "MonitoringHistoryList", "RepairsHistoryList" })
             Check($"j1-empty-{list}", Count(shell, list) == 0);
         var recoveryView = C<RecoveryCenterView>(shell, "RecoverySection");
         Check("j1-recovery-empty-not-success", Count(recoveryView, "HistoryGrid") == 0 &&
@@ -247,7 +241,7 @@ internal sealed class U3Host
         var dashboard = AllText(shell);
         Check("j1-dashboard-no-invented-health", !dashboard.Contains("saudável", StringComparison.OrdinalIgnoreCase) &&
             !dashboard.Contains("sem problemas", StringComparison.OrdinalIgnoreCase));
-        Check("j1-blocked-actions", !C<Button>(shell, "MonitoringStartButton").IsEnabled && !C<Button>(shell, "TweakAuthorizeButton").IsEnabled &&
+        Check("j1-blocked-actions", !C<Button>(shell, "MonitoringStartButton").IsEnabled &&
             !C<Button>(shell, "RepairsAuthorizeButton").IsEnabled && !C<Button>(recoveryView, "RecoverButton").IsEnabled);
         Capture(shell, "j1-dashboard");
         await CloseShell(shell, "j1");
@@ -347,27 +341,13 @@ internal sealed class U3Host
         Check("j4-close-during-run-keeps-both-sessions", afterClose.Sessions.Count == 2 && afterClose.Sessions.All(item => item.Status != MonitoringExecutionStatus.Completed),
             string.Join(",", afterClose.Sessions.Select(item => item.Status)) + "; avisos=" + string.Join(" | ", afterClose.Warnings));
 
-        // Jornada 5 — Personalização e Debloat: nada ultrapassa os gates
+        // Jornada 5 — Aplicativos e Inicialização: nada ultrapassa os gates
         var tweaksRoot = Path.Combine(work, "j5-tweaks-debloat");
         shell = Open(tweaksRoot); await Ready(shell);
         await GoTo(shell, 10);
-        Check("j5-tweak-catalog-loaded", C<ItemsControl>(shell, "TweaksCardsHost").Items.Count > 0);
-        Check("j5-real-execution-disabled-message", Txt(C<TextBlock>(shell, "TweaksModeText")).Length > 0, Txt(C<TextBlock>(shell, "TweaksModeText")));
-        Check("j5-tweak-authorize-blocked", !C<Button>(shell, "TweakAuthorizeButton").IsEnabled && Count(shell, "TweakHistoryList") == 0);
-        var debloatView = C<DebloatView>(shell, "DebloatSection");
-        Check("j5-native-inventory-not-composed-in-fixture", !C<Button>(debloatView, "NativeRefreshButton").IsEnabled &&
-            Txt(C<TextBlock>(debloatView, "NativeInventoryStatus")).Contains("indisponível nesta composição", StringComparison.Ordinal),
-            Txt(C<TextBlock>(debloatView, "NativeInventoryStatus")));
-        C<Expander>(debloatView, "SyntheticSection").IsExpanded = true;
-        await Idle();
-        var debloatText = AllText(debloatView);
-        Check("j5-debloat-unverified-not-absent", debloatText.Contains("Não verificado", StringComparison.Ordinal) &&
-            !debloatText.Contains("não instalado", StringComparison.OrdinalIgnoreCase));
-        var grid = C<DataGrid>(debloatView, "InventoryGrid");
-        if (grid.Items.Count > 0) { grid.SelectedIndex = 0; await Idle(); }
-        C<TextBox>(debloatView, "ConfirmationText").Text = "CONFIRMAÇÃO ERRADA U3"; await Idle();
-        Check("j5-debloat-execute-blocked-by-wrong-confirmation", !C<Button>(debloatView, "ExecuteButton").IsEnabled);
-        Check("j5-debloat-history-empty-not-success", Count(debloatView, "HistoryList") == 0);
+        var appsView = C<AppsStartupView>(shell, "AppsStartupSection");
+        Check("j5-synthetic-startup-loaded", C<DataGrid>(appsView, "StartupGrid").Items.Count > 0);
+        Check("j5-startup-confirmation-required", !C<Button>(appsView, "StartupExecuteButton").IsEnabled);
         await GoTo(shell, 12);
         Check("j5-recovery-shows-no-applied-change", Count(C<RecoveryCenterView>(shell, "RecoverySection"), "HistoryGrid") == 0);
         await CloseShell(shell, "j5");
@@ -421,8 +401,8 @@ internal sealed class U3Host
         nav = C<ListBox>(shell, "NavList"); pages = C<TabControl>(shell, "Pages");
         for (var round = 0; round < 3; round++)
             for (var i = 0; i < nav.Items.Count; i++) { nav.SelectedIndex = i; await Task.Yield(); }
-        await Idle(); await GoTo(shell, 12);
-        Check("j6-rapid-navigation-consistent", pages.SelectedIndex == nav.SelectedIndex && pages.SelectedIndex == 12);
+        await Idle(); await GoTo(shell, 13);
+        Check("j6-rapid-navigation-consistent", pages.SelectedIndex == nav.SelectedIndex && pages.SelectedIndex == 13);
         await CloseShell(shell, "j6");
 
         Check("five-gates", !RealTweakBuildGate.AllowsRealExecution([]) && !RealRepairBuildGate.AllowsRealExecution([]) &&

@@ -10,6 +10,7 @@
     <ProjectReference Include="../../src/SentinelCore.Infrastructure.Modifications/SentinelCore.Infrastructure.Modifications.csproj" />
     <ProjectReference Include="../../src/SentinelCore.Infrastructure.Repairs/SentinelCore.Infrastructure.Repairs.csproj" />
     <ProjectReference Include="../../src/SentinelCore.Infrastructure.Debloat/SentinelCore.Infrastructure.Debloat.csproj" />
+    <ProjectReference Include="../../src/SentinelCore.Infrastructure.AppsStartup/SentinelCore.Infrastructure.AppsStartup.csproj" />
     <ProjectReference Include="../SyntheticJournalWorker/SyntheticJournalWorker.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
@@ -17,9 +18,12 @@
     <FrameworkReference Include="Microsoft.WindowsDesktop.App.WPF" />
     <Compile Include="../../src/SentinelCore.App/Localization/Localization.cs" Link="Localization/Localization.cs" />
     <Compile Include="../../src/SentinelCore.App/Localization/Strings.cs" Link="Localization/Strings.cs" />
+    <Compile Include="../../src/SentinelCore.App/Localization/EngineText.cs" Link="Localization/EngineText.cs" />
     <Compile Include="../../src/SentinelCore.App/Localization/LocalizedChoice.cs" Link="Presentation/Localization/LocalizedChoice.cs" />
     <Compile Include="../../src/SentinelCore.App/Localization/LocalizedMessages.cs" Link="Presentation/Localization/LocalizedMessages.cs" />
-    <Compile Include="../../src/SentinelCore.App/DebloatFilters.cs" Link="Presentation/DebloatFilters.cs" />
+    <Compile Include="../../src/SentinelCore.App/AppsStartupText.cs" Link="Presentation/AppsStartupText.cs" />
+    <Compile Include="../../src/SentinelCore.App/AboutText.cs" Link="Presentation/AboutText.cs" />
+    <Compile Include="../../src/SentinelCore.App/Localization/CatalogText.cs" Link="Presentation/Localization/CatalogText.cs" />
     <Compile Include="../../src/SentinelCore.App/Localization/AuditScopeText.cs" Link="Presentation/Localization/AuditScopeText.cs" />
     <Compile Include="../../src/SentinelCore.App/CorrelationPresentationRows.cs" Link="Presentation/CorrelationPresentationRows.cs" />
     <Compile Include="../../src/SentinelCore.App/NetworkPresentationRows.cs" Link="Presentation/NetworkPresentationRows.cs" />

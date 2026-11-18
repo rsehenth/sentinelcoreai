@@ -114,7 +114,7 @@ public partial class MainWindow
             .DefaultIfEmpty(double.NaN).Max();
         PerformanceStorageDetail.Text = storage.Count == 0
             ? Loc.T("Nenhum dispositivo observado")
-            : Loc.F($"latência máx. {(double.IsNaN(peakLatency) ? "Indisponível" : Milliseconds(peakLatency))}");
+            : Loc.F($"latência máx. {(double.IsNaN(peakLatency) ? Loc.T("Indisponível") : Milliseconds(peakLatency))}");
 
         var info = new StringBuilder();
         info.AppendLine(Loc.F($"{status} · cobertura {CoverageName(coverage.Status)} · {PresetName(session.Preset)} · ") +
@@ -126,9 +126,9 @@ public partial class MainWindow
             Loc.T("causalidade não avaliada"));
         info.AppendLine(Loc.F($"Início {Local(session.StartedUtc)} · conclusão {Local(session.CompletedUtc)}"));
         if (coverage.ProcessLimitReached || coverage.StorageLimitReached || coverage.SampleLimitReached)
-            info.AppendLine(Loc.F($"Limites: processos {(coverage.ProcessLimitReached ? "atingido" : "não")} · ") +
-                Loc.F($"armazenamento {(coverage.StorageLimitReached ? "atingido" : "não")} · ") +
-                Loc.F($"amostras {(coverage.SampleLimitReached ? "atingido" : "não")}"));
+            info.AppendLine(Loc.F($"Limites: processos {(coverage.ProcessLimitReached ? Loc.T("atingido") : Loc.T("não"))} · ") +
+                Loc.F($"armazenamento {(coverage.StorageLimitReached ? Loc.T("atingido") : Loc.T("não"))} · ") +
+                Loc.F($"amostras {(coverage.SampleLimitReached ? Loc.T("atingido") : Loc.T("não"))}"));
         if (coverage.UnavailableCollectors.Count > 0)
             info.AppendLine(Loc.T("Coletores indisponíveis: ") + string.Join(", ", coverage.UnavailableCollectors));
         var slowest = session.Sources.OrderByDescending(source => source.MaxReadMilliseconds ?? 0).FirstOrDefault();
@@ -138,7 +138,7 @@ public partial class MainWindow
         var limitations = coverage.Limitations.Concat(session.Limitations)
             .Distinct(StringComparer.Ordinal).ToArray();
         if (limitations.Length > 0)
-            info.AppendLine(Loc.T("Limitações: ") + string.Join(" ", limitations));
+            info.AppendLine(Loc.T("Limitações: ") + string.Join(" ", limitations.Select(Loc.Text)));
         PerformanceStatusText.Text = info.ToString().TrimEnd();
 
         var quality = PerformanceQualityCatalog.Find(session.Id);
@@ -192,26 +192,26 @@ public partial class MainWindow
         var stats = session.Statistics;
         var rows = new List<PerformanceMetricRow>
         {
-            new("CPU total", stats.CpuTotalPercent),
-            new("CPU usuário", stats.CpuUserPercent),
-            new("CPU kernel", stats.CpuKernelPercent),
-            new("Fila do processador", stats.ProcessorQueueLength),
-            new("Memória disponível", stats.MemoryAvailablePercent),
-            new("Memória usada", stats.MemoryUsedBytes),
-            new("Commit", stats.CommitUsagePercent),
-            new("Páginas por segundo", stats.PagesPerSecond)
+            new(Loc.T("CPU total"), stats.CpuTotalPercent),
+            new(Loc.T("CPU usuário"), stats.CpuUserPercent),
+            new(Loc.T("CPU kernel"), stats.CpuKernelPercent),
+            new(Loc.T("Fila do processador"), stats.ProcessorQueueLength),
+            new(Loc.T("Memória disponível"), stats.MemoryAvailablePercent),
+            new(Loc.T("Memória usada"), stats.MemoryUsedBytes),
+            new(Loc.T("Commit"), stats.CommitUsagePercent),
+            new(Loc.T("Páginas por segundo"), stats.PagesPerSecond)
         };
         var self = session.SelfOverhead;
-        rows.Add(new PerformanceMetricRow("Auto-sobrecarga · CPU média", Percent(self.CpuPercentMean),
-            $"máx. {Percent(self.CpuPercentMax)} · {self.Samples} amostra(s)"));
-        rows.Add(new PerformanceMetricRow("Auto-sobrecarga · duração da coleta",
+        rows.Add(new PerformanceMetricRow(Loc.T("Auto-sobrecarga · CPU média"), Percent(self.CpuPercentMean),
+            Loc.F($"máx. {Percent(self.CpuPercentMax)} · {self.Samples} amostra(s)")));
+        rows.Add(new PerformanceMetricRow(Loc.T("Auto-sobrecarga · duração da coleta"),
             Milliseconds(self.CollectionDurationMeanMilliseconds),
-            $"máx. {Milliseconds(self.CollectionDurationMaxMilliseconds)} · {self.Samples} amostra(s)"));
+            Loc.F($"máx. {Milliseconds(self.CollectionDurationMaxMilliseconds)} · {self.Samples} amostra(s)")));
         foreach (var source in session.Sources)
-            rows.Add(new PerformanceMetricRow($"Leitura · {source.CollectorId}",
+            rows.Add(new PerformanceMetricRow(Loc.F($"Leitura · {source.CollectorId}"),
                 Milliseconds(source.MeanReadMilliseconds),
-                $"máx. {Milliseconds(source.MaxReadMilliseconds)} · {source.SamplesRead} leitura(s) · " +
-                $"{SourceStatusName(source.Status)}"));
+                Loc.F($"máx. {Milliseconds(source.MaxReadMilliseconds)} · {source.SamplesRead} leitura(s) · ") +
+                SourceStatusName(source.Status)));
         return rows;
     }
 
@@ -312,10 +312,10 @@ public partial class MainWindow
         catch (Exception error)
         {
             var message = unsavedPerformance is not null
-                ? "Falha de gravação da sessão. O resultado permanece nesta janela; tente salvar novamente"
+                ? Loc.T("Falha de gravação da sessão. O resultado permanece nesta janela; tente salvar novamente")
                 : saved
-                    ? "A sessão foi salva, mas a memória local não pôde ser relida. Reabra o aplicativo"
-                    : "A sessão de desempenho não pôde ser concluída";
+                    ? Loc.T("A sessão foi salva, mas a memória local não pôde ser relida. Reabra o aplicativo")
+                    : Loc.T("A sessão de desempenho não pôde ser concluída");
             ShowPerformanceFailure(message, error);
         }
         finally
@@ -395,12 +395,12 @@ public partial class MainWindow
         }
         var observation = row.Observation;
         var text = new StringBuilder();
-        text.AppendLine(observation.Title);
+        text.AppendLine(Loc.Text(observation.Title));
         text.AppendLine(Loc.F($"Regra: {observation.RuleId} {observation.RuleVersion} · tipo: {KindName(observation.Kind)}"));
         text.AppendLine(Loc.F($"Severidade: {EventCatalog.SeverityName(observation.Severity)} · ") +
             Loc.F($"confiança: {EventCatalog.ConfidenceName(observation.Confidence)} · causalidade: não avaliada"));
         text.AppendLine();
-        text.AppendLine(observation.Statement);
+        text.AppendLine(Loc.Text(observation.Statement));
         text.AppendLine();
         text.AppendLine(Loc.F($"Métrica: {observation.Metric} ({observation.Unit})") +
             (observation.Threshold is { } threshold ? Loc.F($" · limiar: {FormatValue(observation.Unit, threshold)}") : string.Empty));
@@ -419,7 +419,7 @@ public partial class MainWindow
         {
             text.AppendLine();
             text.AppendLine(Loc.T("Limitações"));
-            foreach (var limitation in observation.Limitations) text.AppendLine(Loc.F($"• {limitation}"));
+            foreach (var limitation in observation.Limitations) text.AppendLine("• " + Loc.Text(limitation));
         }
         PerformanceObservationDetail.Text = text.ToString();
     }
@@ -447,10 +447,10 @@ public partial class MainWindow
     {
         logFailure(error);
         PerformanceStatusText.Text = message + ".";
-        ShowWarning(Loc.F($"{message}. {error.GetType().Name}: {error.Message}"));
+        ShowWarning(() => Loc.F($"{message}. {error.GetType().Name}: {error.Message}"));
     }
 
-    private static string ExecutionName(PerformanceExecutionStatus execution) => execution switch
+    private static string ExecutionName(PerformanceExecutionStatus execution) => Loc.T(execution switch
     {
         PerformanceExecutionStatus.Running => "Em andamento",
         PerformanceExecutionStatus.Completed => "Concluída",
@@ -458,17 +458,17 @@ public partial class MainWindow
         PerformanceExecutionStatus.Failed => "Falhou",
         PerformanceExecutionStatus.Unsupported => "Não suportada",
         _ => execution.ToString()
-    };
+    });
 
-    private static string CoverageName(PerformanceCoverageStatus status) => status switch
+    private static string CoverageName(PerformanceCoverageStatus status) => Loc.T(status switch
     {
         PerformanceCoverageStatus.Complete => "completa",
         PerformanceCoverageStatus.Partial => "parcial",
         PerformanceCoverageStatus.Unavailable => "indisponível",
         _ => status.ToString()
-    };
+    });
 
-    private static string SourceStatusName(PerformanceSourceStatus status) => status switch
+    private static string SourceStatusName(PerformanceSourceStatus status) => Loc.T(status switch
     {
         PerformanceSourceStatus.Running => "em andamento",
         PerformanceSourceStatus.Completed => "concluída",
@@ -477,18 +477,18 @@ public partial class MainWindow
         PerformanceSourceStatus.Unsupported => "não suportada",
         PerformanceSourceStatus.Cancelled => "cancelada",
         _ => status.ToString()
-    };
+    });
 
-    private static string PresetName(PerformanceSessionPreset preset) => preset switch
+    private static string PresetName(PerformanceSessionPreset preset) => Loc.T(preset switch
     {
         PerformanceSessionPreset.Seconds30 => "30 segundos",
         PerformanceSessionPreset.Minute1 => "1 minuto",
         PerformanceSessionPreset.Minutes3 => "3 minutos",
         PerformanceSessionPreset.Custom => "personalizado",
         _ => preset.ToString()
-    };
+    });
 
-    private static string KindName(PerformanceObservationKind kind) => kind switch
+    private static string KindName(PerformanceObservationKind kind) => Loc.T(kind switch
     {
         PerformanceObservationKind.SustainedCpu => "CPU sustentada",
         PerformanceObservationKind.LowAvailableMemory => "memória disponível baixa",
@@ -497,19 +497,19 @@ public partial class MainWindow
         PerformanceObservationKind.DiskLatency => "latência de disco",
         PerformanceObservationKind.IoPeak => "pico de I/O",
         _ => kind.ToString()
-    };
+    });
 
     private static string Percent(double? value) =>
-        value is { } number ? number.ToString("F1", CultureInfo.CurrentCulture) + "%" : "Indisponível";
+        value is { } number ? number.ToString("F1", CultureInfo.CurrentCulture) + "%" : Loc.T("Indisponível");
 
     private static string Milliseconds(double? value) =>
-        value is { } number ? number.ToString("F1", CultureInfo.CurrentCulture) + " ms" : "Indisponível";
+        value is { } number ? number.ToString("F1", CultureInfo.CurrentCulture) + " ms" : Loc.T("Indisponível");
 
-    private static string Bytes(ulong? value) => value is { } number ? Bytes((double)number) : "Indisponível";
+    private static string Bytes(ulong? value) => value is { } number ? Bytes((double)number) : Loc.T("Indisponível");
 
     private static string Bytes(double? value)
     {
-        if (value is not { } number || double.IsNaN(number) || double.IsInfinity(number) || number < 0) return "Indisponível";
+        if (value is not { } number || double.IsNaN(number) || double.IsInfinity(number) || number < 0) return Loc.T("Indisponível");
         string[] units = ["B", "KiB", "MiB", "GiB", "TiB"];
         var size = number; var unit = 0;
         while (size >= 1024 && unit < units.Length - 1) { size /= 1024; unit++; }
@@ -518,7 +518,7 @@ public partial class MainWindow
 
     private static string FormatValue(string unit, double? value)
     {
-        if (value is not { } number) return "Indisponível";
+        if (value is not { } number) return Loc.T("Indisponível");
         return unit switch
         {
             "%" => Percent(number),
@@ -529,8 +529,9 @@ public partial class MainWindow
         };
     }
 
-    private sealed record PerformancePresetRow(PerformanceSessionPreset Preset, string Label)
+    private sealed record PerformancePresetRow(PerformanceSessionPreset Preset, string PortugueseLabel)
     {
+        public string Label => Loc.T(PortugueseLabel);
         public override string ToString() => Label;
     }
 
@@ -544,10 +545,10 @@ public partial class MainWindow
                 var reports = Session.Observations.Count;
                 var coverage = Coverage(Session);
                 var quality = PerformanceQualityCatalog.Find(Session.Id) is null
-                    ? string.Empty : " · histórico afetado";
-                return $"{ExecutionName(coverage.Execution)} · cobertura {CoverageName(coverage.Status)} · " +
-                    $"{PresetName(Session.Preset)} · {Session.Statistics.TotalSamples} amostra(s) · " +
-                    $"{reports} observação(ões){quality}";
+                    ? string.Empty : Loc.T(" · histórico afetado");
+                return Loc.F($"{ExecutionName(coverage.Execution)} · cobertura {CoverageName(coverage.Status)} · ") +
+                    Loc.F($"{PresetName(Session.Preset)} · {Session.Statistics.TotalSamples} amostra(s) · ") +
+                    Loc.F($"{reports} observação(ões){quality}");
             }
         }
         public override string ToString() => DateText;
@@ -558,9 +559,9 @@ public partial class MainWindow
         public PerformanceMetricRow(string name, MetricStatistics statistics)
             : this(name, FormatValue(statistics.Unit, statistics.Mean),
                 statistics.ValidSamples == 0
-                    ? $"Nenhuma amostra válida em {statistics.TotalSamples}."
-                    : $"P95 {FormatValue(statistics.Unit, statistics.P95)} · máx. {FormatValue(statistics.Unit, statistics.Max)} · " +
-                      $"{statistics.ValidSamples}/{statistics.TotalSamples} amostras")
+                    ? Loc.F($"Nenhuma amostra válida em {statistics.TotalSamples}.")
+                    : Loc.F($"P95 {FormatValue(statistics.Unit, statistics.P95)} · máx. {FormatValue(statistics.Unit, statistics.Max)} · ") +
+                      Loc.F($"{statistics.ValidSamples}/{statistics.TotalSamples} amostras"))
         {
         }
 
@@ -571,16 +572,16 @@ public partial class MainWindow
     {
         public string Name => $"{Process.Name} · PID {Process.Pid}";
         public string Cpu => Percent(Process.CpuPercent.Mean);
-        public string Memory => $"privado máx. {Bytes(Process.PrivateBytes.Max)}";
+        public string Memory => Loc.F($"privado máx. {Bytes(Process.PrivateBytes.Max)}");
         public string Detail
         {
             get
             {
                 var growth = Process.PrivateBytes.GrowthPercent is { } value
                     ? $"{value.ToString("F1", CultureInfo.CurrentCulture)}%" : "—";
-                var io = $"I/O leitura {Bytes(Process.IoReadBytesPerSecond.Mean)}/s · " +
-                    $"escrita {Bytes(Process.IoWriteBytesPerSecond.Mean)}/s";
-                return $"crescimento {growth} · {io}";
+                var io = Loc.F($"I/O leitura {Bytes(Process.IoReadBytesPerSecond.Mean)}/s · ") +
+                    Loc.F($"escrita {Bytes(Process.IoWriteBytesPerSecond.Mean)}/s");
+                return Loc.F($"crescimento {growth} · {io}");
             }
         }
         public override string ToString() => Name;
@@ -589,22 +590,22 @@ public partial class MainWindow
     private sealed record PerformanceStorageRow(StorageStatistics Storage)
     {
         public string Name => Storage.Scope == StorageScope.Physical
-            ? $"{Storage.InstanceName} · disco físico" + (Storage.DiskNumber is { } number ? $" {number}" : string.Empty)
-            : $"{Storage.InstanceName} · volume" + (Storage.VolumeLetter is { } letter ? $" {letter}:" : string.Empty);
-        public string Throughput => $"leitura {Bytes(Storage.ReadBytesPerSecond.Mean)}/s · " +
-            $"escrita {Bytes(Storage.WriteBytesPerSecond.Mean)}/s";
-        public string Detail => $"latência leitura {Milliseconds(Storage.ReadLatencyMs.Max)} · " +
-            $"latência escrita {Milliseconds(Storage.WriteLatencyMs.Max)} · " +
-            $"fila máx. {(Storage.QueueLength.Max is { } queue ? queue.ToString("F1", CultureInfo.CurrentCulture) : "—")} · " +
-            $"atividade máx. {Percent(Storage.PercentActiveTime.Max)}";
+            ? Loc.F($"{Storage.InstanceName} · disco físico") + (Storage.DiskNumber is { } number ? $" {number}" : string.Empty)
+            : Loc.F($"{Storage.InstanceName} · volume") + (Storage.VolumeLetter is { } letter ? $" {letter}:" : string.Empty);
+        public string Throughput => Loc.F($"leitura {Bytes(Storage.ReadBytesPerSecond.Mean)}/s · ") +
+            Loc.F($"escrita {Bytes(Storage.WriteBytesPerSecond.Mean)}/s");
+        public string Detail => Loc.F($"latência leitura {Milliseconds(Storage.ReadLatencyMs.Max)} · ") +
+            Loc.F($"latência escrita {Milliseconds(Storage.WriteLatencyMs.Max)} · ") +
+            Loc.F($"fila máx. {(Storage.QueueLength.Max is { } queue ? queue.ToString("F1", CultureInfo.CurrentCulture) : "—")} · ") +
+            Loc.F($"atividade máx. {Percent(Storage.PercentActiveTime.Max)}");
         public override string ToString() => Name;
     }
 
     private sealed record PerformanceObservationRow(PerformanceObservation Observation)
     {
-        public string Title => Observation.Title;
-        public string Subtitle => $"{KindName(Observation.Kind)} · {EventCatalog.SeverityName(Observation.Severity)} · " +
-            $"confiança {EventCatalog.ConfidenceName(Observation.Confidence)} · causalidade não avaliada";
+        public string Title => Loc.Text(Observation.Title);
+        public string Subtitle => Loc.F($"{KindName(Observation.Kind)} · {Loc.T(EventCatalog.SeverityName(Observation.Severity))} · ") +
+            Loc.F($"confiança {Loc.T(EventCatalog.ConfidenceName(Observation.Confidence))} · causalidade não avaliada");
         public override string ToString() => Title;
     }
 }

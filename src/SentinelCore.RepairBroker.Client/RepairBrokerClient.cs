@@ -121,11 +121,13 @@ public sealed class RepairBrokerClient : IRepairBrokerExecutor
             return Finish(NativeOutcome.BeforeStart(RepairBrokerStatus.CancelledBeforeStart, "Cancelamento antes do compromisso de execução."));
         }
         catch (Exception error) when (error is IOException or Win32Exception or OperationCanceledException or
-            UnauthorizedAccessException or JsonException or InvalidOperationException)
+            UnauthorizedAccessException or JsonException or InvalidOperationException or InvalidDataException)
         {
             var detail = error is OperationCanceledException
                 ? "Prazo de comunicação com o broker excedido."
-                : "Comunicação ou autenticação do broker indisponível.";
+                : error is InvalidDataException
+                    ? "Quadro ou resultado do broker inválido."
+                    : "Comunicação ou autenticação do broker indisponível.";
             if (!committed) return Finish(NativeOutcome.BeforeStart(RepairBrokerStatus.Refused, detail));
             return Finish(NativeOutcome.BeforeStart(RepairBrokerStatus.Indeterminate, detail) with
             {

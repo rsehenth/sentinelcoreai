@@ -225,6 +225,8 @@ public partial class RecoveryCenterView : UserControl
                     : Loc.T("Distribuição não determinada; fontes incompletas."))
         };
         SummaryText.Text = RecoveryCenterPresentation.Summary(snapshot, Loc.T);
+        // Nove zeros não informam nada: com leitura completa e sem registros, o estado vazio e a frase-resumo bastam.
+        SummaryCards.Visibility = summary.IsComplete && snapshot.Operations.Count == 0 ? Visibility.Collapsed : Visibility.Visible;
         if ((snapshot.Audits ?? snapshot.InterruptedAudits) is { } audits)
         {
             AuditInterruptionsPanel.Visibility = Visibility.Visible;

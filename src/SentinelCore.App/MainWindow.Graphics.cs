@@ -208,7 +208,7 @@ public partial class MainWindow
             text.AppendLine();
             text.AppendLine(Loc.T("Notas de análise"));
             foreach (var note in investigation.AnalysisNotes)
-                text.AppendLine(Loc.F($"• {note.RuleId}: {note.Detail}"));
+                text.AppendLine(Loc.F($"• {note.RuleId}: ") + Loc.Text(note.Detail));
         }
 
         if (investigation.Limitations.Count > 0)
@@ -216,14 +216,14 @@ public partial class MainWindow
             text.AppendLine();
             text.AppendLine(Loc.T("Limitações"));
             foreach (var limitation in investigation.Limitations)
-                text.AppendLine(Loc.F($"• {limitation}"));
+                text.AppendLine("• " + Loc.Text(limitation));
         }
 
         return text.ToString();
     }
 
     private static string Local(DateTimeOffset? at) =>
-        at is { } value ? Local(value) : "indisponível";
+        at is { } value ? Local(value) : Loc.T("indisponível");
 
     private async void OnGraphicsRun(object sender, RoutedEventArgs e)
     {
@@ -312,10 +312,10 @@ public partial class MainWindow
         catch (Exception error)
         {
             var message = unsavedGraphics is not null
-                ? "Falha de gravação da investigação. O resultado permanece nesta janela; tente salvar novamente"
+                ? Loc.T("Falha de gravação da investigação. O resultado permanece nesta janela; tente salvar novamente")
                 : saved
-                    ? "A investigação foi salva, mas a memória local não pôde ser relida. Reabra o aplicativo"
-                    : "A investigação gráfica não pôde ser concluída";
+                    ? Loc.T("A investigação foi salva, mas a memória local não pôde ser relida. Reabra o aplicativo")
+                    : Loc.T("A investigação gráfica não pôde ser concluída");
             ShowGraphicsFailure(message, error);
         }
         finally
@@ -402,13 +402,13 @@ public partial class MainWindow
 
         var observation = row.Observation;
         var text = new StringBuilder();
-        text.AppendLine(observation.Title);
+        text.AppendLine(Loc.Text(observation.Title));
         text.AppendLine(Loc.F($"Regra: {observation.RuleId} {observation.RuleVersion} · tipo: ") +
             Loc.F($"{GraphicsObservationKindName(observation.Kind)}"));
         text.AppendLine(Loc.F($"Severidade: {EventCatalog.SeverityName(observation.Severity)} · ") +
             Loc.F($"confiança: {EventCatalog.ConfidenceName(observation.Confidence)} · causalidade: não avaliada"));
         text.AppendLine();
-        text.AppendLine(observation.Statement);
+        text.AppendLine(Loc.Text(observation.Statement));
         text.AppendLine();
         text.AppendLine(Loc.F($"Métrica: {observation.Metric}") +
             (observation.ObservedValue is { } value
@@ -424,7 +424,7 @@ public partial class MainWindow
             text.AppendLine();
             text.AppendLine(Loc.T("Limitações"));
             foreach (var limitation in observation.Limitations)
-                text.AppendLine(Loc.F($"• {limitation}"));
+                text.AppendLine("• " + Loc.Text(limitation));
         }
 
         GraphicsObservationDetail.Text = text.ToString();
@@ -448,10 +448,10 @@ public partial class MainWindow
     {
         logFailure(error);
         GraphicsStatusText.Text = message + ".";
-        ShowWarning(Loc.F($"{message}. {error.GetType().Name}: {error.Message}"));
+        ShowWarning(() => Loc.F($"{message}. {error.GetType().Name}: {error.Message}"));
     }
 
-    private static string GraphicsStatusName(GraphicsInvestigationStatus status) => status switch
+    private static string GraphicsStatusName(GraphicsInvestigationStatus status) => Loc.T(status switch
     {
         GraphicsInvestigationStatus.Running => "Em andamento",
         GraphicsInvestigationStatus.Completed => "Concluída",
@@ -460,9 +460,9 @@ public partial class MainWindow
         GraphicsInvestigationStatus.Failed => "Falhou",
         GraphicsInvestigationStatus.Unsupported => "Não suportada",
         _ => status.ToString()
-    };
+    });
 
-    private static string GraphicsExecutionName(GraphicsExecutionStatus status) => status switch
+    private static string GraphicsExecutionName(GraphicsExecutionStatus status) => Loc.T(status switch
     {
         GraphicsExecutionStatus.Running => "em andamento",
         GraphicsExecutionStatus.Completed => "concluída",
@@ -470,17 +470,17 @@ public partial class MainWindow
         GraphicsExecutionStatus.Failed => "falhou",
         GraphicsExecutionStatus.Unsupported => "não suportada",
         _ => status.ToString()
-    };
+    });
 
-    private static string GraphicsCoverageName(GraphicsCoverageStatus status) => status switch
+    private static string GraphicsCoverageName(GraphicsCoverageStatus status) => Loc.T(status switch
     {
         GraphicsCoverageStatus.Complete => "completa",
         GraphicsCoverageStatus.Partial => "parcial",
         GraphicsCoverageStatus.Unavailable => "indisponível",
         _ => status.ToString()
-    };
+    });
 
-    private static string GraphicsSourceStatusName(GraphicsSourceStatus status) => status switch
+    private static string GraphicsSourceStatusName(GraphicsSourceStatus status) => Loc.T(status switch
     {
         GraphicsSourceStatus.Running => "em andamento",
         GraphicsSourceStatus.Completed => "concluída",
@@ -489,30 +489,30 @@ public partial class MainWindow
         GraphicsSourceStatus.Unsupported => "não suportada",
         GraphicsSourceStatus.Cancelled => "cancelada",
         _ => status.ToString()
-    };
+    });
 
     private static string GraphicsEventKindName(GraphicsEventKind kind) => kind switch
     {
         GraphicsEventKind.DisplayDriverReset =>
-            $"TDR — Display {GraphicsEvidenceClassification.DisplayDriverResetEventId} registrado",
-        GraphicsEventKind.DisplayDriverOther => "Outro evento do provedor Display",
-        GraphicsEventKind.GraphicsDriverVendor => "Evento de driver gráfico",
-        _ => "Evento gráfico"
+            Loc.F($"TDR — Display {GraphicsEvidenceClassification.DisplayDriverResetEventId} registrado"),
+        GraphicsEventKind.DisplayDriverOther => Loc.T("Outro evento do provedor Display"),
+        GraphicsEventKind.GraphicsDriverVendor => Loc.T("Evento de driver gráfico"),
+        _ => Loc.T("Evento gráfico")
     };
 
     private static string GraphicsWerKindName(GraphicsWerKind kind) => kind switch
     {
         GraphicsWerKind.LiveKernelEvent117 =>
-            $"LiveKernelEvent {GraphicsEvidenceClassification.LiveKernelEvent117}",
+            Loc.F($"LiveKernelEvent {GraphicsEvidenceClassification.LiveKernelEvent117}"),
         GraphicsWerKind.LiveKernelEvent141 =>
-            $"LiveKernelEvent {GraphicsEvidenceClassification.LiveKernelEvent141}",
+            Loc.F($"LiveKernelEvent {GraphicsEvidenceClassification.LiveKernelEvent141}"),
         GraphicsWerKind.LiveKernelEvent142 =>
-            $"LiveKernelEvent {GraphicsEvidenceClassification.LiveKernelEvent142}",
-        GraphicsWerKind.LiveKernelEventOther => "LiveKernelEvent (outro código)",
-        _ => "Relatório gráfico"
+            Loc.F($"LiveKernelEvent {GraphicsEvidenceClassification.LiveKernelEvent142}"),
+        GraphicsWerKind.LiveKernelEventOther => Loc.T("LiveKernelEvent (outro código)"),
+        _ => Loc.T("Relatório gráfico")
     };
 
-    private static string GraphicsObservationKindName(GraphicsObservationKind kind) => kind switch
+    private static string GraphicsObservationKindName(GraphicsObservationKind kind) => Loc.T(kind switch
     {
         GraphicsObservationKind.DisplayDriverReset => "reinício do driver",
         GraphicsObservationKind.LiveKernelEvent => "LiveKernelEvent",
@@ -523,9 +523,9 @@ public partial class MainWindow
         GraphicsObservationKind.DriverChange => "alteração de driver",
         GraphicsObservationKind.MonitorChange => "alteração de monitor",
         _ => "metadados WER"
-    };
+    });
 
-    private static string GraphicsChangeTypeName(GraphicsChangeType type) => type switch
+    private static string GraphicsChangeTypeName(GraphicsChangeType type) => Loc.T(type switch
     {
         GraphicsChangeType.AdapterAdded => "Adaptador adicionado",
         GraphicsChangeType.AdapterRemoved => "Adaptador removido",
@@ -534,10 +534,11 @@ public partial class MainWindow
         GraphicsChangeType.DriverChanged => "Driver alterado",
         GraphicsChangeType.ConfigurationChanged => "Configuração alterada",
         _ => "Estado alterado"
-    };
+    });
 
-    private sealed record GraphicsPresetRow(EventWindow Window, string Label)
+    private sealed record GraphicsPresetRow(EventWindow Window, string PortugueseLabel)
     {
+        public string Label => Loc.T(PortugueseLabel);
         public override string ToString() => Label;
     }
 
@@ -546,39 +547,39 @@ public partial class MainWindow
         public string DateText => Investigation.CompletedUtc.ToLocalTime()
             .ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.CurrentCulture);
         public string SummaryText =>
-            $"{GraphicsStatusName(Investigation.Status)} · cobertura " +
-            $"{GraphicsCoverageName(Investigation.Coverage.Status)} · {Investigation.Adapters.Count} adaptador(es) · " +
-            $"{Investigation.Events.Count} evento(s) · {Investigation.Observations.Count} obs.";
+            Loc.F($"{GraphicsStatusName(Investigation.Status)} · cobertura ") +
+            Loc.F($"{GraphicsCoverageName(Investigation.Coverage.Status)} · {Investigation.Adapters.Count} adaptador(es) · ") +
+            Loc.F($"{Investigation.Events.Count} evento(s) · {Investigation.Observations.Count} obs.");
     }
 
     private sealed record GraphicsAdapterRow(GraphicsAdapter Adapter)
     {
-        public string Name => Adapter.Name ?? "Adaptador";
-        public string Provider => Adapter.DriverProvider ?? "Indisponível";
+        public string Name => Adapter.Name ?? Loc.T("Adaptador");
+        public string Provider => Adapter.DriverProvider ?? Loc.T("Indisponível");
         public string Version => Adapter.DriverVersion ?? "—";
-        public string State => Adapter.WindowsState ?? "Indisponível";
+        public string State => Adapter.WindowsState ?? Loc.T("Indisponível");
     }
 
     private sealed record GraphicsMonitorRow(GraphicsMonitor Monitor)
     {
-        public string Name => Monitor.Name ?? "Monitor";
+        public string Name => Monitor.Name ?? Loc.T("Monitor");
         public string Resolution => Monitor.Width is { } width && Monitor.Height is { } height
             ? $"{width}×{height}"
-            : "Indisponível";
+            : Loc.T("Indisponível");
         public string Refresh => Monitor.RefreshHz is null ? "—" : $"{Monitor.RefreshHz} Hz";
         public string Detail =>
-            $"{Monitor.Connector ?? "conexão indisponível"} · HDR " +
-            (Monitor.HdrEnabled is null ? "indisponível" : Monitor.HdrEnabled.Value ? "ativo" : "inativo");
+            Loc.F($"{Monitor.Connector ?? Loc.T("conexão indisponível")} · HDR ") +
+            (Monitor.HdrEnabled is null ? Loc.T("indisponível") : Monitor.HdrEnabled.Value ? Loc.T("ativo") : Loc.T("inativo"));
     }
 
     private sealed record GraphicsDriverRow(GraphicsDriver Driver)
     {
-        public string Name => Driver.Name ?? "Driver";
-        public string Provider => Driver.Provider ?? "Indisponível";
+        public string Name => Driver.Name ?? Loc.T("Driver");
+        public string Provider => Driver.Provider ?? Loc.T("Indisponível");
         public string Version => Driver.Version ?? "—";
         public string Detail =>
-            $"{(Driver.DateUtc is { } date ? date.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.CurrentCulture) : "data indisponível")} · " +
-            $"{Driver.InfName ?? "INF indisponível"}";
+            Loc.F($"{(Driver.DateUtc is { } date ? date.ToLocalTime().ToString("yyyy-MM-dd", CultureInfo.CurrentCulture) : Loc.T("data indisponível"))} · ") +
+            Loc.F($"{Driver.InfName ?? Loc.T("INF indisponível")}");
     }
 
     private sealed record GraphicsEventRow(GraphicsEventEvidence Evidence)
@@ -595,16 +596,16 @@ public partial class MainWindow
     {
         public string Time => (Evidence.EventTimeUtc ?? Evidence.CreationTimeUtc)?.ToLocalTime()
             .ToString("dd/MM HH:mm:ss", CultureInfo.CurrentCulture) ?? "—";
-        public string Type => Evidence.EventType ?? "Indisponível";
+        public string Type => Evidence.EventType ?? Loc.T("Indisponível");
         public string Code => Evidence.ProblemCode ?? "—";
-        public string Detail => $"{GraphicsWerKindName(Evidence.Kind)} · {Evidence.Application ?? "aplicativo indisponível"}";
+        public string Detail => Loc.F($"{GraphicsWerKindName(Evidence.Kind)} · {Evidence.Application ?? Loc.T("aplicativo indisponível")}");
     }
 
     private sealed record GraphicsObservationRow(GraphicsObservation Observation)
     {
-        public string Title => Observation.Title;
+        public string Title => Loc.Text(Observation.Title);
         public string Subtitle =>
-            $"{GraphicsObservationKindName(Observation.Kind)} · {EventCatalog.SeverityName(Observation.Severity)} · " +
-            $"confiança {EventCatalog.ConfidenceName(Observation.Confidence)} · causalidade não avaliada";
+            Loc.F($"{GraphicsObservationKindName(Observation.Kind)} · {Loc.T(EventCatalog.SeverityName(Observation.Severity))} · ") +
+            Loc.F($"confiança {Loc.T(EventCatalog.ConfidenceName(Observation.Confidence))} · causalidade não avaliada");
     }
 }

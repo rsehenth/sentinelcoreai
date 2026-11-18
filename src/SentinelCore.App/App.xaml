@@ -5,58 +5,40 @@
     <Application.Resources>
 
         <!-- ══ Tokens de cor: azul-grafite com ciano como único acento ══ -->
-        <SolidColorBrush x:Key="Bg" Color="#0A111C" />
-        <SolidColorBrush x:Key="Sidebar" Color="#0D1623" />
-        <SolidColorBrush x:Key="Surface" Color="#121D2D" />
-        <SolidColorBrush x:Key="SurfaceRaised" Color="#1A2A3F" />
-        <SolidColorBrush x:Key="SurfaceHover" Color="#15243A" />
-        <SolidColorBrush x:Key="Line" Color="#223349" />
-        <SolidColorBrush x:Key="LineStrong" Color="#34506E" />
+        <SolidColorBrush x:Key="Bg" Color="#0F141B" />
+        <SolidColorBrush x:Key="Sidebar" Color="#0B1016" />
+        <SolidColorBrush x:Key="Surface" Color="#151B24" />
+        <SolidColorBrush x:Key="SurfaceRaised" Color="#1C2430" />
+        <SolidColorBrush x:Key="SurfaceHover" Color="#1A222D" />
+        <SolidColorBrush x:Key="Line" Color="#242E3B" />
+        <SolidColorBrush x:Key="LineStrong" Color="#35424F" />
         <!-- Contorno de controles interativos (botões, campos, listas): 3,7:1 sobre Surface (WCAG 1.4.11). -->
-        <SolidColorBrush x:Key="FieldLine" Color="#5B7896" />
-        <SolidColorBrush x:Key="Text" Color="#E8EEF6" />
-        <SolidColorBrush x:Key="Muted" Color="#9FB2C7" />
-        <SolidColorBrush x:Key="Subtle" Color="#7A90A8" />
-        <SolidColorBrush x:Key="Accent" Color="#4FD1E8" />
-        <SolidColorBrush x:Key="AccentSoft" Color="#12384A" />
-        <SolidColorBrush x:Key="OnAccent" Color="#04202A" />
-        <SolidColorBrush x:Key="Warn" Color="#F5C27A" />
-        <SolidColorBrush x:Key="WarnSoft" Color="#2A2112" />
-        <SolidColorBrush x:Key="WarnLine" Color="#5C4520" />
-        <SolidColorBrush x:Key="Danger" Color="#F2778A" />
-        <SolidColorBrush x:Key="Success" Color="#5FD3A0" />
+        <SolidColorBrush x:Key="FieldLine" Color="#5A6C83" />
+        <SolidColorBrush x:Key="Text" Color="#E7ECF3" />
+        <SolidColorBrush x:Key="Muted" Color="#A0ACBB" />
+        <SolidColorBrush x:Key="Subtle" Color="#8794A5" />
+        <SolidColorBrush x:Key="Accent" Color="#4DC3D9" />
+        <SolidColorBrush x:Key="AccentSoft" Color="#15323C" />
+        <SolidColorBrush x:Key="OnAccent" Color="#06222A" />
+        <SolidColorBrush x:Key="Warn" Color="#EBBE6F" />
+        <SolidColorBrush x:Key="WarnSoft" Color="#231C10" />
+        <SolidColorBrush x:Key="WarnLine" Color="#4B3B1B" />
+        <SolidColorBrush x:Key="Danger" Color="#F0808F" />
+        <SolidColorBrush x:Key="Success" Color="#5FCF9E" />
 
-        <!-- Gradientes sutis: só pincéis (sem efeitos de pixel), compatíveis com a renderização por software. -->
-        <LinearGradientBrush x:Key="SurfaceGradient" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#17273E" Offset="0" /><GradientStop Color="#111C2D" Offset="1" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="EdgeGradient" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#36547A" Offset="0" /><GradientStop Color="#1D2E45" Offset="0.55" /><GradientStop Color="#18273B" Offset="1" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="AccentGradient" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#62E3F4" Offset="0" /><GradientStop Color="#3FA9E8" Offset="1" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="ProgressGradient" StartPoint="0,0" EndPoint="1,0">
-            <GradientStop Color="#4FD1E8" Offset="0" /><GradientStop Color="#5B8DEF" Offset="1" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="TileGradient" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#1F5373" Offset="0" /><GradientStop Color="#123043" Offset="1" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="SidebarGradient" StartPoint="0,0" EndPoint="0,1">
-            <GradientStop Color="#112036" Offset="0" /><GradientStop Color="#0B1424" Offset="1" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="SelectedGradient" StartPoint="0,0" EndPoint="1,0">
-            <GradientStop Color="#1D4261" Offset="0" /><GradientStop Color="#14293F" Offset="1" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="HeroGradient" StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#1B4A68" Offset="0" /><GradientStop Color="#132B45" Offset="0.5" /><GradientStop Color="#0E1B2F" Offset="1" />
-        </LinearGradientBrush>
-        <RadialGradientBrush x:Key="WindowGlow" Center="0.85,0" GradientOrigin="0.85,0" RadiusX="0.7" RadiusY="0.6">
-            <GradientStop Color="#16405C" Offset="0" /><GradientStop Color="#0F2437" Offset="0.45" /><GradientStop Color="#0A111C" Offset="1" />
-        </RadialGradientBrush>
+        <!-- Superfícies planas: os nomes dos antigos gradientes foram mantidos, mas todos são cores chapadas (menos ruído, renderização por software). -->
+        <SolidColorBrush x:Key="SurfaceGradient" Color="#151B24" />
+        <SolidColorBrush x:Key="EdgeGradient" Color="#242E3B" />
+        <SolidColorBrush x:Key="AccentGradient" Color="#4DC3D9" />
+        <SolidColorBrush x:Key="ProgressGradient" Color="#4DC3D9" />
+        <SolidColorBrush x:Key="TileGradient" Color="#1C2430" />
+        <SolidColorBrush x:Key="SidebarGradient" Color="#0B1016" />
+        <SolidColorBrush x:Key="SelectedGradient" Color="#1C2430" />
+        <SolidColorBrush x:Key="HeroGradient" Color="#151B24" />
+        <SolidColorBrush x:Key="WindowGlow" Color="#0F141B" />
 
-        <SolidColorBrush x:Key="TileLine" Color="#2F6482" />
-        <CornerRadius x:Key="RadiusM">12</CornerRadius>
+        <SolidColorBrush x:Key="TileLine" Color="#35424F" />
+        <CornerRadius x:Key="RadiusM">8</CornerRadius>
 
         <!-- ══ Ícones (grade 24×24, traço) ══ -->
         <Geometry x:Key="IconOverview">M4,4 H10 V11 H4 Z M14,4 H20 V8 H14 Z M14,12 H20 V20 H14 Z M4,15 H10 V20 H4 Z</Geometry>
@@ -79,6 +61,9 @@
         <Geometry x:Key="IconShieldCheck">M12,3 L19,6 V12 C19,16.5 16,19.5 12,21 C8,19.5 5,16.5 5,12 V6 Z M9,12 L11,14 L15,10</Geometry>
         <Geometry x:Key="IconSidebar">M4,5 H20 V19 H4 Z M9,5 V19</Geometry>
         <Geometry x:Key="IconCompare">M8,4 L4,8 L8,12 M4,8 H20 M16,12 L20,16 L16,20 M20,16 H4</Geometry>
+        <!-- Ícones próprios de Aplicativos e Inicialização (grade com “+”) e Reparos (controles deslizantes): antes repetiam os de Desempenho e Personalização. -->
+        <Geometry x:Key="IconApps">M4,4 H10 V10 H4 Z M14,4 H20 V10 H14 Z M4,14 H10 V20 H4 Z M17,13.5 V20.5 M13.5,17 H20.5</Geometry>
+        <Geometry x:Key="IconTools">M4,7 H20 M4,12 H20 M4,17 H20 M8,4.5 V9.5 M15,9.5 V14.5 M10,14.5 V19.5</Geometry>
 
         <!-- ══ Texto ══ -->
         <!-- A cor padrão vem da herança (Window.Foreground), para que botões e itens possam recolorir o texto. -->
@@ -86,11 +71,10 @@
             <Setter Property="TextWrapping" Value="Wrap" />
         </Style>
         <Style x:Key="PageTitle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-            <Setter Property="FontSize" Value="26" /><Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="FontSize" Value="24" /><Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <Style x:Key="PageSubtitle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
-            <Setter Property="Foreground" Value="{StaticResource Muted}" /><Setter Property="FontSize" Value="14" />
-            <Setter Property="Margin" Value="0,6,0,0" />
+            <Setter Property="Foreground" Value="{StaticResource Muted}" /><Setter Property="FontSize" Value="13.5" /> <Setter Property="Margin" Value="0,4,0,0" />
         </Style>
         <Style x:Key="PaneTitle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="FontSize" Value="14" /><Setter Property="FontWeight" Value="SemiBold" />
@@ -114,29 +98,23 @@
 
         <!-- Ícone em bloco: 40 px (cartões, menu) e 48 px (cabeçalho de página). -->
         <Style x:Key="TileIcon" TargetType="Border">
-            <Setter Property="Width" Value="40" /><Setter Property="Height" Value="40" /><Setter Property="CornerRadius" Value="11" />
+            <Setter Property="Width" Value="36" /><Setter Property="Height" Value="36" /><Setter Property="CornerRadius" Value="8" />
             <Setter Property="Background" Value="{StaticResource TileGradient}" /><Setter Property="BorderBrush" Value="{StaticResource TileLine}" />
             <Setter Property="BorderThickness" Value="1" /><Setter Property="HorizontalAlignment" Value="Left" />
-        </Style>
-        <Style x:Key="PageIcon" TargetType="Border" BasedOn="{StaticResource TileIcon}">
-            <Setter Property="Width" Value="48" /><Setter Property="Height" Value="48" /><Setter Property="CornerRadius" Value="13" />
-            <Setter Property="Margin" Value="0,0,16,0" /><Setter Property="VerticalAlignment" Value="Top" />
         </Style>
 
         <!-- ══ Botões: secundário (padrão), primário, discreto, compacto ══ -->
         <Style TargetType="Button">
             <Setter Property="Background" Value="{StaticResource SurfaceRaised}" />
             <Setter Property="Foreground" Value="{StaticResource Text}" />
-            <Setter Property="BorderBrush" Value="{StaticResource FieldLine}" />
-            <Setter Property="Padding" Value="16,0" /><Setter Property="MinHeight" Value="38" />
+            <Setter Property="BorderBrush" Value="{StaticResource LineStrong}" /> <Setter Property="Padding" Value="14,0" /><Setter Property="MinHeight" Value="36" />
             <Setter Property="FontSize" Value="13.5" /><Setter Property="FontWeight" Value="Medium" />
             <Setter Property="Cursor" Value="Hand" /><Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
                 <Grid x:Name="Root">
-                    <Border x:Name="FocusRing" Margin="-2" CornerRadius="10" BorderThickness="2" BorderBrush="{StaticResource Accent}" Visibility="Collapsed" />
+                    <Border x:Name="FocusRing" Margin="-2" CornerRadius="8" BorderThickness="2" BorderBrush="{StaticResource Accent}" Visibility="Collapsed" />
                     <Border x:Name="Face" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                            BorderThickness="1" CornerRadius="8" Padding="{TemplateBinding Padding}">
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            BorderThickness="1" CornerRadius="6" Padding="{TemplateBinding Padding}"> <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <Viewbox x:Name="IconBox" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center">
                                 <Canvas Width="24" Height="24">
                                     <Path Data="{TemplateBinding Tag}" Stroke="{TemplateBinding Foreground}" StrokeThickness="2"
@@ -146,7 +124,7 @@
                             <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True" />
                         </StackPanel>
                     </Border>
-                    <Border x:Name="Overlay" Background="White" Opacity="0" CornerRadius="8" IsHitTestVisible="False" />
+                    <Border x:Name="Overlay" Background="White" Opacity="0" CornerRadius="6" IsHitTestVisible="False" />
                 </Grid>
                 <ControlTemplate.Triggers>
                     <Trigger Property="Tag" Value="{x:Null}"><Setter TargetName="IconBox" Property="Visibility" Value="Collapsed" /></Trigger>
@@ -159,7 +137,7 @@
         </Style>
         <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
             <Setter Property="Background" Value="{StaticResource AccentGradient}" />
-            <Setter Property="BorderBrush" Value="#7FE9F7" />
+            <Setter Property="BorderBrush" Value="{StaticResource Accent}" />
             <Setter Property="Foreground" Value="{StaticResource OnAccent}" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
@@ -275,7 +253,10 @@
                     </Grid>
                 </Border>
                 <ControlTemplate.Triggers>
-                    <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Accent}" /></Trigger>
+                    <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                        <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource Accent}" />
+                        <Setter TargetName="Box" Property="BorderThickness" Value="2" />
+                    </Trigger>
                     <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Box" Property="Opacity" Value="0.45" /></Trigger>
                 </ControlTemplate.Triggers>
             </ControlTemplate></Setter.Value></Setter>
@@ -283,7 +264,7 @@
 
         <!-- ══ Listas com GridView para colunas alinhadas ══ -->
         <Style TargetType="ListView">
-            <Setter Property="Tag" Value="Sem dados carregados."/>
+            <Setter Property="Tag" Value="{DynamicResource T1883}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Foreground" Value="{StaticResource Text}"/>
@@ -343,7 +324,7 @@
         </Style>
         <!-- ══ Listas ══ -->
         <Style TargetType="ListBox">
-            <Setter Property="Tag" Value="Nenhum registro carregado." />
+            <Setter Property="Tag" Value="{DynamicResource T1884}" />
             <Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" />
             <Setter Property="Foreground" Value="{StaticResource Text}" /><Setter Property="Padding" Value="4" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
@@ -381,11 +362,11 @@
             </ControlTemplate></Setter.Value></Setter>
         </Style>
         <Style x:Key="ChipItem" TargetType="ListBoxItem">
-            <Setter Property="Margin" Value="0,0,6,6" /><Setter Property="Padding" Value="12,6" />
+            <Setter Property="Margin" Value="0,0,6,6" /><Setter Property="Padding" Value="11,5" />
             <Setter Property="Foreground" Value="{StaticResource Muted}" /><Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ListBoxItem">
                 <Border x:Name="Chip" Background="{StaticResource Surface}" BorderBrush="{StaticResource Line}" BorderThickness="1"
-                        CornerRadius="15" Padding="{TemplateBinding Padding}">
+                        CornerRadius="6" Padding="{TemplateBinding Padding}">
                     <ContentPresenter TextElement.Foreground="{TemplateBinding Foreground}" />
                 </Border>
                 <ControlTemplate.Triggers>
@@ -411,7 +392,7 @@
                         <Border x:Name="HeaderLine" Height="1" Margin="6,6" Background="{StaticResource Line}" Visibility="Collapsed" />
                     </Grid>
                     <Grid Margin="0,0,0,2">
-                        <Border x:Name="Bg" CornerRadius="9" Background="Transparent" BorderThickness="1" BorderBrush="Transparent" Height="36" Padding="12,0">
+                        <Border x:Name="Bg" CornerRadius="6" Background="Transparent" BorderThickness="1" BorderBrush="Transparent" Height="34" Padding="10,0">
                             <StackPanel x:Name="Row" Orientation="Horizontal" VerticalAlignment="Center">
                                 <Viewbox x:Name="IconBox" Width="18" Height="18" Margin="0,0,12,0">
                                     <Canvas Width="24" Height="24">
@@ -422,7 +403,7 @@
                                 <ContentPresenter x:Name="Label" VerticalAlignment="Center" TextElement.Foreground="{TemplateBinding Foreground}" />
                             </StackPanel>
                         </Border>
-                        <Border x:Name="Bar" Visibility="Collapsed" Width="3" Height="18" HorizontalAlignment="Left" CornerRadius="2" Background="{StaticResource Accent}" />
+                        <Border x:Name="Bar" Visibility="Collapsed" Width="3" Height="16" HorizontalAlignment="Left" CornerRadius="2" Background="{StaticResource Accent}" />
                     </Grid>
                 </StackPanel>
                 <ControlTemplate.Triggers>
@@ -437,12 +418,12 @@
                         <Setter TargetName="Bg" Property="Padding" Value="0" />
                     </Trigger>
                     <Trigger Property="IsMouseOver" Value="True">
-                        <Setter TargetName="Bg" Property="Background" Value="#111E30" />
+                        <Setter TargetName="Bg" Property="Background" Value="{StaticResource SurfaceHover}" />
                         <Setter Property="Foreground" Value="{StaticResource Text}" />
                     </Trigger>
                     <Trigger Property="IsSelected" Value="True">
                         <Setter TargetName="Bg" Property="Background" Value="{StaticResource SelectedGradient}" />
-                        <Setter TargetName="Bg" Property="BorderBrush" Value="#2A5876" />
+                        <Setter TargetName="Bg" Property="BorderBrush" Value="Transparent" />
                         <Setter TargetName="Bar" Property="Visibility" Value="Visible" />
                         <Setter Property="Foreground" Value="{StaticResource Text}" />
                         <Setter TargetName="Icon" Property="Stroke" Value="{StaticResource Accent}" />
@@ -480,8 +461,7 @@
             <Setter Property="Padding" Value="14,7"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TabItem">
-                <Border x:Name="Face" Background="Transparent" BorderBrush="Transparent" BorderThickness="1"
-                        CornerRadius="7" Padding="{TemplateBinding Padding}" Margin="0,0,6,0">
+                <Border x:Name="Face" Background="Transparent" BorderBrush="Transparent" BorderThickness="0,0,0,2" CornerRadius="0" Padding="{TemplateBinding Padding}" Margin="0,0,10,0">
                     <ContentPresenter x:Name="Hdr" ContentSource="Header" RecognizesAccessKey="True" VerticalAlignment="Center" TextElement.Foreground="{StaticResource Muted}"/>
                 </Border>
                 <ControlTemplate.Triggers>
@@ -490,12 +470,9 @@
                         <Setter TargetName="Hdr" Property="TextElement.Foreground" Value="{StaticResource Text}"/>
                     </Trigger>
                     <Trigger Property="IsSelected" Value="True">
-                        <Setter TargetName="Face" Property="Background" Value="{StaticResource AccentSoft}"/>
-                        <Setter TargetName="Face" Property="BorderBrush" Value="{StaticResource Accent}"/>
-                        <Setter TargetName="Hdr" Property="TextElement.Foreground" Value="{StaticResource Accent}"/>
+                        <Setter TargetName="Face" Property="BorderBrush" Value="{StaticResource Accent}"/> <Setter TargetName="Hdr" Property="TextElement.Foreground" Value="{StaticResource Text}"/>
                     </Trigger>
-                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Face" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger>
-                    <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Face" Property="Opacity" Value="0.45"/></Trigger>
+                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Face" Property="Background" Value="{StaticResource SurfaceRaised}"/><Setter TargetName="Face" Property="BorderBrush" Value="{StaticResource Accent}"/></Trigger> <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Face" Property="Opacity" Value="0.45"/></Trigger>
                 </ControlTemplate.Triggers>
             </ControlTemplate></Setter.Value></Setter>
         </Style>
@@ -561,14 +538,81 @@
             </ControlTemplate></Setter.Value></Setter>
         </Style>
 
+        <!-- ══ Tabelas (DataGrid): um único estilo para Aplicativos e Inicialização e Central de Recuperação ══ -->
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="{StaticResource Surface}" />
+            <Setter Property="Foreground" Value="{StaticResource Text}" />
+            <Setter Property="BorderBrush" Value="{StaticResource Line}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="RowBackground" Value="{StaticResource Surface}" />
+            <Setter Property="AlternatingRowBackground" Value="{StaticResource Surface}" />
+            <Setter Property="HorizontalGridLinesBrush" Value="{StaticResource Line}" />
+            <Setter Property="GridLinesVisibility" Value="Horizontal" />
+            <Setter Property="HeadersVisibility" Value="Column" />
+            <Setter Property="AutoGenerateColumns" Value="False" />
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="CanUserAddRows" Value="False" />
+            <Setter Property="CanUserDeleteRows" Value="False" />
+            <Setter Property="SelectionMode" Value="Single" />
+            <Setter Property="SelectionUnit" Value="FullRow" />
+            <Setter Property="RowHeaderWidth" Value="0" />
+            <Setter Property="FontSize" Value="12.5" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        </Style>
+        <Style TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{StaticResource Surface}" /> <Setter Property="Foreground" Value="{StaticResource Muted}" /> <Setter Property="Padding" Value="12,10" /> <Setter Property="BorderBrush" Value="{StaticResource LineStrong}" /> <Setter Property="BorderThickness" Value="0,0,0,1" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
+        <Style TargetType="DataGridRow">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{StaticResource SurfaceHover}" /></Trigger>
+            </Style.Triggers>
+        </Style>
+        <!-- Seleção = fundo + peso do texto (não só cor); foco de teclado = contorno de acento. -->
+        <Style TargetType="DataGridCell">
+            <Setter Property="Foreground" Value="{StaticResource Text}" />
+            <Setter Property="Padding" Value="12,9" /> <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridCell">
+                <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"><ContentPresenter VerticalAlignment="Center" /></Border>
+            </ControlTemplate></Setter.Value></Setter>
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{StaticResource AccentSoft}" />
+                    <Setter Property="Foreground" Value="{StaticResource Text}" />
+                    <Setter Property="FontWeight" Value="SemiBold" />
+                </Trigger>
+                <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{StaticResource Accent}" /></Trigger>
+            </Style.Triggers>
+        </Style>
+        <!-- Célula de texto em uma linha: reticências + dica com o texto completo (nada é cortado sem alternativa). -->
+        <Style x:Key="CellText" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="TextWrapping" Value="NoWrap" />
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
+        </Style>
+
+        <!-- Selo discreto (ex.: modo demonstrativo): texto sempre presente, cor apenas reforça. -->
+        <Style x:Key="StatusPill" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource WarnSoft}" />
+            <Setter Property="BorderBrush" Value="{StaticResource WarnLine}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" /> <Setter Property="Padding" Value="9,3" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
+
         <!-- ══ Barra de progresso ══ -->
         <Style TargetType="ProgressBar">
-            <Setter Property="Height" Value="6" /><Setter Property="Background" Value="#1B2B40" /><Setter Property="Foreground" Value="{StaticResource ProgressGradient}" />
+            <Setter Property="Height" Value="4" /><Setter Property="Background" Value="{StaticResource Line}" /><Setter Property="Foreground" Value="{StaticResource ProgressGradient}" />
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ProgressBar">
                 <Grid>
-                    <Border Background="{TemplateBinding Background}" CornerRadius="3" />
+                    <Border Background="{TemplateBinding Background}" CornerRadius="2" />
                     <Border x:Name="PART_Track" />
-                    <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="3" />
+                    <Border x:Name="PART_Indicator" HorizontalAlignment="Left" Background="{TemplateBinding Foreground}" CornerRadius="2" />
                 </Grid>
             </ControlTemplate></Setter.Value></Setter>
         </Style>
@@ -576,7 +620,7 @@
         <!-- ══ Dica de ferramenta ══ -->
         <Style TargetType="ToolTip">
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ToolTip">
-                <Border Background="#1A2A3F" BorderBrush="{StaticResource LineStrong}" BorderThickness="1" CornerRadius="6" Padding="10,6">
+                <Border Background="{StaticResource SurfaceRaised}" BorderBrush="{StaticResource LineStrong}" BorderThickness="1" CornerRadius="6" Padding="10,6">
                     <ContentPresenter TextElement.Foreground="{StaticResource Text}" TextElement.FontSize="12.5" />
                 </Border>
             </ControlTemplate></Setter.Value></Setter>
@@ -601,7 +645,7 @@
                         </ToggleButton>
                         <Popup x:Name="PART_Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}"
                                AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
-                            <Border Background="#16263A" BorderBrush="{StaticResource LineStrong}" BorderThickness="1" CornerRadius="8" Padding="4"
+                            <Border Background="{StaticResource SurfaceRaised}" BorderBrush="{StaticResource LineStrong}" BorderThickness="1" CornerRadius="8" Padding="4"
                                     MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}" Margin="0,4,0,8">
                                 <ScrollViewer><ItemsPresenter /></ScrollViewer>
                             </Border>
@@ -609,7 +653,10 @@
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Face" Property="BorderBrush" Value="{StaticResource Muted}" /></Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Face" Property="BorderBrush" Value="{StaticResource Accent}" /></Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Face" Property="BorderBrush" Value="{StaticResource Accent}" />
+                            <Setter TargetName="Face" Property="BorderThickness" Value="2" />
+                        </Trigger>
                         <Trigger Property="IsDropDownOpen" Value="True"><Setter TargetName="Face" Property="BorderBrush" Value="{StaticResource Accent}" /></Trigger>
                         <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45" /></Trigger>
                     </ControlTemplate.Triggers>

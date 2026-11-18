@@ -61,13 +61,13 @@
       "sentinelcore.domain": {
         "type": "Project"
       },
-      "sentinelcore.infrastructure.debloat": {
+      "sentinelcore.infrastructure.appsstartup": {
         "type": "Project",
         "dependencies": {
           "SentinelCore.Domain": "[0.3.0-preview.8, )"
         }
       },
-      "sentinelcore.infrastructure.debloat.native": {
+      "sentinelcore.infrastructure.debloat": {
         "type": "Project",
         "dependencies": {
           "SentinelCore.Domain": "[0.3.0-preview.8, )"
@@ -103,8 +103,7 @@
         "type": "Project",
         "dependencies": {
           "SentinelCore.Application": "[0.3.0-preview.8, )",
-          "SentinelCore.Infrastructure.Debloat": "[0.3.0-preview.8, )",
-          "SentinelCore.Infrastructure.Debloat.Native": "[0.3.0-preview.8, )",
+          "SentinelCore.Infrastructure.AppsStartup": "[0.3.0-preview.8, )",
           "SentinelCore.Infrastructure.Modifications": "[0.3.0-preview.8, )",
           "SentinelCore.Infrastructure.Repairs": "[0.3.0-preview.8, )",
           "SentinelCore.Infrastructure.Windows": "[0.3.0-preview.8, )",

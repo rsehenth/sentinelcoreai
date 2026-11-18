@@ -101,7 +101,52 @@ graphify-out/
 
 # --- Documentação interna (mantida no disco, fora do repositório público) ---
 docs/
+/AGENTS.md
+/PRODUCT.md
+/tasks/
+/scripts/RealValidation/
+/scripts/GraphicsValidation/
 
 # --- Arquivos avulsos sem relação com o produto ---
 /turmas-1440.png
 /pdl-*.png
+
+# --- Dados do aplicativo que nunca devem entrar no repositório ---
+# Raiz de dados (--data-root) apontada por engano para dentro da árvore do projeto.
+SentinelCoreAI/
+/memory/
+/reports/
+/data/
+/logs/
+ui-language.txt
+apps-operation.lock
+*.evtx
+*.etl
+
+# --- Segredos e chaves de assinatura adicionais ---
+*.snk
+*.pvk
+*.keystore
+secrets.json
+*.secrets.json
+appsettings.*.local.json
+
+# --- Sobras de merge, backups e traços de build ---
+*.orig
+*.rej
+*.old
+*.binlog
+
+# --- Assistentes de IA e editores adicionais ---
+.agents/
+.cursor/
+.codex/
+.aider*
+.windsurf/
+.superpowers/
+
+# --- Capturas e evidências de homologação privadas ---
+# Imagens públicas do README ficam versionadas em assets/readme/ (não ignorado).
+/captures/
+/homologation/
+/screenshots/

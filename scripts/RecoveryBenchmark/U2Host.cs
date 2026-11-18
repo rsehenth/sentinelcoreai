@@ -99,18 +99,16 @@ internal sealed class U2Host
         var engine = new SafetyEngine(catalog, new SyntheticSystemProfileReader(SyntheticSystemProfileReader.Default(DateTimeOffset.UtcNow)),
             targets, new SyntheticProtectionProvider(), store, executor, locks);
         var recovery = new RecoveryService(store, targets, executor, locks, catalog: catalog, syntheticOnly: true);
-        var tweaks = new TweakManager(catalog, engine, recovery, store, TweakExecutionMode.RealDisabled);
         var repairCatalog = RepairCatalog.CreateDefault();
         var volumes = new FixtureVolumes();
         var repairs = new RepairManager(repairCatalog, new RepairCenter(repairCatalog,
             new RepairPreflightEngine(repairCatalog, new FixtureProfile(), volumes, new FixtureTools()),
             new SyntheticRepairExecutor(), store, () => @"C:\U2-FIXTURE"), volumes);
-        var debloatCatalog = DebloatCatalog.CreateDefault();
-        var inventory = SyntheticDebloatInventory.Create(debloatCatalog.All);
-        var debloat = new DebloatManager(debloatCatalog, inventory, new SyntheticDebloatRuntimeFactory(inventory), store.CreateDebloatJournal(), locks);
-        var shell = new MainWindow(null!, null!, null!, null!, null!, null!, null!, null!, tweaks, repairs,
-            store, store, store, store, store, store, store, store, debloat, new RecoveryCenter(store),
-            error => Check("unexpected-shell-error", false, error.ToString()))
+        var startup = SentinelCore.Infrastructure.AppsStartup.SyntheticStartupStore.CreateDefault();
+        var apps = SentinelCore.Infrastructure.AppsStartup.SyntheticApplicationStore.CreateDefault();
+        var shell = new MainWindow(HostAuditFixture.CreateRunner(), null!, null!, null!, null!, null!, null!, null!, repairs,
+            store, store, store, store, store, store, store, store, new RecoveryCenter(store),
+            error => Check("unexpected-shell-error", false, error.ToString()), appsStartup: new(startup, apps, startup, apps))
         { Left = -12000, ShowInTaskbar = false };
         shell.Show();
         await Idle();
@@ -122,7 +120,7 @@ internal sealed class U2Host
     {
         var nav = C<ListBox>(shell, "NavList");
         nav.SelectedIndex = index; await Idle();
-        if (index == 10) { await Wait(() => C<Button>(shell, "TweaksRefreshButton").IsEnabled); await Wait(() => !C<DebloatView>(shell, "DebloatSection").IsBusy); }
+        if (index == 10) await Wait(() => !C<AppsStartupView>(shell, "AppsStartupSection").IsBusy);
         if (index == 11) await Wait(() => C<Button>(shell, "RepairsRefreshButton").IsEnabled);
         if (index == 12) await Wait(() => C<Button>(C<RecoveryCenterView>(shell, "RecoverySection"), "RefreshButton").IsEnabled);
         await Task.Delay(260); // lets the 220 ms page fade finish before a capture
@@ -183,14 +181,14 @@ internal sealed class U2Host
         // ── Capturas: tamanho mínimo, expandido e DPI simulado (raiz da janela) ──
         var scenarios = new (string Name, double W, double H, double Scale, bool? Collapsed, int[] Pages)[]
         {
-            ("min-auto", 1120, 720, 1, null, Enumerable.Range(0, 13).ToArray()),
-            ("min-expanded", 1120, 720, 1, false, [0, 10, 11, 12]),
-            ("wide", 1320, 860, 1, null, Enumerable.Range(0, 13).ToArray()),
-            ("small", 1000, 680, 1, null, Enumerable.Range(0, 13).ToArray()),
-            ("dpi125", 1000, 680, 1.25, null, [0, 11, 12]),
-            ("dpi150", 1000, 680, 1.5, null, [0, 10, 11, 12]),
-            ("dpi175", 1000, 680, 1.75, null, [0, 12]),
-            ("dpi200", 1000, 680, 2, null, [0, 12])
+            ("min-auto", 1120, 720, 1, null, Enumerable.Range(0, 14).ToArray()),
+            ("min-expanded", 1120, 720, 1, false, [0, 10, 11, 12, 13]),
+            ("wide", 1320, 860, 1, null, Enumerable.Range(0, 14).ToArray()),
+            ("small", 1000, 680, 1, null, Enumerable.Range(0, 14).ToArray()),
+            ("dpi125", 1000, 680, 1.25, null, [0, 11, 12, 13]),
+            ("dpi150", 1000, 680, 1.5, null, [0, 10, 11, 12, 13]),
+            ("dpi175", 1000, 680, 1.75, null, [0, 13]),
+            ("dpi200", 1000, 680, 2, null, [0, 13])
         };
         foreach (var s in scenarios)
         {
@@ -202,12 +200,6 @@ internal sealed class U2Host
             {
                 await Select(shell, page);
                 Capture(shell, $"{s.Name}-p{page:00}", s.Scale);
-                if (page == 10 && s.Name is "min-auto" or "dpi150")
-                {
-                    Invoke(shell, "OnOpenDebloat", shell, new RoutedEventArgs()); await Task.Delay(350); await Idle();
-                    Capture(shell, $"{s.Name}-p10-debloat", s.Scale);
-                    C<ScrollViewer>(shell, "TweaksScroll").ScrollToTop();
-                }
             }
             Check($"captured-{s.Name}", true, $"{s.Pages.Length} páginas em {s.W}x{s.H} @{s.Scale * 100:F0}%");
         }

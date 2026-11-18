@@ -330,7 +330,7 @@ public sealed class MonitoringPersistenceTests : IDisposable
         [
             new EventMonitoringSource(events),
             new PerformanceMonitoringSource(new FakeMonitoringPerformanceCollector())
-        ], store, TimeProvider.System, limits);
+        ], store, new SyntheticSessionClock(), limits);
 
         var session = await runner.RunAsync(new MonitoringRequest(MonitoringDurationPreset.Custom,
             TimeSpan.FromMilliseconds(700),

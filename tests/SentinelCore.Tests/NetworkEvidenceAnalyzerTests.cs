@@ -8,7 +8,7 @@ public sealed class NetworkEvidenceAnalyzerTests
 {
     private static readonly DateTimeOffset StartUtc = new(2026, 10, 31, 15, 0, 0, TimeSpan.Zero);
 
-    private static readonly IReadOnlyList<NetworkDynamicPortRange> DefaultRanges =
+    internal static readonly IReadOnlyList<NetworkDynamicPortRange> DefaultRanges =
     [
         new NetworkDynamicPortRange(
             Protocol: NetworkProtocol.Tcp,
@@ -254,7 +254,7 @@ public sealed class NetworkEvidenceAnalyzerTests
         Assert.Contains(result.Notes, note => note.RuleId == "NET-ATTEMPT-FAILURES" && note.Reason == NetworkNoteReason.InsufficientSamples);
     }
 
-    private static NetworkSampleAggregate CreateSample(
+    internal static NetworkSampleAggregate CreateSample(
         int index,
         double elapsedSeconds,
         int tcp,

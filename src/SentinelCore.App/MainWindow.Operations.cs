@@ -14,7 +14,7 @@ public partial class MainWindow
         try { return operations.Acquire(); }
         catch (TargetLockedException error)
         {
-            ShowWarning(error.Message);
+            ShowWarning(() => error.Message);
             return null;
         }
     }
@@ -23,11 +23,9 @@ public partial class MainWindow
     {
         LanguageRow.IsEnabled = !operations.IsBusy;
         UpdateAllBusyButtons();
-        UpdateTweakButtons();
         UpdateRepairButtons();
-        DebloatSection.SetOperationBlocked(operations.IsBusy);
         RecoverySection.SetOperationBlocked(operations.IsBusy);
-        TweaksNav.IsEnabled = RepairsNav.IsEnabled = RecoveryNav.IsEnabled = !operations.IsBusy;
+        AppsStartupNav.IsEnabled = RepairsNav.IsEnabled = RecoveryNav.IsEnabled = !operations.IsBusy;
         if (!operations.IsBusy && operationClosingAfterSave)
         {
             operationClosingAfterSave = false;
@@ -38,6 +36,5 @@ public partial class MainWindow
     private void InvalidateMaintenanceHistory()
     {
         RecoverySection.InvalidateAuditHistory();
-        tweaksLoaded = false;
     }
 }

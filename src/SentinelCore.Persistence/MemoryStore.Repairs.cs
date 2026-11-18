@@ -85,7 +85,10 @@ public sealed partial class MemoryStore
         var warnings = new List<string>();
         using var database = OpenDatabase(warnings);
         var history = ReconcileRepairs(database, warnings, cancellationToken);
-        WriteRepairProjection(history);
+        foreach (var record in history.Records)
+            TryWriteDerivedReport(record.Id, GetRepairReportPath(record.Id), () => RepairReport.Render(record),
+                warnings, "O registro do reparo", "o reparo");
+        TryWriteRepairProjection(history, warnings);
         if (warnings.Count > 0)
             File.AppendAllText(Path.Combine(root, "logs", "storage.log"),
                 $"{DateTimeOffset.UtcNow:O}\n{string.Join("\n", warnings)}\n", Encoding.UTF8);
@@ -162,7 +165,8 @@ public sealed partial class MemoryStore
                     }
                 }
                 catch (OperationCanceledException) { throw; }
-                catch (Exception error)
+                catch (Exception error) when (error is InvalidDataException or JsonException or IOException
+                    or UnauthorizedAccessException or ArgumentException or NullReferenceException)
                 {
                     warnings.Add($"Registro de reparo {name} inválido e excluído do índice: {error.Message}");
                 }
@@ -171,6 +175,17 @@ public sealed partial class MemoryStore
 
         if (database is not null)
         {
+            using (var existing = database.CreateCommand())
+            {
+                existing.CommandText = "SELECT Id FROM Repairs;";
+                using var reader = existing.ExecuteReader();
+                while (reader.Read())
+                {
+                    var indexedId = reader.GetString(0);
+                    if (!Guid.TryParse(indexedId, out var parsed) || !hashes.ContainsKey(parsed))
+                        warnings.Add($"Registro indexado de reparo {indexedId} ausente nos arquivos autoritativos; índice sincronizado.");
+                }
+            }
             using var transaction = database.BeginTransaction();
             using var clear = database.CreateCommand();
             clear.Transaction = transaction;
@@ -440,6 +455,32 @@ public sealed partial class MemoryStore
     private void WriteRepairProjection(RepairHistory history) =>
         RecordEnvelope.AtomicWrite(Path.Combine(root, "memory", "REPAIRS.md"), RenderRepairProjection(history),
             overwrite: true);
+
+    private void TryWriteRepairProjection(RepairHistory history, List<string> warnings)
+    {
+        string content;
+        try
+        {
+            content = RenderRepairProjection(history);
+        }
+        catch (Exception error) when (error is InvalidDataException or InvalidOperationException
+            or ArgumentException or FormatException or NullReferenceException or IndexOutOfRangeException)
+        {
+            warnings.Add($"Projeção memory/REPAIRS.md não pôde ser renderizada ({error.GetType().Name}): {error.Message}. " +
+                "Registros autoritativos preservados.");
+            return;
+        }
+
+        try
+        {
+            RecordEnvelope.AtomicWrite(Path.Combine(root, "memory", "REPAIRS.md"), content, overwrite: true);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            warnings.Add($"Projeção memory/REPAIRS.md não pôde ser atualizada ({error.GetType().Name}): {error.Message}. " +
+                "Registros autoritativos preservados.");
+        }
+    }
 
     private static string RenderRepairProjection(RepairHistory history)
     {

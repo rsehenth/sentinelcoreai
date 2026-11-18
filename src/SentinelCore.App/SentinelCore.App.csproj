@@ -19,7 +19,6 @@
     <ProjectReference Include="../SentinelCore.Infrastructure.Windows/SentinelCore.Infrastructure.Windows.csproj" />
     <ProjectReference Include="../SentinelCore.Infrastructure.Modifications/SentinelCore.Infrastructure.Modifications.csproj" />
     <ProjectReference Include="../SentinelCore.Infrastructure.Repairs/SentinelCore.Infrastructure.Repairs.csproj" />
-    <ProjectReference Include="../SentinelCore.Infrastructure.Debloat/SentinelCore.Infrastructure.Debloat.csproj" />
-    <ProjectReference Include="../SentinelCore.Infrastructure.Debloat.Native/SentinelCore.Infrastructure.Debloat.Native.csproj" />
+    <ProjectReference Include="../SentinelCore.Infrastructure.AppsStartup/SentinelCore.Infrastructure.AppsStartup.csproj" />
   </ItemGroup>
 </Project>

@@ -41,7 +41,8 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
         var warnings = new List<string>();
         using var database = OpenDatabase(warnings);
         var records = Reconcile(database, warnings, cancellationToken);
-        WriteProjections(records);
+        var logged = warnings.Count;
+        WriteProjections(records, warnings);
         var byId = records.ToDictionary(a => a.Id);
         var ordered = new List<AuditRecord>();
         using var query = database.CreateCommand();
@@ -49,6 +50,9 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
         using var reader = query.ExecuteReader();
         while (reader.Read()) ordered.Add(byId[Guid.Parse(reader.GetString(0))]);
         ordered.AddRange(ReadAuditInterruptions(warnings, cancellationToken).Where(audit => !byId.ContainsKey(audit.Id)));
+        if (warnings.Count > logged)
+            File.AppendAllText(Path.Combine(root, "logs", "storage.log"),
+                $"{DateTimeOffset.UtcNow:O}\n{string.Join("\n", warnings.Skip(logged))}\n", Encoding.UTF8);
         return new StoreSnapshot(ordered.OrderByDescending(audit => audit.CompletedUtc).ThenBy(audit => audit.Id).ToArray(), warnings);
     }, cancellationToken);
 
@@ -544,18 +548,22 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
             foreach (var path in Directory.EnumerateFiles(directory, "*.md", SearchOption.TopDirectoryOnly))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                AuditRecord? accepted = null;
                 try
                 {
                     var audit = ReadRecord(path);
                     if (audit.Kind != kind || Path.GetFileName(path) != $"{audit.Id:D}.md" || !seen.Add(audit.Id))
                         throw new InvalidDataException("Identidade ou localização de registro inválida.");
                     records.Add(audit);
-                    RecordEnvelope.AtomicWrite(GetReportPath(audit.Id), MarkdownReport.Render(audit), overwrite: true);
+                    accepted = audit;
                 }
                 catch (Exception error) when (error is InvalidDataException or JsonException or IOException or UnauthorizedAccessException or ArgumentException)
                 {
                     warnings.Add($"Registro {Path.GetFileName(path)} não recuperado ({error.GetType().Name}): {error.Message}. Original preservado.");
                 }
+                if (accepted is not null)
+                    TryWriteDerivedReport(accepted.Id, GetReportPath(accepted.Id), () => MarkdownReport.Render(accepted),
+                        warnings, "Registro");
             }
         }
         using (var read = database.CreateCommand())
@@ -604,7 +612,7 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
         }
     }
 
-    private void WriteProjections(IReadOnlyList<AuditRecord> records)
+    private void WriteProjections(IReadOnlyList<AuditRecord> records, List<string>? warnings = null)
     {
         var latest = records.OrderByDescending(a => a.CompletedUtc).ToArray();
         string Last(AuditKind kind)
@@ -615,12 +623,24 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
         RecordEnvelope.AtomicWrite(Path.Combine(root, "memory", "MEMORY.md"),
             $"# SentinelCore AI — Memória persistente\n\nFormato: 1\n\n## Última básica concluída\n\n{Last(AuditKind.Basic)}\n\n## Última completa concluída\n\n{Last(AuditKind.Full)}\n\n## Histórico\n\n" +
             (latest.Length == 0 ? "Nenhuma auditoria anterior.\n" : string.Join("\n", latest.Select(a => $"- [{a.Id:D}](audits/{a.Kind.ToString().ToLowerInvariant()}/{a.Id:D}.md) — {a.CompletedUtc:O} — {a.Status}"))), true);
-        RecordEnvelope.AtomicWrite(Path.Combine(root, "memory", "SYSTEM_STATE.md"),
-            latest.Length == 0 ? "# Estado observado\n\nNenhuma auditoria anterior.\n" : MarkdownReport.Render(latest[0]), true);
+        var systemStatePath = Path.Combine(root, "memory", "SYSTEM_STATE.md");
+        if (warnings is not null && latest.Length > 0)
+            TryWriteDerivedReport(latest[0].Id, systemStatePath, () => MarkdownReport.Render(latest[0]),
+                warnings, "Registro");
+        else
+            RecordEnvelope.AtomicWrite(systemStatePath,
+                latest.Length == 0 ? "# Estado observado\n\nNenhuma auditoria anterior.\n" : MarkdownReport.Render(latest[0]), true);
+
         var hardware = latest.FirstOrDefault(a => a.Results.Any(r => r.Data is not null));
-        RecordEnvelope.AtomicWrite(Path.Combine(root, "memory", "HARDWARE.md"), hardware is null
-            ? "# Hardware\n\nNenhum inventário coletado.\n" : $"# Hardware observado\n\nAuditoria: {hardware.Id:D}\n\n" +
-            string.Join("\n", hardware.Results.SelectMany(r => MarkdownReport.Fields(r.Data)).Select(f => $"- {f.Label}: {f.Value ?? "Indisponível"}")), true);
+        var hardwarePath = Path.Combine(root, "memory", "HARDWARE.md");
+        if (warnings is not null && hardware is not null)
+            TryWriteDerivedReport(hardware.Id, hardwarePath, () => $"# Hardware observado\n\nAuditoria: {hardware.Id:D}\n\n" +
+                string.Join("\n", hardware.Results.SelectMany(r => MarkdownReport.Fields(r.Data)).Select(f => $"- {f.Label}: {f.Value ?? "Indisponível"}")),
+                warnings, "Registro");
+        else
+            RecordEnvelope.AtomicWrite(hardwarePath, hardware is null
+                ? "# Hardware\n\nNenhum inventário coletado.\n" : $"# Hardware observado\n\nAuditoria: {hardware.Id:D}\n\n" +
+                string.Join("\n", hardware.Results.SelectMany(r => MarkdownReport.Fields(r.Data)).Select(f => $"- {f.Label}: {f.Value ?? "Indisponível"}")), true);
     }
 
     public Task<HardwareStoreSnapshot> LoadSnapshotsAsync(CancellationToken cancellationToken = default) => Task.Run(() =>
@@ -833,6 +853,7 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                          .OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                PerformanceSession? acceptedSession = null;
                 try
                 {
                     var (session, payloadHash) = ReadPerformanceRecord(path);
@@ -840,14 +861,16 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                         throw new InvalidDataException("Identidade ou localização de sessão inválida.");
                     sessions.Add(session);
                     sessionHashes[session.Id] = payloadHash;
-                    RecordEnvelope.AtomicWrite(GetPerformanceReportPath(session.Id),
-                        PerformanceReport.Render(session), overwrite: true);
+                    acceptedSession = session;
                 }
                 catch (Exception error) when (error is InvalidDataException or JsonException or IOException
                     or UnauthorizedAccessException or ArgumentException or NullReferenceException)
                 {
                     warnings.Add($"Sessão de desempenho {Path.GetFileName(path)} não recuperada ({error.GetType().Name}): {error.Message}. Original preservado.");
                 }
+                if (acceptedSession is not null)
+                    TryWriteDerivedReport(acceptedSession.Id, GetPerformanceReportPath(acceptedSession.Id),
+                        () => PerformanceReport.Render(acceptedSession), warnings, "O registro da sessão", "a sessão");
             }
         }
         using (var read = database.CreateCommand())
@@ -1221,6 +1244,7 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                          .OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                NetworkSession? acceptedSession = null;
                 try
                 {
                     var (session, payloadHash) = ReadNetworkRecord(path);
@@ -1228,8 +1252,7 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                         throw new InvalidDataException("Identidade ou localização de sessão de rede inválida.");
                     sessions.Add(session);
                     sessionHashes[session.Id] = payloadHash;
-                    RecordEnvelope.AtomicWrite(GetNetworkReportPath(session.Id),
-                        NetworkReport.Render(session), overwrite: true);
+                    acceptedSession = session;
                 }
                 catch (Exception error) when (error is InvalidDataException or JsonException or IOException
                     or UnauthorizedAccessException or ArgumentException or NullReferenceException)
@@ -1237,6 +1260,9 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                     warnings.Add($"Sessão de rede {Path.GetFileName(path)} não recuperada " +
                         $"({error.GetType().Name}): {error.Message}. Original preservado.");
                 }
+                if (acceptedSession is not null)
+                    TryWriteDerivedReport(acceptedSession.Id, GetNetworkReportPath(acceptedSession.Id),
+                        () => NetworkReport.Render(acceptedSession), warnings, "O registro da sessão", "a sessão");
             }
         }
         using (var read = database.CreateCommand())
@@ -1629,6 +1655,7 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                          .OrderBy(item => item, StringComparer.OrdinalIgnoreCase))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                GraphicsInvestigation? acceptedInvestigation = null;
                 try
                 {
                     var (investigation, payloadHash) = ReadGraphicsRecord(path);
@@ -1636,8 +1663,7 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                         throw new InvalidDataException("Identidade ou localização de investigação gráfica inválida.");
                     investigations.Add(investigation);
                     hashes[investigation.Id] = payloadHash;
-                    RecordEnvelope.AtomicWrite(GetGraphicsReportPath(investigation.Id),
-                        GraphicsReport.Render(investigation), overwrite: true);
+                    acceptedInvestigation = investigation;
                 }
                 catch (Exception error) when (error is InvalidDataException or JsonException or IOException
                     or UnauthorizedAccessException or ArgumentException or NullReferenceException)
@@ -1645,6 +1671,9 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                     warnings.Add($"Investigação gráfica {Path.GetFileName(path)} não recuperada " +
                         $"({error.GetType().Name}): {error.Message}. Original preservado.");
                 }
+                if (acceptedInvestigation is not null)
+                    TryWriteDerivedReport(acceptedInvestigation.Id, GetGraphicsReportPath(acceptedInvestigation.Id),
+                        () => GraphicsReport.Render(acceptedInvestigation), warnings, "O registro da investigação");
             }
         }
         using (var read = database.CreateCommand())
@@ -2016,20 +2045,23 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                          .OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                EventInvestigation? acceptedInvestigation = null;
                 try
                 {
                     var investigation = ReadEventRecord(path);
                     if (Path.GetFileName(path) != $"{investigation.Id:D}.md" || !seen.Add(investigation.Id))
                         throw new InvalidDataException("Identidade ou localização de investigação inválida.");
                     investigations.Add(investigation);
-                    RecordEnvelope.AtomicWrite(GetEventReportPath(investigation.Id),
-                        EventReport.Render(investigation), overwrite: true);
+                    acceptedInvestigation = investigation;
                 }
                 catch (Exception error) when (error is InvalidDataException or JsonException or IOException
                     or UnauthorizedAccessException or ArgumentException)
                 {
                     warnings.Add($"Investigação {Path.GetFileName(path)} não recuperada ({error.GetType().Name}): {error.Message}. Original preservado.");
                 }
+                if (acceptedInvestigation is not null)
+                    TryWriteDerivedReport(acceptedInvestigation.Id, GetEventReportPath(acceptedInvestigation.Id),
+                        () => EventReport.Render(acceptedInvestigation), warnings, "O registro da investigação");
             }
         }
         using (var read = database.CreateCommand())
@@ -2314,19 +2346,23 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                          .OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                HardwareSnapshot? acceptedSnapshot = null;
                 try
                 {
                     var snapshot = ReadHardwareRecord(path);
                     if (Path.GetFileName(path) != $"{snapshot.Id:D}.md" || !seen.Add(snapshot.Id))
                         throw new InvalidDataException("Identidade ou localização de snapshot inválida.");
                     snapshots.Add(snapshot);
-                    RecordEnvelope.AtomicWrite(GetHardwareReportPath(snapshot.Id), HardwareReport.Render(snapshot), overwrite: true);
+                    acceptedSnapshot = snapshot;
                 }
                 catch (Exception error) when (error is InvalidDataException or JsonException or IOException
                     or UnauthorizedAccessException or ArgumentException)
                 {
                     warnings.Add($"Inventário {Path.GetFileName(path)} não recuperado ({error.GetType().Name}): {error.Message}. Original preservado.");
                 }
+                if (acceptedSnapshot is not null)
+                    TryWriteDerivedReport(acceptedSnapshot.Id, GetHardwareReportPath(acceptedSnapshot.Id),
+                        () => HardwareReport.Render(acceptedSnapshot), warnings, "O registro do inventário");
             }
         }
         using (var read = database.CreateCommand())
@@ -2526,6 +2562,7 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                          .OrderBy(item => item, StringComparer.OrdinalIgnoreCase))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                CorrelationInvestigation? acceptedInvestigation = null;
                 try
                 {
                     var (investigation, payloadHash) = ReadCorrelationRecord(path);
@@ -2533,8 +2570,7 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                         throw new InvalidDataException("Identidade ou localização de correlação inválida.");
                     investigations.Add(investigation);
                     hashes[investigation.Id] = payloadHash;
-                    RecordEnvelope.AtomicWrite(GetCorrelationReportPath(investigation.Id),
-                        CorrelationReport.Render(investigation), overwrite: true);
+                    acceptedInvestigation = investigation;
                 }
                 catch (Exception error) when (error is InvalidDataException or JsonException or IOException
                     or UnauthorizedAccessException or ArgumentException or NullReferenceException)
@@ -2542,6 +2578,9 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                     warnings.Add($"Investigação de correlação {Path.GetFileName(path)} não recuperada " +
                         $"({error.GetType().Name}): {error.Message}. Original preservado.");
                 }
+                if (acceptedInvestigation is not null)
+                    TryWriteDerivedReport(acceptedInvestigation.Id, GetCorrelationReportPath(acceptedInvestigation.Id),
+                        () => CorrelationReport.Render(acceptedInvestigation), warnings, "O registro da correlação");
             }
         }
         using (var read = database.CreateCommand())
@@ -3129,19 +3168,8 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
                 }
 
                 if (accepted is not null)
-                {
-                    try
-                    {
-                        RecordEnvelope.AtomicWrite(GetMonitoringReportPath(accepted.Id),
-                            MonitoringReport.Render(accepted), overwrite: true);
-                    }
-                    catch (Exception error) when (error is IOException or UnauthorizedAccessException)
-                    {
-                        warnings.Add($"O registro final da sessão {accepted.Id:D} é válido, mas o relatório " +
-                            $"derivado não pôde ser regenerado ({error.GetType().Name}): {error.Message}. " +
-                            "Isso não invalida a sessão nem indica registro ilegível.");
-                    }
-                }
+                    TryWriteDerivedReport(accepted.Id, GetMonitoringReportPath(accepted.Id),
+                        () => MonitoringReport.Render(accepted), warnings, "O registro final da sessão", "a sessão");
             }
         }
 
@@ -3668,6 +3696,38 @@ public sealed partial class MemoryStore : IAuditStore, IAuditDiagnosticStore, IC
         if (references.Select(r => r.RecordId).Distinct().Count() != references.Length ||
             (!legacy && audit.Kind == AuditKind.Full && audit.Status == DiagnosticStatus.Completed && references.Length != 6))
             throw new InvalidDataException("Referências de evidência ausentes ou duplicadas.");
+    }
+
+    private static void TryWriteDerivedReport(
+        Guid id,
+        string reportPath,
+        Func<string> render,
+        List<string> warnings,
+        string recordLabel,
+        string pronounLabel = "o registro")
+    {
+        string content;
+        try
+        {
+            content = render();
+        }
+        catch (Exception error) when (error is InvalidDataException or InvalidOperationException
+            or ArgumentException or FormatException or NullReferenceException or IndexOutOfRangeException)
+        {
+            warnings.Add($"{recordLabel} {id:D} é válido, mas o relatório derivado não pôde ser renderizado " +
+                $"({error.GetType().Name}): {error.Message}. Isso não invalida {pronounLabel} nem indica registro ilegível.");
+            return;
+        }
+
+        try
+        {
+            RecordEnvelope.AtomicWrite(reportPath, content, overwrite: true);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            warnings.Add($"{recordLabel} {id:D} é válido, mas o relatório derivado não pôde ser regenerado " +
+                $"({error.GetType().Name}): {error.Message}. Isso não invalida {pronounLabel} nem indica registro ilegível.");
+        }
     }
 
     private static string CanonicalJson(AuditRecord audit) => JsonSerializer.Serialize(audit, AuditJson.Options).Replace("\r\n", "\n");

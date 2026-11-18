@@ -222,7 +222,7 @@ public partial class MainWindow
             text.AppendLine();
             text.AppendLine(Loc.T("Limitações"));
             foreach (var limitation in investigation.Limitations)
-                text.AppendLine(Loc.F($"• {limitation}"));
+                text.AppendLine("• " + Loc.Text(limitation));
         }
         return text.ToString();
     }
@@ -244,14 +244,14 @@ public partial class MainWindow
             text.AppendLine(Loc.F($"{Loc.T(CorrelationGuidance.SourceName(source.Source))}: {CorrelationSourceStatusName(source.Status)} · ") +
                 Loc.F($"{source.RecordsRead} lido(s) · {source.RecordsUsed} usado(s) · {source.EvidenceCount} referência(s)"));
             if (source.Note is not null) text.AppendLine(Loc.F($"  {source.Note}"));
-            foreach (var limitation in source.Limitations) text.AppendLine(Loc.F($"  Limitação: {limitation}"));
+            foreach (var limitation in source.Limitations) text.AppendLine(Loc.T("  Limitação: ") + Loc.Text(limitation));
         }
         if (investigation.Limitations.Count > 0)
         {
             text.AppendLine();
             text.AppendLine(Loc.T("Limitações da investigação"));
             foreach (var limitation in investigation.Limitations)
-                text.AppendLine(Loc.F($"• {limitation}"));
+                text.AppendLine("• " + Loc.Text(limitation));
         }
         return text.ToString();
     }
@@ -266,7 +266,7 @@ public partial class MainWindow
         var sources = SelectedCorrelationSources();
         if (sources == CorrelationSources.None)
         {
-            ShowWarning(Loc.T("Selecione ao menos uma fonte para correlacionar."));
+            ShowWarning(() => Loc.T("Selecione ao menos uma fonte para correlacionar."));
             return;
         }
 
@@ -454,7 +454,7 @@ public partial class MainWindow
         {
             text.AppendLine();
             text.AppendLine(Loc.T("Limitações"));
-            foreach (var limitation in relation.Limitations) text.AppendLine(Loc.F($"• {limitation}"));
+            foreach (var limitation in relation.Limitations) text.AppendLine("• " + Loc.Text(limitation));
         }
         CorrelationRelationDetail.Text = text.ToString();
     }
@@ -497,7 +497,7 @@ public partial class MainWindow
         {
             text.AppendLine();
             text.AppendLine(Loc.T("Limitações"));
-            foreach (var limitation in evidence.Limitations) text.AppendLine(Loc.F($"• {limitation}"));
+            foreach (var limitation in evidence.Limitations) text.AppendLine("• " + Loc.Text(limitation));
         }
         CorrelationEvidenceDetail.Text = text.ToString();
     }
@@ -530,7 +530,7 @@ public partial class MainWindow
         }
         if (origin.Source == CorrelationSource.Tweaks)
         {
-            if (recoveryCenter is null || RecoverySection.IsBusy || tweaksBusy)
+            if (recoveryCenter is null || RecoverySection.IsBusy)
             {
                 CorrelationOriginStatus.Text = Loc.T("Histórico de personalização indisponível neste momento.");
                 return;
@@ -574,7 +574,7 @@ public partial class MainWindow
         catch (Exception error)
         {
             logFailure(error);
-            return "Não foi possível carregar o registro de origem. A página atual foi preservada.";
+            return Loc.T("Não foi possível carregar o registro de origem. A página atual foi preservada.");
         }
         return OpenDiagnosticRecord(source, id);
     }
@@ -600,11 +600,11 @@ public partial class MainWindow
             _ => null
         };
 
-        if (target is not { } destination) return "A fonte deste registro não está disponível para navegação.";
+        if (target is not { } destination) return Loc.T("A fonte deste registro não está disponível para navegação.");
         if (!destination.History.IsEnabled)
-            return "Aguarde a operação em andamento na página de origem e tente novamente.";
+            return Loc.T("Aguarde a operação em andamento na página de origem e tente novamente.");
         if (destination.Row is not { } record)
-            return "Registro de origem indisponível no histórico carregado.";
+            return Loc.T("Registro de origem indisponível no histórico carregado.");
 
         // Reaplica a seleção caso uma falha ao salvar tenha deixado outro resultado na tela.
         if (ReferenceEquals(destination.History.SelectedItem, record)) destination.History.SelectedItem = null;
@@ -634,11 +634,11 @@ public partial class MainWindow
         {
             text.AppendLine();
             text.AppendLine(Loc.T("Limitações da fonte"));
-            foreach (var limitation in source.Limitations) text.AppendLine(Loc.F($"• {limitation}"));
+            foreach (var limitation in source.Limitations) text.AppendLine("• " + Loc.Text(limitation));
         }
         text.AppendLine();
         text.AppendLine(Loc.T("Limitações da investigação"));
-        foreach (var limitation in investigation.Limitations) text.AppendLine(Loc.F($"• {limitation}"));
+        foreach (var limitation in investigation.Limitations) text.AppendLine("• " + Loc.Text(limitation));
         CorrelationCoverageDetail.Text = text.ToString();
     }
 
@@ -680,7 +680,7 @@ public partial class MainWindow
     {
         logFailure(error);
         correlationMessages.Set(nameof(CorrelationStatusText), () => CorrelationStatusText.Text = message() + ".");
-        ShowWarning(Loc.F($"{message()}. {error.GetType().Name}: {error.Message}"));
+        ShowWarning(() => Loc.F($"{message()}. {error.GetType().Name}: {error.Message}"));
     }
 
 }

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using SentinelCore.Domain;
 
 namespace SentinelCore.Application;
@@ -247,7 +246,7 @@ public sealed class MonitoringSessionRunner
                         continue;
                     }
                     reader.InFlight = null;
-                    var measured = Stopwatch.StartNew();
+                    var tickStarted = clock.GetTimestamp();
                     MonitoringTick tick;
                     var readAtUtc = clock.GetUtcNow().ToUniversalTime();
                     var readTask = reader.Session!.ReadAsync(readAtUtc, cancellationToken);
@@ -263,7 +262,6 @@ public sealed class MonitoringSessionRunner
                     }
                     catch (TimeoutException)
                     {
-                        measured.Stop();
                         Observe(readTask);
                         reader.InFlight = readTask;
                         reader.Primary.BudgetExceeded = true;
@@ -285,7 +283,6 @@ public sealed class MonitoringSessionRunner
                     }
                     catch (Exception error)
                     {
-                        measured.Stop();
                         Observe(readTask);
                         reader.InFlight = null;
                         reader.Failures++;
@@ -298,15 +295,15 @@ public sealed class MonitoringSessionRunner
                     }
 
                     reader.InFlight = null;
-                    measured.Stop();
-                    var milliseconds = measured.Elapsed.TotalMilliseconds;
+                    var tickElapsed = clock.GetElapsedTime(tickStarted);
+                    var milliseconds = tickElapsed.TotalMilliseconds;
                     run.TickSamples++;
                     run.MeanTickMilliseconds += milliseconds;
                     run.MaxTickMilliseconds = Math.Max(run.MaxTickMilliseconds, milliseconds);
                     reader.Primary.CollectedTicks++;
                     if (reader.Secondary is { } secondary) secondary.CollectedTicks++;
 
-                    if (measured.Elapsed > limits.MaxCollectorTick)
+                    if (tickElapsed > limits.MaxCollectorTick)
                     {
                         reader.Primary.BudgetExceeded = true;
                         reader.Primary.Missed++;

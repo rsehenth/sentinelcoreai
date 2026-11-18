@@ -223,7 +223,7 @@ public partial class MainWindow
 
         text.AppendLine();
         text.AppendLine(Loc.T("Limitações"));
-        foreach (var limitation in session.Limitations) text.AppendLine(Loc.F($"• {limitation}"));
+        foreach (var limitation in session.Limitations) text.AppendLine("• " + Loc.Text(limitation));
         return text.ToString();
     }
 
@@ -276,7 +276,7 @@ public partial class MainWindow
 
         text.AppendLine();
         text.AppendLine(Loc.T("Limitações"));
-        foreach (var limitation in incident.Limitations) text.AppendLine(Loc.F($"• {limitation}"));
+        foreach (var limitation in incident.Limitations) text.AppendLine("• " + Loc.Text(limitation));
         if (session?.Recovery.Recovered == true)
             text.AppendLine(Loc.T("• Sessão recuperada: incidentes em memória não puderam ser reconstituídos."));
         MonitoringIncidentDetail.Text = text.ToString();
@@ -327,13 +327,13 @@ public partial class MainWindow
         var sources = SelectedMonitoringSources();
         if (sources == MonitoringSources.None)
         {
-            ShowWarning(Loc.T("Selecione ao menos uma fonte para observar."));
+            ShowWarning(() => Loc.T("Selecione ao menos uma fonte para observar."));
             return;
         }
 
         if (MonitoringAuthorizationCheck.IsChecked != true)
         {
-            ShowWarning(Loc.T("O monitoramento exige autorização explícita. Marque a confirmação antes de iniciar."));
+            ShowWarning(() => Loc.T("O monitoramento exige autorização explícita. Marque a confirmação antes de iniciar."));
             return;
         }
 
@@ -459,7 +459,7 @@ public partial class MainWindow
     {
         if (!monitoringBusy || monitoringSaving || monitoringCancellation is null)
         {
-            ShowWarning(Loc.T("Registre um incidente somente durante uma sessão de monitoramento ativa."));
+            ShowWarning(() => Loc.T("Registre um incidente somente durante uma sessão de monitoramento ativa."));
             return;
         }
 
@@ -474,7 +474,7 @@ public partial class MainWindow
         {
             if (!monitoringRunner.TryRecordIncident(request, out var incident) || incident is null)
             {
-                ShowWarning(Loc.T("O incidente não foi registrado: a sessão não está ativa ou o limite foi atingido."));
+                ShowWarning(() => Loc.T("O incidente não foi registrado: a sessão não está ativa ou o limite foi atingido."));
                 return;
             }
 
@@ -556,7 +556,7 @@ public partial class MainWindow
             return;
         if (MonitoringIncidentList.SelectedItem is not MonitoringIncidentRow row)
         {
-            ShowWarning(Loc.T("Selecione um incidente registrado para solicitar a correlação direcionada."));
+            ShowWarning(() => Loc.T("Selecione um incidente registrado para solicitar a correlação direcionada."));
             return;
         }
 
@@ -566,7 +566,7 @@ public partial class MainWindow
         if (to > DateTimeOffset.UtcNow) to = DateTimeOffset.UtcNow;
         if (from >= to)
         {
-            ShowWarning(Loc.T("A janela do incidente é inválida; nenhuma correlação foi executada."));
+            ShowWarning(() => Loc.T("A janela do incidente é inválida; nenhuma correlação foi executada."));
             return;
         }
 
@@ -631,7 +631,7 @@ public partial class MainWindow
     {
         logFailure(error);
         monitoringMessages.Set(nameof(MonitoringStatusText), () => MonitoringStatusText.Text = message() + ".");
-        ShowWarning(Loc.F($"{message()}. {error.GetType().Name}: {error.Message}"));
+        ShowWarning(() => Loc.F($"{message()}. {error.GetType().Name}: {error.Message}"));
     }
 
 }

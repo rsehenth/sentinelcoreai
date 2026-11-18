@@ -5,8 +5,7 @@ using System.Windows.Media;
 using SentinelCore.Application;
 using SentinelCore.Domain;
 using SentinelCore.Infrastructure.Modifications;
-using SentinelCore.Infrastructure.Debloat;
-using SentinelCore.Infrastructure.Debloat.Native;
+using SentinelCore.Infrastructure.AppsStartup;
 using SentinelCore.Infrastructure.Repairs;
 using SentinelCore.Infrastructure.Windows;
 using SentinelCore.Infrastructure.Windows.Monitoring;
@@ -96,15 +95,16 @@ public partial class App : System.Windows.Application
                 hkcuContext: realTweaksEnabled ? HkcuContext.ReadHash : null);
             var tweakRecovery = new RecoveryService(store, tweakReader, tweakExecutor, transactionLocks,
                 catalog: tweakCatalog, confirmationPolicy: new TweakRecoveryConfirmationPolicy(), hkcuEngine: tweakEngine);
+            // Sem página de Personalização: o gerenciador só serve ao Centro de Recuperação (histórico legado; escrita real desabilitada).
             var tweakManager = new TweakManager(tweakCatalog, tweakEngine, tweakRecovery, store,
                 realTweaksEnabled ? TweakExecutionMode.RealControlled : TweakExecutionMode.RealDisabled);
 
-            // The native observer is read-only and queried from Debloat on request. Simulations keep their fixture inputs.
-            var debloatCatalog = DebloatCatalog.CreateDefault();
-            var debloatInventory = SyntheticDebloatInventory.Create(debloatCatalog.All);
-            var debloatManager = new DebloatManager(debloatCatalog, debloatInventory,
-                new SyntheticDebloatRuntimeFactory(debloatInventory), store.CreateDebloatJournal(), transactionLocks);
-            var debloatObserver = new DebloatInventoryObserver(debloatCatalog, new NativeAppxInventoryReader());
+            // Aplicativos e Inicialização: somente provedores/executores sintéticos. Os gates StartupModificationBuildGate e
+            // ApplicationUninstallBuildGate estão fechados; nenhum executor operacional é composto.
+            var syntheticStartup = SyntheticStartupStore.CreateDefault();
+            var syntheticApps = SyntheticApplicationStore.CreateDefault();
+            var appsStartupManager = new AppsStartupManager(syntheticStartup, syntheticApps, syntheticStartup, syntheticApps,
+                operationStore: store);
 
             // R1 — Windows Repair Center. Nenhum executor real é composto: o gate é independente do Tweaks
             // e a execução disponível é exclusivamente sintética, com fixtures marcadas.
@@ -122,9 +122,9 @@ public partial class App : System.Windows.Application
             MainWindow = new MainWindow(new AuditRunner(WindowsCollectors.CreateBasic(), full: fullAudit, checkpoints: store),
                 hardwareRunner, eventRunner,
                 performanceRunner, networkRunner, graphicsRunner, correlationRunner, monitoringRunner,
-                tweakManager, repairManager, store, store, store, store, store, store, store, store,
-                debloat: debloatManager, recovery: new RecoveryCenter(store, tweaks: tweakManager),
-                debloatObserver: debloatObserver, operations: new ProductOperationCoordinator(transactionLocks));
+                repairManager, store, store, store, store, store, store, store, store,
+                recovery: new RecoveryCenter(store, tweaks: tweakManager),
+                operations: new ProductOperationCoordinator(transactionLocks), appsStartup: appsStartupManager);
             MainWindow.Show();
         }
         catch (Exception error)
